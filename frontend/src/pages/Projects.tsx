@@ -1,0 +1,814 @@
+import { useState, useEffect } from 'react'
+import {
+  Typography,
+  Button,
+  Table,
+  Space,
+  Modal,
+  Form,
+  Input,
+  Alert,
+  Card,
+  Descriptions,
+  Upload,
+  message,
+  Spin
+} from 'antd'
+import {
+  PlusOutlined,
+  FileOutlined,
+  UploadOutlined,
+  FilePdfOutlined,
+  DownloadOutlined,
+  EyeOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  UserOutlined
+} from '@ant-design/icons'
+import type { ColumnsType } from 'antd/es/table'
+import type { UploadFile } from 'antd/es/upload/interface'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { projectsAPI } from '../api/projects'
+import { usersAPI, User } from '../api/users'
+import { useAuthStore } from '../stores/authStore'
+
+const { Title, Text } = Typography
+const { TextArea } = Input
+
+interface Drawing {
+  id: number
+  file: string
+  file_name: string
+  uploaded_by_full_name: string
+  uploaded_by_role: string
+  created_at: string
+}
+
+interface Project {
+  id: number
+  name: string
+  address: string
+  is_active: boolean
+  drawings?: Drawing[]
+}
+
+const Projects = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isDrawingModalOpen, setIsDrawingModalOpen] = useState(false)
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+  const [isPersonnelModalOpen, setIsPersonnelModalOpen] = useState(false)
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null)
+  const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const [fileList, setFileList] = useState<UploadFile[]>([])
+  const [form] = Form.useForm()
+  const queryClient = useQueryClient()
+
+  // Получаем текущего пользователя из authStore
+  const { user } = useAuthStore()
+
+  // Функция проверки прав на управление объектами и чертежами
+  // Права есть у: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер ПТО
+  const canManageProjects = () => {
+    if (!user) return false
+    if (user.is_superuser) return true
+
+    const allowedRoles = [
+      'DIRECTOR',            // Директор
+      'CHIEF_ENGINEER',      // Главный инженер
+      'PROJECT_MANAGER',     // Руководитель проекта
+      'SITE_MANAGER',        // Начальник участка
+      'ENGINEER'             // Инженер ПТО
+    ]
+
+    return allowedRoles.includes(user.role)
+  }
+
+  // Fetch projects with better error handling
+  const { data, isLoading, error, isError } = useQuery({
+    queryKey: ['projects'],
+    queryFn: async () => {
+      try {
+        const result = await projectsAPI.getProjects()
+        console.log('Projects loaded:', result)
+        return result
+      } catch (err) {
+        console.error('Failed to load projects:', err)
+        throw err
+      }
+    },
+    retry: 1,
+    staleTime: 30000
+  })
+
+  // Safely extract projects from data
+  const projects: Project[] = Array.isArray(data) ? data : (data?.results || [])
+
+  // Fetch users for personnel column
+  const { data: usersData } = useQuery({
+    queryKey: ['users'],
+    queryFn: usersAPI.getUsers,
+    retry: 1,
+    staleTime: 30000
+  })
+
+  // Safely extract users from data
+  const users: User[] = Array.isArray(usersData) ? usersData : (usersData?.results || [])
+
+  useEffect(() => {
+    console.log('Projects state:', { projects, isLoading, isError, error })
+  }, [projects, isLoading, isError, error])
+
+  // Create project mutation
+  const createProjectMutation = useMutation({
+    mutationFn: projectsAPI.createProject,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      message.success(`Объект "${data.name}" успешно добавлен`)
+      form.resetFields()
+      setIsModalOpen(false)
+    },
+    onError: (error: any) => {
+      console.error('Failed to create project:', error)
+      message.error('Ошибка при создании объекта')
+    }
+  })
+
+  // Update project mutation
+  const updateProjectMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number, data: any }) => projectsAPI.updateProject(id, data),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      message.success(`Объект "${data.name}" успешно обновлён`)
+      form.resetFields()
+      setIsModalOpen(false)
+      setEditingProject(null)
+    },
+    onError: (error: any) => {
+      console.error('Failed to update project:', error)
+      message.error('Ошибка при обновлении объекта')
+    }
+  })
+
+  // Delete project mutation
+  const deleteProjectMutation = useMutation({
+    mutationFn: projectsAPI.deleteProject,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      message.success('Объект успешно удалён')
+    },
+    onError: (error: any) => {
+      console.error('Failed to delete project:', error)
+      message.error('Ошибка при удалении объекта')
+    }
+  })
+
+  // Delete drawing mutation
+  const deleteDrawingMutation = useMutation({
+    mutationFn: projectsAPI.deleteDrawing,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      message.success('Чертёж успешно удалён')
+    },
+    onError: (error: any) => {
+      console.error('Failed to delete drawing:', error)
+      message.error('Ошибка при удалении чертежа')
+    }
+  })
+
+  // Upload drawing mutation
+  const uploadDrawingMutation = useMutation({
+    mutationFn: ({ projectId, file, fileName }: { projectId: number, file: File, fileName: string }) =>
+      projectsAPI.uploadDrawing(projectId, file, fileName),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+    },
+    onError: (error: any) => {
+      console.error('Failed to upload drawing:', error)
+    }
+  })
+
+  const showDrawings = (project: Project) => {
+    console.log('Opening drawings for project:', project)
+    setSelectedProject(project)
+    setIsDrawingModalOpen(true)
+  }
+
+  const showPersonnel = (project: Project) => {
+    console.log('Opening personnel for project:', project)
+    setSelectedProject(project)
+    setIsPersonnelModalOpen(true)
+  }
+
+  const handlePersonnelModalCancel = () => {
+    setIsPersonnelModalOpen(false)
+    setSelectedProject(null)
+  }
+
+  const handleAddProject = () => {
+    setEditingProject(null)
+    form.resetFields()
+    setIsModalOpen(true)
+  }
+
+  const handleEditProject = (project: Project) => {
+    setEditingProject(project)
+    form.setFieldsValue({
+      name: project.name,
+      address: project.address,
+      description: (project as any).description || ''
+    })
+    setIsModalOpen(true)
+  }
+
+  const handleDeleteProject = (project: Project) => {
+    Modal.confirm({
+      title: 'Удалить объект?',
+      content: `Вы уверены, что хотите удалить объект "${project.name}"? Это действие нельзя отменить.`,
+      okText: 'Удалить',
+      okType: 'danger',
+      cancelText: 'Отмена',
+      onOk: () => {
+        deleteProjectMutation.mutate(project.id)
+      }
+    })
+  }
+
+  const handleModalOk = () => {
+    form.validateFields().then((values) => {
+      if (editingProject) {
+        // Обновление существующего объекта
+        updateProjectMutation.mutate({
+          id: editingProject.id,
+          data: {
+            name: values.name,
+            address: values.address,
+            description: values.description
+          }
+        })
+      } else {
+        // Создание нового объекта
+        createProjectMutation.mutate({
+          name: values.name,
+          address: values.address,
+          description: values.description,
+          is_active: true
+        })
+      }
+    }).catch((err) => {
+      console.error('Form validation failed:', err)
+      message.error('Пожалуйста, заполните все обязательные поля')
+    })
+  }
+
+  const handleModalCancel = () => {
+    form.resetFields()
+    setIsModalOpen(false)
+    setEditingProject(null)
+  }
+
+  const handleDrawingModalCancel = () => {
+    setIsDrawingModalOpen(false)
+    setSelectedProject(null)
+  }
+
+  const handleAddDrawing = () => {
+    setIsUploadModalOpen(true)
+  }
+
+  const handleUploadModalOk = async () => {
+    if (fileList.length === 0) {
+      message.error('Пожалуйста, выберите PDF файл')
+      return
+    }
+
+    if (!selectedProject) {
+      message.error('Проект не выбран')
+      return
+    }
+
+    try {
+      // Upload all files
+      const uploads = fileList.map(file => {
+        const originalFile = file.originFileObj as File
+        return uploadDrawingMutation.mutateAsync({
+          projectId: selectedProject.id,
+          file: originalFile,
+          fileName: file.name
+        })
+      })
+
+      await Promise.all(uploads)
+
+      message.success(`Добавлено чертежей: ${fileList.length}`)
+      setFileList([])
+      setIsUploadModalOpen(false)
+
+      // Refresh selected project to show new drawings
+      const updatedProjects: any = await queryClient.fetchQuery({
+        queryKey: ['projects']
+      })
+      const projectsList = Array.isArray(updatedProjects) ? updatedProjects : (updatedProjects?.results || [])
+      const updatedProject = projectsList.find((p: Project) => p.id === selectedProject.id)
+      if (updatedProject) {
+        setSelectedProject(updatedProject)
+      }
+    } catch (error) {
+      console.error('Upload failed:', error)
+      message.error('Ошибка при загрузке чертежей')
+    }
+  }
+
+  const handleUploadModalCancel = () => {
+    setFileList([])
+    setIsUploadModalOpen(false)
+  }
+
+  const handleViewDrawing = (fileUrl: string) => {
+    // Открыть PDF в новой вкладке
+    const fullUrl = fileUrl.startsWith('http') ? fileUrl : `http://localhost:8001${fileUrl}`
+    window.open(fullUrl, '_blank')
+  }
+
+  const handleDownloadDrawing = async (fileUrl: string, fileName: string) => {
+    try {
+      const fullUrl = fileUrl.startsWith('http') ? fileUrl : `http://localhost:8001${fileUrl}`
+
+      // Скачать файл
+      const response = await fetch(fullUrl)
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = fileName
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+
+      message.success('Файл успешно скачан')
+    } catch (error) {
+      console.error('Download failed:', error)
+      message.error('Ошибка при скачивании файла')
+    }
+  }
+
+  const handleDeleteDrawing = (drawing: Drawing) => {
+    Modal.confirm({
+      title: 'Удалить чертёж?',
+      content: `Вы уверены, что хотите удалить чертёж "${drawing.file_name}"? Это действие нельзя отменить.`,
+      okText: 'Удалить',
+      okType: 'danger',
+      cancelText: 'Отмена',
+      onOk: async () => {
+        await deleteDrawingMutation.mutateAsync(drawing.id)
+        // Обновляем выбранный проект после удаления чертежа
+        if (selectedProject) {
+          const updatedProjects: any = await queryClient.fetchQuery({
+            queryKey: ['projects']
+          })
+          const projectsList = Array.isArray(updatedProjects) ? updatedProjects : (updatedProjects?.results || [])
+          const updatedProject = projectsList.find((p: Project) => p.id === selectedProject.id)
+          if (updatedProject) {
+            setSelectedProject(updatedProject)
+          }
+        }
+      }
+    })
+  }
+
+  const uploadProps = {
+    fileList,
+    beforeUpload: (file: File) => {
+      const isPDF = file.type === 'application/pdf'
+      if (!isPDF) {
+        message.error('Можно загружать только PDF файлы!')
+        return false
+      }
+
+      const uploadFile: UploadFile = {
+        uid: `${Date.now()}-${Math.random()}`,
+        name: file.name,
+        status: 'done' as const,
+        originFileObj: file as any
+      }
+
+      setFileList([...fileList, uploadFile])
+      return false
+    },
+    onRemove: (file: UploadFile) => {
+      setFileList(fileList.filter(f => f.uid !== file.uid))
+    },
+    accept: '.pdf'
+  }
+
+  const columns: ColumnsType<Project> = [
+    {
+      title: 'Название объекта',
+      dataIndex: 'name',
+      key: 'name',
+    },
+    {
+      title: 'Адрес',
+      dataIndex: 'address',
+      key: 'address',
+    },
+    {
+      title: 'Создал',
+      dataIndex: 'project_manager_name',
+      key: 'project_manager_name',
+      render: (name: string) => name || 'Не указан',
+    },
+    {
+      title: 'Дата создания',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (date: string) => {
+        if (!date) return '-'
+        const d = new Date(date)
+        return d.toLocaleDateString('ru-RU', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      },
+    },
+    {
+      title: 'Персонал',
+      key: 'personnel',
+      render: (_: any, record: Project) => {
+        // Фильтруем пользователей: ИТР и Руководство, привязанные к этому проекту
+        const ITR_ROLES = ['ENGINEER', 'SITE_MANAGER', 'FOREMAN', 'MASTER']
+        const MANAGEMENT_ROLES = ['PROJECT_MANAGER', 'CHIEF_ENGINEER', 'DIRECTOR']
+        const allowedRoles = [...ITR_ROLES, ...MANAGEMENT_ROLES]
+
+        const projectUsers = users.filter(user =>
+          allowedRoles.includes(user.role) &&
+          user.user_projects?.some(project => project.id === record.id)
+        )
+
+        const count = projectUsers.length
+
+        return (
+          <Space>
+            <Button
+              icon={<UserOutlined />}
+              onClick={() => showPersonnel(record)}
+            >
+              Персонал ({count})
+            </Button>
+          </Space>
+        )
+      },
+    },
+    {
+      title: 'Чертежи',
+      key: 'drawings',
+      render: (_, record) => {
+        const count = record.drawings?.length || 0
+        return (
+          <Space>
+            <Button
+              icon={<FileOutlined />}
+              onClick={() => showDrawings(record)}
+            >
+              Чертежи ({count})
+            </Button>
+          </Space>
+        )
+      },
+    },
+    {
+      title: 'Действия',
+      key: 'actions',
+      render: (_, record) => {
+        // Кнопки "Редактировать" и "Удалить" видны только пользователям с правами управления
+        if (!canManageProjects()) {
+          return null
+        }
+
+        return (
+          <Space>
+            <Button
+              icon={<EditOutlined />}
+              onClick={() => handleEditProject(record)}
+              size="small"
+            >
+              Редактировать
+            </Button>
+            <Button
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDeleteProject(record)}
+              size="small"
+            >
+              Удалить
+            </Button>
+          </Space>
+        )
+      },
+    },
+  ]
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px' }}>
+        <Spin size="large" />
+        <div style={{ marginTop: '20px' }}>Загрузка объектов...</div>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (isError) {
+    return (
+      <div>
+        <Title level={2}>Проекты</Title>
+        <Alert
+          message="Ошибка загрузки данных"
+          description={`Не удалось загрузить список объектов. ${error?.message || 'Проверьте подключение к серверу.'}`}
+          type="error"
+          showIcon
+          style={{ marginBottom: '16px' }}
+        />
+        <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['projects'] })}>
+          Повторить попытку
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ flex: 1 }}>
+          <Title level={2}>Проекты</Title>
+          <Alert
+            message="Чертежи в формате PDF"
+            description="В этом разделе можно добавлять чертежи в формате PDF. К каждому чертежу будет автоматически добавлена информация о том, кто его добавил (ФИО, Должность, Отдел) и дата добавления."
+            type="info"
+            icon={<FilePdfOutlined />}
+            showIcon
+            style={{ marginBottom: '16px' }}
+          />
+        </div>
+        {/* Кнопка "Добавить объект" видна только пользователям с правами управления */}
+        {canManageProjects() && (
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            size="large"
+            onClick={handleAddProject}
+            style={{ marginLeft: '16px' }}
+          >
+            Добавить объект
+          </Button>
+        )}
+      </div>
+
+      <Table
+        columns={columns}
+        dataSource={projects}
+        rowKey="id"
+        loading={isLoading}
+        pagination={{ pageSize: 10 }}
+        locale={{
+          emptyText: 'Нет объектов. Нажмите "Добавить объект" чтобы создать новый.'
+        }}
+      />
+
+      {/* Модальное окно добавления/редактирования объекта */}
+      <Modal
+        title={editingProject ? "Редактировать объект" : "Добавить новый объект"}
+        open={isModalOpen}
+        onOk={handleModalOk}
+        onCancel={handleModalCancel}
+        okText={editingProject ? "Сохранить" : "Добавить"}
+        cancelText="Отмена"
+        confirmLoading={createProjectMutation.isPending || updateProjectMutation.isPending}
+        width={600}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          name="add_project"
+        >
+          <Form.Item
+            name="name"
+            label="Название объекта"
+            rules={[{ required: true, message: 'Введите название объекта' }]}
+          >
+            <Input placeholder="Например: ЖК Восход" />
+          </Form.Item>
+
+          <Form.Item
+            name="address"
+            label="Адрес"
+            rules={[{ required: true, message: 'Введите адрес объекта' }]}
+          >
+            <Input placeholder="Например: ул. Ленина, 123" />
+          </Form.Item>
+
+          <Form.Item
+            name="description"
+            label="Описание"
+          >
+            <TextArea rows={4} placeholder="Краткое описание объекта" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Модальное окно просмотра чертежей */}
+      <Modal
+        title={`Чертежи объекта: ${selectedProject?.name || ''}`}
+        open={isDrawingModalOpen}
+        onCancel={handleDrawingModalCancel}
+        footer={[
+          <Button key="close" onClick={handleDrawingModalCancel}>
+            Закрыть
+          </Button>,
+          // Кнопка "Добавить чертёж" видна только пользователям с правами управления
+          ...(canManageProjects() ? [
+            <Button
+              key="add"
+              type="primary"
+              icon={<UploadOutlined />}
+              onClick={handleAddDrawing}
+            >
+              Добавить чертёж
+            </Button>
+          ] : [])
+        ]}
+        width={800}
+      >
+        {!selectedProject || !selectedProject.drawings || selectedProject.drawings.length === 0 ? (
+          <Alert
+            message="Нет чертежей"
+            description="Для этого объекта пока не добавлено ни одного чертежа. Нажмите кнопку 'Добавить чертёж', чтобы загрузить PDF-файл."
+            type="warning"
+            showIcon
+          />
+        ) : (
+          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+            {selectedProject.drawings.map((drawing) => (
+              <Card
+                key={drawing.id}
+                size="small"
+                title={
+                  <Space>
+                    <FilePdfOutlined style={{ color: '#ff4d4f' }} />
+                    <Text strong>{drawing.file_name}</Text>
+                  </Space>
+                }
+                extra={
+                  <Space>
+                    <Button
+                      type="primary"
+                      icon={<EyeOutlined />}
+                      onClick={() => handleViewDrawing(drawing.file)}
+                      size="small"
+                    >
+                      Открыть
+                    </Button>
+                    <Button
+                      icon={<DownloadOutlined />}
+                      onClick={() => handleDownloadDrawing(drawing.file, drawing.file_name)}
+                      size="small"
+                    >
+                      Скачать
+                    </Button>
+                    {/* Кнопка "Удалить чертёж" видна только пользователям с правами управления */}
+                    {canManageProjects() && (
+                      <Button
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => handleDeleteDrawing(drawing)}
+                        size="small"
+                      >
+                        Удалить
+                      </Button>
+                    )}
+                  </Space>
+                }
+              >
+                <Descriptions column={1} size="small">
+                  <Descriptions.Item label="Кто добавил">
+                    {drawing.uploaded_by_full_name} · {drawing.uploaded_by_role}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Дата добавления">
+                    {new Date(drawing.created_at).toLocaleDateString('ru-RU')}
+                  </Descriptions.Item>
+                </Descriptions>
+              </Card>
+            ))}
+          </Space>
+        )}
+      </Modal>
+
+      {/* Модальное окно загрузки чертежей */}
+      <Modal
+        title="Загрузить чертежи (PDF)"
+        open={isUploadModalOpen}
+        onOk={handleUploadModalOk}
+        onCancel={handleUploadModalCancel}
+        okText="Загрузить"
+        cancelText="Отмена"
+        confirmLoading={uploadDrawingMutation.isPending}
+      >
+        <Alert
+          message="Требования к файлам"
+          description="Загружайте только файлы в формате PDF. Размер файла не ограничен."
+          type="info"
+          showIcon
+          style={{ marginBottom: '16px' }}
+        />
+        <Upload.Dragger {...uploadProps} multiple>
+          <p className="ant-upload-drag-icon">
+            <FilePdfOutlined style={{ color: '#ff4d4f', fontSize: '48px' }} />
+          </p>
+          <p className="ant-upload-text">Нажмите или перетащите PDF файлы</p>
+          <p className="ant-upload-hint">
+            Поддерживается загрузка одного или нескольких файлов одновременно
+          </p>
+        </Upload.Dragger>
+      </Modal>
+
+      {/* Модальное окно списка персонала */}
+      <Modal
+        title={`Персонал объекта: ${selectedProject?.name || ''}`}
+        open={isPersonnelModalOpen}
+        onCancel={handlePersonnelModalCancel}
+        footer={[
+          <Button key="close" onClick={handlePersonnelModalCancel}>
+            Закрыть
+          </Button>
+        ]}
+        width={700}
+      >
+        {(() => {
+          if (!selectedProject) return null
+
+          // Фильтруем пользователей: ИТР и Руководство, привязанные к этому проекту
+          const ITR_ROLES = ['ENGINEER', 'SITE_MANAGER', 'FOREMAN', 'MASTER']
+          const MANAGEMENT_ROLES = ['PROJECT_MANAGER', 'CHIEF_ENGINEER', 'DIRECTOR']
+          const allowedRoles = [...ITR_ROLES, ...MANAGEMENT_ROLES]
+
+          const projectUsers = users.filter(user =>
+            allowedRoles.includes(user.role) &&
+            user.user_projects?.some(project => project.id === selectedProject.id)
+          )
+
+          if (projectUsers.length === 0) {
+            return (
+              <Alert
+                message="Нет персонала"
+                description="Для этого объекта пока не назначен ни один сотрудник из категорий ИТР и Руководство."
+                type="warning"
+                showIcon
+              />
+            )
+          }
+
+          // Получаем названия ролей
+          const getRoleLabel = (role: string) => {
+            const roleLabels: { [key: string]: string } = {
+              'ENGINEER': 'Инженер ПТО',
+              'SITE_MANAGER': 'Начальник участка',
+              'FOREMAN': 'Прораб',
+              'MASTER': 'Мастер',
+              'PROJECT_MANAGER': 'Руководитель проекта',
+              'CHIEF_ENGINEER': 'Главный инженер',
+              'DIRECTOR': 'Директор'
+            }
+            return roleLabels[role] || role
+          }
+
+          return (
+            <Space direction="vertical" style={{ width: '100%' }} size="small">
+              {projectUsers.map((user) => (
+                <Card
+                  key={user.id}
+                  size="small"
+                  bodyStyle={{ padding: '12px' }}
+                >
+                  <div style={{ marginBottom: '4px' }}>
+                    <Text strong>
+                      {user.last_name} {user.first_name} - {user.position || getRoleLabel(user.role)}
+                    </Text>
+                  </div>
+                  <div style={{ color: '#666' }}>
+                    {user.phone || 'Телефон не указан'} - {user.email}
+                  </div>
+                </Card>
+              ))}
+            </Space>
+          )
+        })()}
+      </Modal>
+    </div>
+  )
+}
+
+export default Projects

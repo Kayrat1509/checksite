@@ -1,0 +1,313 @@
+.landing-layout {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.landing-header {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 0 50px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.landing-header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 64px;
+}
+
+.landing-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.landing-logo-text {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1890ff;
+  letter-spacing: -0.5px;
+}
+
+.landing-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Героическая секция */
+.hero-section {
+  padding: 100px 0;
+  min-height: 600px;
+  display: flex;
+  align-items: center;
+}
+
+.hero-title {
+  font-size: 56px !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+  margin-bottom: 24px !important;
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-description {
+  font-size: 20px !important;
+  color: #666 !important;
+  line-height: 1.6 !important;
+  margin-bottom: 0 !important;
+}
+
+/* Общие секции */
+.steps-section,
+.advantages-section,
+.dashboard-section,
+.workflow-section,
+.mobile-section {
+  padding: 80px 0;
+}
+
+/* Секция шагов */
+.steps-section {
+  background: white;
+  border-radius: 16px;
+  padding: 60px;
+  margin: 40px 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Карточки преимуществ */
+.advantage-card {
+  height: 100%;
+  border-radius: 12px;
+  text-align: center;
+  transition: all 0.3s ease;
+  border: 1px solid #e8e8e8;
+}
+
+.advantage-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+}
+
+.advantage-icon {
+  font-size: 48px;
+  color: #1890ff;
+  margin-bottom: 16px;
+}
+
+/* Dashboard карточки */
+.dashboard-card {
+  height: 100%;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.dashboard-list li {
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.dashboard-list li:last-child {
+  border-bottom: none;
+}
+
+.dashboard-list li:before {
+  content: "✓ ";
+  color: #52c41a;
+  font-weight: bold;
+  margin-right: 8px;
+}
+
+/* Workflow секция */
+.workflow-section {
+  background: white;
+  border-radius: 16px;
+  padding: 60px;
+  margin: 40px 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Статусы */
+.status-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-badge {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-new {
+  background: #8c8c8c;
+}
+
+.status-process {
+  background: #1890ff;
+}
+
+.status-review {
+  background: #faad14;
+}
+
+.status-done {
+  background: #52c41a;
+}
+
+.status-overdue {
+  background: #ff4d4f;
+}
+
+/* Мобильная секция */
+.mobile-section {
+  background: white;
+  border-radius: 16px;
+  padding: 60px;
+  margin: 40px 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.mobile-feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.mobile-icon {
+  font-size: 32px;
+  color: #1890ff;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+  background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%);
+  padding: 40px;
+  border-radius: 12px;
+}
+
+/* Призыв к действию */
+.cta-section {
+  padding: 80px 0;
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  border-radius: 16px;
+  margin: 40px 0;
+  color: white;
+}
+
+.cta-section h2 {
+  color: white !important;
+  margin-bottom: 16px !important;
+}
+
+.cta-section p {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Футер */
+.landing-footer {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  margin-top: 0;
+  padding: 60px 50px;
+}
+
+/* Адаптивность */
+@media (max-width: 992px) {
+  .steps-section,
+  .workflow-section,
+  .mobile-section {
+    padding: 40px 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .landing-header {
+    padding: 0 20px;
+  }
+
+  .landing-header-content {
+    flex-direction: row;
+  }
+
+  .landing-logo-text {
+    font-size: 20px;
+  }
+
+  .hero-section {
+    padding: 60px 0 40px;
+    min-height: auto;
+  }
+
+  .hero-title {
+    font-size: 32px !important;
+  }
+
+  .hero-description {
+    font-size: 16px !important;
+  }
+
+  .steps-section,
+  .advantages-section,
+  .dashboard-section,
+  .workflow-section,
+  .mobile-section {
+    padding: 40px 0;
+  }
+
+  .cta-section {
+    padding: 40px 20px;
+  }
+
+  .landing-footer {
+    padding: 40px 20px;
+  }
+}
+
+@media (max-width: 576px) {
+  .landing-header-content {
+    gap: 8px;
+  }
+
+  .landing-logo {
+    gap: 8px;
+  }
+
+  .landing-logo span {
+    display: none;
+  }
+
+  .hero-title {
+    font-size: 28px !important;
+  }
+
+  .hero-description {
+    font-size: 14px !important;
+  }
+}

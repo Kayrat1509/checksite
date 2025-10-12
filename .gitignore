@@ -1,0 +1,68 @@
+# ==========================
+# 🐍 Python / Django
+# ==========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+*.log
+db.sqlite3
+db.sqlite3-journal
+
+# Django collected static/media
+/media/
+staticfiles/
+static_volume/
+media_volume/
+
+# ==========================
+# 🔐 Environment
+# ==========================
+.env
+.env.*
+!.env.example   # <-- сохраняем пример
+
+# ==========================
+# 💻 IDE / OS
+# ==========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ==========================
+# 🐳 Docker
+# ==========================
+*.pid
+postgres_data/
+logs/
+__docker__/
+*.pid.lock
+
+# ==========================
+# 🧱 Node / Frontend
+# ==========================
+node_modules/
+dist/
+build/
+.vite/
+*.local
+*.cache
+*.tsbuildinfo
+
+# ==========================
+# 🧪 Tests / Coverage
+# ==========================
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+.mypy_cache/
