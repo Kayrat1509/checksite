@@ -35,6 +35,11 @@ export const projectsAPI = {
     return response.data
   },
 
+  getProjectContractors: async (projectId: number) => {
+    const response = await axios.get(`/projects/projects/${projectId}/contractors/`)
+    return response.data
+  },
+
   // Drawing APIs
   getDrawings: async (projectId?: number) => {
     const params = projectId ? { project: projectId } : {}

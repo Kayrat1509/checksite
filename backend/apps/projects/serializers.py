@@ -87,11 +87,28 @@ class ProjectListSerializer(serializers.ModelSerializer):
     progress_percentage = serializers.FloatField(read_only=True)
     drawings = DrawingListSerializer(many=True, read_only=True)
 
+    # Получаем список подрядчиков для проекта
+    contractors = serializers.SerializerMethodField()
+
+    def get_contractors(self, obj):
+        """Возвращает список подрядчиков, назначенных на проект."""
+        contractors = obj.team_members.filter(role='CONTRACTOR')
+        return [
+            {
+                'id': contractor.id,
+                'full_name': contractor.get_full_name(),
+                'phone': contractor.phone,
+                'email': contractor.email,
+                'position': contractor.position,
+            }
+            for contractor in contractors
+        ]
+
     class Meta:
         model = Project
         fields = [
             'id', 'name', 'address', 'customer', 'project_manager_name',
-            'is_active', 'progress_percentage', 'drawings', 'created_at'
+            'is_active', 'progress_percentage', 'drawings', 'contractors', 'created_at'
         ]
 
 

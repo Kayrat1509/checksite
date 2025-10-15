@@ -127,6 +127,15 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         return Response(stats)
 
+    @action(detail=True, methods=['get'])
+    def contractors(self, request, pk=None):
+        """Get contractors assigned to this project."""
+        from apps.users.serializers import UserSerializer
+        project = self.get_object()
+        contractors = project.team_members.filter(role='CONTRACTOR')
+        serializer = UserSerializer(contractors, many=True)
+        return Response(serializer.data)
+
 
 class SiteViewSet(viewsets.ModelViewSet):
     """ViewSet for managing construction sites."""

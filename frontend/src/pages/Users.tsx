@@ -56,20 +56,48 @@ const Users = () => {
     retry: 1
   })
 
-  // Функция проверки прав на управление пользователями
-  // Права есть у: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер ПТО
-  const canManageUsers = () => {
+  // Функция проверки прав на ДОБАВЛЕНИЕ пользователей
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер ПТО, Прораб
+  const canAddUser = () => {
     if (!currentUser) return false
     if (currentUser.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER', 'FOREMAN']
+    return allowedRoles.includes(currentUser.role)
+  }
 
-    const allowedRoles = [
-      'DIRECTOR',           // Директор
-      'CHIEF_ENGINEER',     // Главный инженер
-      'PROJECT_MANAGER',    // Руководитель проекта
-      'SITE_MANAGER',       // Начальник участка
-      'ENGINEER'            // Инженер ПТО
-    ]
+  // Функция проверки прав на ОТКРЫТИЕ/ЗАКРЫТИЕ доступа
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Прораб
+  const canToggleAccess = () => {
+    if (!currentUser) return false
+    if (currentUser.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'FOREMAN']
+    return allowedRoles.includes(currentUser.role)
+  }
 
+  // Функция проверки прав на РЕДАКТИРОВАНИЕ пользователей
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер ПТО, Прораб
+  const canEditUser = () => {
+    if (!currentUser) return false
+    if (currentUser.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER', 'FOREMAN']
+    return allowedRoles.includes(currentUser.role)
+  }
+
+  // Функция проверки прав на ДЕАКТИВАЦИЮ пользователей
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка
+  const canDeactivateUser = () => {
+    if (!currentUser) return false
+    if (currentUser.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER']
+    return allowedRoles.includes(currentUser.role)
+  }
+
+  // Функция проверки прав на УДАЛЕНИЕ пользователей
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка
+  const canDeleteUserAction = () => {
+    if (!currentUser) return false
+    if (currentUser.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER']
     return allowedRoles.includes(currentUser.role)
   }
 
@@ -114,8 +142,10 @@ const Users = () => {
     staleTime: 30000
   })
 
-  // Safely extract users from data
-  const users: User[] = Array.isArray(data) ? data : (data?.results || [])
+  // Safely extract users from data and filter out contractors
+  // Подрядчики (CONTRACTOR) исключаются из списка обычных пользователей
+  const allUsers: User[] = Array.isArray(data) ? data : (data?.results || [])
+  const users: User[] = allUsers.filter(user => user.role !== 'CONTRACTOR')
 
   // Fetch projects for assignment
   const { data: projectsData, isLoading: projectsLoading } = useQuery({
@@ -484,8 +514,7 @@ const Users = () => {
     if (selectedRole === 'SUPERVISION') return ROLES.SUPERVISION
     if (selectedRole === 'AUTHOR_SUPERVISION') return ROLES.AUTHOR_SUPERVISION
     if (selectedRole === 'MANAGEMENT') return ROLES.MANAGEMENT
-    if (selectedRole === 'CONTRACTOR') return ROLES.CONTRACTOR
-    return [...ROLES.ITR, ...ROLES.SUPERVISION, ...ROLES.AUTHOR_SUPERVISION, ...ROLES.MANAGEMENT, ...ROLES.CONTRACTOR]
+    return [...ROLES.ITR, ...ROLES.SUPERVISION, ...ROLES.AUTHOR_SUPERVISION, ...ROLES.MANAGEMENT]
   }
 
   const getInitials = (user: User) => {
@@ -561,8 +590,8 @@ const Users = () => {
       {/* Заголовок страницы */}
       <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Title level={2}>Пользователи</Title>
-        {/* Кнопка "Добавить пользователя" видна только пользователям с правами управления */}
-        {canManageUsers() && (
+        {/* Кнопка "Добавить пользователя" */}
+        {canAddUser() && (
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -671,18 +700,20 @@ const Users = () => {
               {/* Действия */}
               <Space direction="vertical" style={{ width: '100%' }} size="small">
                 {/* Открыть/Закрыть доступ */}
-                <Button
-                  type={user.approved ? 'default' : 'primary'}
-                  icon={user.approved ? <LockOutlined /> : <UnlockOutlined />}
-                  onClick={() => handleToggleAccess(user)}
-                  size="small"
-                  block
-                >
-                  {user.approved ? 'Закрыть доступ' : 'Открыть доступ'}
-                </Button>
+                {canToggleAccess() && (
+                  <Button
+                    type={user.approved ? 'default' : 'primary'}
+                    icon={user.approved ? <LockOutlined /> : <UnlockOutlined />}
+                    onClick={() => handleToggleAccess(user)}
+                    size="small"
+                    block
+                  >
+                    {user.approved ? 'Закрыть доступ' : 'Открыть доступ'}
+                  </Button>
+                )}
 
-                {/* Редактировать - только для пользователей с правами управления */}
-                {canManageUsers() && (
+                {/* Редактировать */}
+                {canEditUser() && (
                   <Button
                     type="default"
                     icon={<EditOutlined />}
@@ -694,8 +725,8 @@ const Users = () => {
                   </Button>
                 )}
 
-                {/* Деактивировать/Активировать - только для пользователей с правами управления */}
-                {canManageUsers() && (
+                {/* Деактивировать/Активировать */}
+                {canDeactivateUser() && (
                   <Button
                     type="default"
                     icon={user.is_active ? <StopOutlined /> : <CheckCircleOutlined />}
@@ -707,8 +738,8 @@ const Users = () => {
                   </Button>
                 )}
 
-                {/* Удалить - только для пользователей с правами управления */}
-                {canManageUsers() && (
+                {/* Удалить */}
+                {canDeleteUserAction() && (
                   <Popconfirm
                     title="Удалить пользователя"
                     description="Вы уверены, что хотите удалить этого пользователя?"
@@ -804,7 +835,6 @@ const Users = () => {
                 <Option value="SUPERVISION">Технадзор</Option>
                 <Option value="AUTHOR_SUPERVISION">Авторский надзор</Option>
                 <Option value="MANAGEMENT">Руководство</Option>
-                <Option value="CONTRACTOR">Подрядчик</Option>
               </Select>
             </Form.Item>
           )}

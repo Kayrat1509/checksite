@@ -115,6 +115,7 @@ class User(AbstractUser):
     is_active = models.BooleanField(_('Активен'), default=True)
     is_verified = models.BooleanField(_('Подтвержден'), default=False)
     approved = models.BooleanField(_('Одобрено'), default=False, help_text=_('Разрешен ли доступ к странице пользователей'))
+    archived = models.BooleanField(_('В архиве'), default=False, help_text=_('Подрядчик перемещен в архив (soft delete)'))
 
     # Временный пароль для отображения администратору
     temp_password = models.CharField(_('Временный пароль'), max_length=255, blank=True, null=True, help_text=_('Пароль для передачи пользователю'))

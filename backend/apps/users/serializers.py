@@ -30,7 +30,7 @@ class UserSerializer(serializers.ModelSerializer):
             'id', 'email', 'secondary_email', 'first_name', 'last_name',
             'middle_name', 'full_name', 'short_name', 'role', 'position',
             'phone', 'telegram_id', 'avatar', 'company', 'company_name',
-            'is_active', 'is_verified', 'is_superuser', 'approved', 'temp_password',
+            'is_active', 'is_verified', 'is_superuser', 'approved', 'archived', 'temp_password',
             'user_projects', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'is_verified', 'company', 'is_superuser']

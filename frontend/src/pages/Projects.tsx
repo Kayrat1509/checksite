@@ -44,12 +44,21 @@ interface Drawing {
   created_at: string
 }
 
+interface Contractor {
+  id: number
+  full_name: string
+  phone: string
+  email: string
+  position: string
+}
+
 interface Project {
   id: number
   name: string
   address: string
   is_active: boolean
   drawings?: Drawing[]
+  contractors?: Contractor[]
 }
 
 const Projects = () => {
@@ -57,6 +66,7 @@ const Projects = () => {
   const [isDrawingModalOpen, setIsDrawingModalOpen] = useState(false)
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [isPersonnelModalOpen, setIsPersonnelModalOpen] = useState(false)
+  const [isContractorsModalOpen, setIsContractorsModalOpen] = useState(false)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [fileList, setFileList] = useState<UploadFile[]>([])
@@ -66,20 +76,48 @@ const Projects = () => {
   // Получаем текущего пользователя из authStore
   const { user } = useAuthStore()
 
-  // Функция проверки прав на управление объектами и чертежами
-  // Права есть у: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер ПТО
-  const canManageProjects = () => {
+  // Функция проверки прав на ДОБАВЛЕНИЕ объекта
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер, Прораб
+  const canAddProject = () => {
     if (!user) return false
     if (user.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER', 'FOREMAN']
+    return allowedRoles.includes(user.role)
+  }
 
-    const allowedRoles = [
-      'DIRECTOR',            // Директор
-      'CHIEF_ENGINEER',      // Главный инженер
-      'PROJECT_MANAGER',     // Руководитель проекта
-      'SITE_MANAGER',        // Начальник участка
-      'ENGINEER'             // Инженер ПТО
-    ]
+  // Функция проверки прав на РЕДАКТИРОВАНИЕ объекта
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер, Прораб
+  const canEditProject = () => {
+    if (!user) return false
+    if (user.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER', 'FOREMAN']
+    return allowedRoles.includes(user.role)
+  }
 
+  // Функция проверки прав на УДАЛЕНИЕ объекта
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер (БЕЗ Прораба)
+  const canDeleteProject = () => {
+    if (!user) return false
+    if (user.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER']
+    return allowedRoles.includes(user.role)
+  }
+
+  // Функция проверки прав на ДОБАВЛЕНИЕ чертежа
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер, Прораб
+  const canAddDrawing = () => {
+    if (!user) return false
+    if (user.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER', 'FOREMAN']
+    return allowedRoles.includes(user.role)
+  }
+
+  // Функция проверки прав на УДАЛЕНИЕ чертежа
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер (БЕЗ Прораба)
+  const canDeleteDrawing = () => {
+    if (!user) return false
+    if (user.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER']
     return allowedRoles.includes(user.role)
   }
 
@@ -201,6 +239,17 @@ const Projects = () => {
 
   const handlePersonnelModalCancel = () => {
     setIsPersonnelModalOpen(false)
+    setSelectedProject(null)
+  }
+
+  const showContractors = (project: Project) => {
+    console.log('Opening contractors for project:', project)
+    setSelectedProject(project)
+    setIsContractorsModalOpen(true)
+  }
+
+  const handleContractorsModalCancel = () => {
+    setIsContractorsModalOpen(false)
     setSelectedProject(null)
   }
 
@@ -413,12 +462,6 @@ const Projects = () => {
       key: 'address',
     },
     {
-      title: 'Создал',
-      dataIndex: 'project_manager_name',
-      key: 'project_manager_name',
-      render: (name: string) => name || 'Не указан',
-    },
-    {
       title: 'Дата создания',
       dataIndex: 'created_at',
       key: 'created_at',
@@ -463,6 +506,25 @@ const Projects = () => {
       },
     },
     {
+      title: 'Подрядчики',
+      key: 'contractors',
+      render: (_: any, record: Project) => {
+        // Получаем количество подрядчиков для проекта
+        const count = record.contractors?.length || 0
+
+        return (
+          <Space>
+            <Button
+              icon={<UserOutlined />}
+              onClick={() => showContractors(record)}
+            >
+              Подрядчики ({count})
+            </Button>
+          </Space>
+        )
+      },
+    },
+    {
       title: 'Чертежи',
       key: 'drawings',
       render: (_, record) => {
@@ -483,28 +545,38 @@ const Projects = () => {
       title: 'Действия',
       key: 'actions',
       render: (_, record) => {
-        // Кнопки "Редактировать" и "Удалить" видны только пользователям с правами управления
-        if (!canManageProjects()) {
+        // Кнопки "Редактировать" и "Удалить" используют разные права доступа
+        const hasEditRights = canEditProject()
+        const hasDeleteRights = canDeleteProject()
+
+        // Если нет ни одного права, не показываем колонку
+        if (!hasEditRights && !hasDeleteRights) {
           return null
         }
 
         return (
           <Space>
-            <Button
-              icon={<EditOutlined />}
-              onClick={() => handleEditProject(record)}
-              size="small"
-            >
-              Редактировать
-            </Button>
-            <Button
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => handleDeleteProject(record)}
-              size="small"
-            >
-              Удалить
-            </Button>
+            {/* Редактировать: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер, Прораб */}
+            {hasEditRights && (
+              <Button
+                icon={<EditOutlined />}
+                onClick={() => handleEditProject(record)}
+                size="small"
+              >
+                Редактировать
+              </Button>
+            )}
+            {/* Удалить: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер (БЕЗ Прораба) */}
+            {hasDeleteRights && (
+              <Button
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => handleDeleteProject(record)}
+                size="small"
+              >
+                Удалить
+              </Button>
+            )}
           </Space>
         )
       },
@@ -554,8 +626,8 @@ const Projects = () => {
             style={{ marginBottom: '16px' }}
           />
         </div>
-        {/* Кнопка "Добавить объект" видна только пользователям с правами управления */}
-        {canManageProjects() && (
+        {/* Кнопка "Добавить объект": Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер, Прораб */}
+        {canAddProject() && (
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -629,8 +701,8 @@ const Projects = () => {
           <Button key="close" onClick={handleDrawingModalCancel}>
             Закрыть
           </Button>,
-          // Кнопка "Добавить чертёж" видна только пользователям с правами управления
-          ...(canManageProjects() ? [
+          // Кнопка "Добавить чертёж": Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер, Прораб
+          ...(canAddDrawing() ? [
             <Button
               key="add"
               type="primary"
@@ -679,8 +751,8 @@ const Projects = () => {
                     >
                       Скачать
                     </Button>
-                    {/* Кнопка "Удалить чертёж" видна только пользователям с правами управления */}
-                    {canManageProjects() && (
+                    {/* Кнопка "Удалить чертёж": Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер (БЕЗ Прораба) */}
+                    {canDeleteDrawing() && (
                       <Button
                         danger
                         icon={<DeleteOutlined />}
@@ -800,6 +872,57 @@ const Projects = () => {
                   </div>
                   <div style={{ color: '#666' }}>
                     {user.phone || 'Телефон не указан'} - {user.email}
+                  </div>
+                </Card>
+              ))}
+            </Space>
+          )
+        })()}
+      </Modal>
+
+      {/* Модальное окно списка подрядчиков */}
+      <Modal
+        title={`Подрядчики объекта: ${selectedProject?.name || ''}`}
+        open={isContractorsModalOpen}
+        onCancel={handleContractorsModalCancel}
+        footer={[
+          <Button key="close" onClick={handleContractorsModalCancel}>
+            Закрыть
+          </Button>
+        ]}
+        width={700}
+      >
+        {(() => {
+          if (!selectedProject) return null
+
+          const contractors = selectedProject.contractors || []
+
+          if (contractors.length === 0) {
+            return (
+              <Alert
+                message="Нет подрядчиков"
+                description="Для этого объекта пока не назначен ни один подрядчик."
+                type="warning"
+                showIcon
+              />
+            )
+          }
+
+          return (
+            <Space direction="vertical" style={{ width: '100%' }} size="small">
+              {contractors.map((contractor) => (
+                <Card
+                  key={contractor.id}
+                  size="small"
+                  bodyStyle={{ padding: '12px' }}
+                >
+                  <div style={{ marginBottom: '4px' }}>
+                    <Text strong>
+                      {contractor.full_name} - {contractor.position || 'Подрядчик'}
+                    </Text>
+                  </div>
+                  <div style={{ color: '#666' }}>
+                    {contractor.phone || 'Телефон не указан'} - {contractor.email}
                   </div>
                 </Card>
               ))}

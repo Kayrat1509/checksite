@@ -14,6 +14,7 @@ export interface User {
   company_name?: string
   is_active: boolean
   approved: boolean
+  archived: boolean
   temp_password?: string
   user_projects?: Array<{ id: number; name: string }>
   created_at: string
@@ -85,6 +86,18 @@ export const usersAPI = {
   // Assign projects to user
   assignProjects: async (id: number, project_ids: number[]) => {
     const response = await axios.post(`/auth/users/${id}/assign_projects/`, { project_ids })
+    return response.data
+  },
+
+  // Archive contractor
+  archiveUser: async (id: number) => {
+    const response = await axios.post(`/auth/users/${id}/archive/`)
+    return response.data
+  },
+
+  // Unarchive contractor
+  unarchiveUser: async (id: number) => {
+    const response = await axios.post(`/auth/users/${id}/unarchive/`)
     return response.data
   }
 }

@@ -127,6 +127,56 @@ class Issue(models.Model):
             return timezone.now() > self.deadline
         return False
 
+    def get_auto_status(self):
+        """
+        Автоматическое определение статуса замечания на основе правил:
+        - До 24 часов с момента создания: "Новое"
+        - От создания до окончания срока: "В процессе"
+        - После истечения срока: "Просрочено"
+        - Если создано Технадзором или Авторским надзором: "На проверке"
+        - Если нажали "Принято": "Исполнено" (COMPLETED)
+        - Если вручную установлено "На проверке": сохраняем этот статус
+        """
+        from django.utils import timezone
+        from datetime import timedelta
+
+        # Если статус уже COMPLETED, REJECTED или PENDING_REVIEW, не меняем
+        # PENDING_REVIEW может быть установлен вручную или автоматически
+        if self.status in [self.Status.COMPLETED, self.Status.REJECTED, self.Status.PENDING_REVIEW]:
+            return self.status
+
+        now = timezone.now()
+
+        # Проверка: если замечание добавлено от роли "Технадзор" или "Авторский надзор"
+        if self.created_by and self.created_by.role in ['SUPERVISOR', 'OBSERVER']:
+            return self.Status.PENDING_REVIEW
+
+        # Проверка: просрочено ли замечание
+        if self.deadline and now > self.deadline:
+            return self.Status.OVERDUE
+
+        # Проверка: новое ли замечание (до 24 часов)
+        time_since_creation = now - self.created_at
+        if time_since_creation < timedelta(hours=24):
+            return self.Status.NEW
+
+        # Если есть срок и он еще не истек - "В процессе"
+        if self.deadline and now <= self.deadline:
+            return self.Status.IN_PROGRESS
+
+        # По умолчанию - "В процессе"
+        return self.Status.IN_PROGRESS
+
+    def update_auto_status(self):
+        """Обновляет статус автоматически, если он не установлен вручную."""
+        # Получаем автоматический статус
+        auto_status = self.get_auto_status()
+
+        # Обновляем только если статус изменился
+        if self.status != auto_status:
+            self.status = auto_status
+            self.save(update_fields=['status'])
+
 
 class IssuePhoto(models.Model):
     """Model for photos associated with issues."""
@@ -169,6 +219,19 @@ class IssuePhoto(models.Model):
         verbose_name = _('Фото замечания')
         verbose_name_plural = _('Фото замечаний')
         ordering = ['stage', 'created_at']
+        # Ограничение: одно фото До и одно фото После на замечание
+        constraints = [
+            models.UniqueConstraint(
+                fields=['issue', 'stage'],
+                condition=models.Q(stage='BEFORE'),
+                name='unique_before_photo_per_issue'
+            ),
+            models.UniqueConstraint(
+                fields=['issue', 'stage'],
+                condition=models.Q(stage='AFTER'),
+                name='unique_after_photo_per_issue'
+            )
+        ]
 
     def __str__(self):
         return f"{self.issue.title} - {self.get_stage_display()}"
@@ -192,6 +255,14 @@ class IssueComment(models.Model):
     )
 
     text = models.TextField(_('Комментарий'))
+
+    # Поле для отслеживания пользователей, которые прочитали комментарий
+    read_by = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='read_comments',
+        blank=True,
+        verbose_name=_('Прочитано пользователями')
+    )
 
     created_at = models.DateTimeField(_('Создан'), auto_now_add=True)
     updated_at = models.DateTimeField(_('Обновлен'), auto_now=True)

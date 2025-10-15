@@ -45,10 +45,10 @@ class IssueViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated()]
 
     def create(self, request, *args, **kwargs):
-        """Create issue with photos support."""
+        """Create issue with photos support (one BEFORE and one AFTER photo max)."""
         from apps.projects.models import Site
 
-        # Извлекаем файлы фото из запроса
+        # Извлекаем файлы фото из запроса (только первое фото каждого типа)
         photos_before = request.FILES.getlist('photos_before', [])
         photos_after = request.FILES.getlist('photos_after', [])
 
@@ -70,20 +70,20 @@ class IssueViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         issue = serializer.save()
 
-        # Загружаем фото "До"
-        for photo_file in photos_before:
+        # Загружаем только первое фото "До" (ограничение: 1 фото)
+        if photos_before:
             IssuePhoto.objects.create(
                 issue=issue,
-                photo=photo_file,
+                photo=photos_before[0],  # Только первое фото
                 stage=IssuePhoto.Stage.BEFORE,
                 uploaded_by=request.user
             )
 
-        # Загружаем фото "После"
-        for photo_file in photos_after:
+        # Загружаем только первое фото "После" (ограничение: 1 фото)
+        if photos_after:
             IssuePhoto.objects.create(
                 issue=issue,
-                photo=photo_file,
+                photo=photos_after[0],  # Только первое фото
                 stage=IssuePhoto.Stage.AFTER,
                 uploaded_by=request.user
             )
@@ -91,7 +91,7 @@ class IssueViewSet(viewsets.ModelViewSet):
         # Возвращаем полные данные замечания
         headers = self.get_success_headers(serializer.data)
         return Response(
-            IssueSerializer(issue).data,
+            IssueSerializer(issue, context={'request': request}).data,
             status=status.HTTP_201_CREATED,
             headers=headers
         )
@@ -169,11 +169,20 @@ class IssueViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def upload_photo(self, request, pk=None):
-        """Upload a photo for the issue."""
+        """Upload a photo for the issue (max 1 BEFORE and 1 AFTER)."""
         issue = self.get_object()
 
         serializer = IssuePhotoSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        stage = serializer.validated_data.get('stage')
+
+        # Проверяем, есть ли уже фото данного типа
+        existing_photo = IssuePhoto.objects.filter(issue=issue, stage=stage).first()
+        if existing_photo:
+            # Удаляем старое фото и заменяем новым
+            existing_photo.photo.delete()
+            existing_photo.delete()
 
         photo = serializer.save(
             issue=issue,
@@ -181,7 +190,7 @@ class IssueViewSet(viewsets.ModelViewSet):
         )
 
         return Response(
-            IssuePhotoSerializer(photo).data,
+            IssuePhotoSerializer(photo, context={'request': request}).data,
             status=status.HTTP_201_CREATED
         )
 
@@ -235,23 +244,64 @@ class IssueViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def statistics(self, request):
-        """Get issue statistics."""
+        """
+        Get issue statistics with automatic status calculation.
+        Статусы вычисляются автоматически на основе правил.
+        """
         queryset = self.get_queryset()
 
+        # Получаем все замечания для вычисления статусов
+        issues = list(queryset)
+
+        # Счетчики для статусов
+        total = len(issues)
+        new_count = 0
+        in_progress_count = 0
+        pending_review_count = 0
+        completed_count = 0
+        overdue_count = 0
+
+        # Счетчики для приоритетов
+        critical_count = 0
+        high_count = 0
+        normal_count = 0
+
+        # Проходим по каждому замечанию и вычисляем статус
+        for issue in issues:
+            # Получаем автоматический статус
+            auto_status = issue.get_auto_status()
+
+            # Подсчитываем по статусам
+            if auto_status == Issue.Status.NEW:
+                new_count += 1
+            elif auto_status == Issue.Status.IN_PROGRESS:
+                in_progress_count += 1
+            elif auto_status == Issue.Status.PENDING_REVIEW:
+                pending_review_count += 1
+            elif auto_status == Issue.Status.COMPLETED:
+                completed_count += 1
+            elif auto_status == Issue.Status.OVERDUE:
+                overdue_count += 1
+
+            # Подсчитываем по приоритетам
+            if issue.priority == Issue.Priority.CRITICAL:
+                critical_count += 1
+            elif issue.priority == Issue.Priority.HIGH:
+                high_count += 1
+            elif issue.priority == Issue.Priority.NORMAL:
+                normal_count += 1
+
         stats = {
-            'total': queryset.count(),
-            'new': queryset.filter(status=Issue.Status.NEW).count(),
-            'in_progress': queryset.filter(status=Issue.Status.IN_PROGRESS).count(),
-            'pending_review': queryset.filter(status=Issue.Status.PENDING_REVIEW).count(),
-            'completed': queryset.filter(status=Issue.Status.COMPLETED).count(),
-            'overdue': queryset.filter(
-                deadline__lt=timezone.now(),
-                status__in=[Issue.Status.NEW, Issue.Status.IN_PROGRESS, Issue.Status.PENDING_REVIEW]
-            ).count(),
+            'total': total,
+            'new': new_count,
+            'in_progress': in_progress_count,
+            'pending_review': pending_review_count,
+            'completed': completed_count,
+            'overdue': overdue_count,
             'by_priority': {
-                'critical': queryset.filter(priority=Issue.Priority.CRITICAL).count(),
-                'high': queryset.filter(priority=Issue.Priority.HIGH).count(),
-                'normal': queryset.filter(priority=Issue.Priority.NORMAL).count(),
+                'critical': critical_count,
+                'high': high_count,
+                'normal': normal_count,
             }
         }
 
@@ -267,6 +317,15 @@ class IssuePhotoViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['issue', 'stage']
 
+    def destroy(self, request, *args, **kwargs):
+        """Delete a photo and its file."""
+        photo = self.get_object()
+        # Удаляем файл с диска
+        if photo.photo:
+            photo.photo.delete()
+        # Удаляем запись из БД
+        return super().destroy(request, *args, **kwargs)
+
 
 class IssueCommentViewSet(viewsets.ModelViewSet):
     """ViewSet for managing issue comments."""
@@ -280,3 +339,10 @@ class IssueCommentViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Set author to current user."""
         serializer.save(author=self.request.user)
+
+    @action(detail=True, methods=['post'], url_path='mark-as-read')
+    def mark_as_read(self, request, pk=None):
+        """Отмечает комментарий как прочитанный текущим пользователем."""
+        comment = self.get_object()
+        comment.read_by.add(request.user)
+        return Response({'status': 'Комментарий отмечен как прочитанный'}, status=status.HTTP_200_OK)

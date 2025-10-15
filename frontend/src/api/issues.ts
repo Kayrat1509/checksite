@@ -1,5 +1,32 @@
 import axios from './axios'
 
+// Интерфейс для фотографий
+export interface IssuePhoto {
+  id: number
+  issue: number
+  stage: 'BEFORE' | 'AFTER' | 'INSPECTION'
+  photo: string
+  caption?: string
+  uploaded_by: number
+  created_at: string
+}
+
+// Интерфейс для комментариев
+export interface IssueComment {
+  id: number
+  issue: number
+  author: number
+  author_details?: {
+    id: number
+    full_name: string
+    role: string
+  }
+  text: string
+  is_new: boolean  // Новое поле для обозначения непрочитанного комментария
+  created_at: string
+  updated_at: string
+}
+
 // Интерфейсы для замечаний
 export interface Issue {
   id: number
@@ -18,6 +45,9 @@ export interface Issue {
   deadline?: string
   is_overdue: boolean
   photo_count?: number
+  comment_count?: number
+  photos?: IssuePhoto[]
+  comments?: IssueComment[]
   created_at: string
 }
 
@@ -59,6 +89,10 @@ export const issuesAPI = {
     return response.data
   },
 
+  deleteIssue: async (id: number) => {
+    await axios.delete(`/issues/issues/${id}/`)
+  },
+
   updateStatus: async (id: number, data: { status: string; comment?: string }) => {
     const response = await axios.post(`/issues/issues/${id}/update_status/`, data)
     return response.data
@@ -73,8 +107,24 @@ export const issuesAPI = {
     return response.data
   },
 
+  deletePhoto: async (photoId: number) => {
+    await axios.delete(`/issues/photos/${photoId}/`)
+  },
+
   addComment: async (id: number, data: { text: string }) => {
     const response = await axios.post(`/issues/issues/${id}/add_comment/`, data)
+    return response.data
+  },
+
+  getComments: async (issueId: number) => {
+    const response = await axios.get(`/issues/comments/`, {
+      params: { issue: issueId }
+    })
+    return response.data
+  },
+
+  markCommentAsRead: async (commentId: number) => {
+    const response = await axios.post(`/issues/comments/${commentId}/mark-as-read/`)
     return response.data
   },
 

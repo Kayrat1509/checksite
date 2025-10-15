@@ -186,6 +186,26 @@ class UserViewSet(viewsets.ModelViewSet):
             'message': f'Проекты обновлены для {user.get_full_name()}'
         })
 
+    @action(detail=True, methods=['post'])
+    def archive(self, request, pk=None):
+        """Archive contractor (soft delete)."""
+        user = self.get_object()
+        user.archived = True
+        user.save()
+        # Возвращаем полные данные пользователя для обновления UI
+        serializer = self.get_serializer(user)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def unarchive(self, request, pk=None):
+        """Unarchive contractor."""
+        user = self.get_object()
+        user.archived = False
+        user.save()
+        # Возвращаем полные данные пользователя для обновления UI
+        serializer = self.get_serializer(user)
+        return Response(serializer.data)
+
 
 class CompanyViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for viewing companies."""

@@ -11,6 +11,8 @@ import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  TeamOutlined,
+  SafetyOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../../stores/authStore'
 import { useNotificationStore } from '../../stores/notificationStore'
@@ -24,7 +26,7 @@ const MainLayout = () => {
   const { unreadCount } = useNotificationStore()
 
   // Запрещенные роли для доступа к странице пользователей
-  const FORBIDDEN_ROLES = ['CONTRACTOR', 'SUPERVISOR', 'OBSERVER', 'MASTER']
+  const FORBIDDEN_ROLES = ['CONTRACTOR', 'MASTER', 'SUPERVISOR', 'OBSERVER']
 
   // Проверка доступа к странице пользователей
   const canAccessUsers = () => {
@@ -35,6 +37,53 @@ const MainLayout = () => {
     if (FORBIDDEN_ROLES.includes(user.role)) return false
     // Остальные пользователи должны иметь approved=true
     return user.approved === true
+  }
+
+  // Проверка доступа к странице подрядчиков
+  const canAccessContractors = () => {
+    if (!user) return false
+    // Суперадмин всегда имеет доступ
+    if (user.is_superuser) return true
+
+    // Разрешенные роли для доступа к подрядчикам
+    const allowedRoles = [
+      'DIRECTOR',           // Директор
+      'CHIEF_ENGINEER',     // Главный инженер
+      'PROJECT_MANAGER',    // Руководитель проекта
+      'SITE_MANAGER',       // Начальник участка
+      'ENGINEER'            // Инженер ПТО
+    ]
+
+    return allowedRoles.includes(user.role)
+  }
+
+  // Проверка доступа к странице надзоров
+  const canAccessSupervisions = () => {
+    if (!user) return false
+    // Суперадмин всегда имеет доступ
+    if (user.is_superuser) return true
+
+    // Разрешенные роли для доступа к надзорам
+    const allowedRoles = [
+      'DIRECTOR',           // Директор
+      'CHIEF_ENGINEER',     // Главный инженер
+      'PROJECT_MANAGER',    // Руководитель проекта
+      'SITE_MANAGER',       // Начальник участка
+      'ENGINEER',           // Инженер ПТО
+      'FOREMAN'             // Прораб
+    ]
+
+    return allowedRoles.includes(user.role)
+  }
+
+  // Проверка доступа к странице отчетов (подрядчики не имеют доступа)
+  const canAccessReports = () => {
+    if (!user) return false
+    // Суперадмин всегда имеет доступ
+    if (user.is_superuser) return true
+    // Подрядчики не имеют доступа к отчетам
+    if (user.role === 'CONTRACTOR') return false
+    return true
   }
 
   // Фильтруем меню в зависимости от прав доступа пользователя
@@ -62,9 +111,25 @@ const MainLayout = () => {
       visible: canAccessUsers(),
     },
     {
+      key: '/dashboard/contractors',
+      icon: <TeamOutlined />,
+      label: <Link to="/dashboard/contractors">Подрядчики</Link>,
+      // Показываем пункт меню только для разрешенных ролей
+      visible: canAccessContractors(),
+    },
+    {
+      key: '/dashboard/supervisions',
+      icon: <SafetyOutlined />,
+      label: <Link to="/dashboard/supervisions">Надзоры</Link>,
+      // Показываем пункт меню только для разрешенных ролей
+      visible: canAccessSupervisions(),
+    },
+    {
       key: '/dashboard/reports',
       icon: <BarChartOutlined />,
       label: <Link to="/dashboard/reports">Отчеты</Link>,
+      // Подрядчики не имеют доступа к отчетам
+      visible: canAccessReports(),
     },
   ]
 

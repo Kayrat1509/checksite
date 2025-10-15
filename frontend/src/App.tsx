@@ -10,6 +10,8 @@ import Dashboard from './pages/Dashboard'
 import Projects from './pages/Projects'
 import Issues from './pages/Issues'
 import Users from './pages/Users'
+import Contractors from './pages/Contractors'
+import Supervisions from './pages/Supervisions'
 import Reports from './pages/Reports'
 import Profile from './pages/Profile'
 import NotFound from './pages/NotFound'
@@ -49,6 +51,8 @@ function App() {
           <Route path="projects" element={<Projects />} />
           <Route path="issues" element={<Issues />} />
           <Route path="users" element={<Users />} />
+          <Route path="contractors" element={<Contractors />} />
+          <Route path="supervisions" element={<Supervisions />} />
           <Route path="reports" element={<Reports />} />
           <Route path="profile" element={<Profile />} />
         </Route>
