@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 from django.db import models
 from .serializers import (
@@ -13,6 +14,23 @@ from .permissions import IsManagementOrSuperAdmin, CanManageProjects, CanManageU
 from .models import Company
 
 User = get_user_model()
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """Кастомный сериализатор для JWT токенов с поддержкой case-insensitive email."""
+
+    def validate(self, attrs):
+        """Приводим email к нижнему регистру перед аутентификацией."""
+        # Приводим email (username field) к нижнему регистру
+        if self.username_field in attrs:
+            attrs[self.username_field] = attrs[self.username_field].lower()
+
+        return super().validate(attrs)
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    """Кастомная view для получения JWT токена с case-insensitive email."""
+    serializer_class = CustomTokenObtainPairSerializer
 
 
 class RegisterView(viewsets.GenericViewSet):

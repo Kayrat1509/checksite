@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'apps.issues',
     'apps.notifications',
     'apps.reports',
+    'apps.technical_conditions',
 ]
 
 MIDDLEWARE = [

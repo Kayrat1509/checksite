@@ -1,25 +1,11 @@
-import { Form, Input, Button, Card, message, Select, Divider } from 'antd'
+import { Form, Input, Button, Card, message, Divider } from 'antd'
 import { UserOutlined, MailOutlined, LockOutlined, BankOutlined, PhoneOutlined, HomeOutlined, GlobalOutlined } from '@ant-design/icons'
 import { Link, useNavigate } from 'react-router-dom'
 import { authAPI } from '../../api/auth'
 
-const { Option } = Select
-
 const Register = () => {
   const navigate = useNavigate()
   const [form] = Form.useForm()
-
-  const legalForms = [
-    { value: 'LLC', label: 'ТОО (Товарищество с ограниченной ответственностью)' },
-    { value: 'JSC', label: 'АО (Акционерное общество)' },
-    { value: 'PE', label: 'ИП (Индивидуальный предприниматель)' },
-    { value: 'CJSC', label: 'ЗАО (Закрытое акционерное общество)' },
-    { value: 'OJSC', label: 'ОАО (Открытое акционерное общество)' },
-    { value: 'PARTNERSHIP', label: 'Партнерство' },
-    { value: 'COOPERATIVE', label: 'Кооператив' },
-    { value: 'STATE', label: 'Государственное предприятие' },
-    { value: 'OTHER', label: 'Другое' }
-  ]
 
   const onFinish = async (values: any) => {
     try {
@@ -56,29 +42,15 @@ const Register = () => {
           <Divider orientation="left">Данные компании</Divider>
 
           <Form.Item
-            name="company_legal_form"
-            label="Организационно-правовая форма (ОПФ)"
-            rules={[{ required: true, message: 'Выберите ОПФ' }]}
-          >
-            <Select
-              placeholder="Выберите организационно-правовую форму"
-              showSearch
-              optionFilterProp="children"
-            >
-              {legalForms.map(form => (
-                <Option key={form.value} value={form.value}>
-                  {form.label}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          <Form.Item
             name="company_name"
             label="Название компании"
             rules={[{ required: true, message: 'Введите название компании' }]}
+            tooltip="Укажите полное название компании с организационно-правовой формой (например: ТОО 'СтройАльянс', LLC 'BuildCorp', ООО 'СтройРесурс')"
           >
-            <Input prefix={<BankOutlined />} placeholder="Строй-Альянс" />
+            <Input
+              prefix={<BankOutlined />}
+              placeholder='ТОО "СтройАльянс"'
+            />
           </Form.Item>
 
           <Form.Item

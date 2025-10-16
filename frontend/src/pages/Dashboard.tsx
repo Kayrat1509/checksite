@@ -38,7 +38,7 @@ const Dashboard = () => {
             loading={isLoading}
             hoverable
             onClick={() => navigateToIssues()}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', border: '2px solid #d9d9d9' }}
           >
             <Statistic
               title="Всего замечаний"
@@ -61,7 +61,7 @@ const Dashboard = () => {
             loading={isLoading}
             hoverable
             onClick={() => navigateToIssues('NEW')}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', border: '2px solid #d9d9d9' }}
           >
             <Statistic
               title="Новые"
@@ -77,7 +77,7 @@ const Dashboard = () => {
             loading={isLoading}
             hoverable
             onClick={() => navigateToIssues('IN_PROGRESS')}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', border: '2px solid #d9d9d9' }}
           >
             <Statistic
               title="В процессе"
@@ -93,7 +93,7 @@ const Dashboard = () => {
             loading={isLoading}
             hoverable
             onClick={() => navigateToIssues('COMPLETED')}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', border: '2px solid #d9d9d9' }}
           >
             <Statistic
               title="Выполнено"
@@ -109,7 +109,7 @@ const Dashboard = () => {
             loading={isLoading}
             hoverable
             onClick={() => navigateToIssues('OVERDUE')}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', border: '2px solid #d9d9d9' }}
           >
             <Statistic
               title="Просрочено"
@@ -132,7 +132,7 @@ const Dashboard = () => {
             loading={isLoading}
             hoverable
             onClick={() => navigateToIssues('PENDING_REVIEW')}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', border: '2px solid #d9d9d9' }}
           >
             <Statistic
               title="На проверке"
@@ -155,7 +155,7 @@ const Dashboard = () => {
             loading={isLoading}
             hoverable
             onClick={() => navigateToIssues(undefined, 'CRITICAL')}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', border: '2px solid #d9d9d9' }}
           >
             <Statistic
               title="Критичные"
@@ -171,7 +171,7 @@ const Dashboard = () => {
             loading={isLoading}
             hoverable
             onClick={() => navigateToIssues(undefined, 'HIGH')}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', border: '2px solid #d9d9d9' }}
           >
             <Statistic
               title="Важные"

@@ -11,7 +11,7 @@ class CompanySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Company
-        fields = ['id', 'legal_form', 'name', 'country', 'address', 'phone', 'email', 'is_active']
+        fields = ['id', 'name', 'country', 'address', 'phone', 'email', 'is_active']
         read_only_fields = ['id']
 
 
@@ -20,6 +20,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     full_name = serializers.CharField(source='get_full_name', read_only=True)
     short_name = serializers.CharField(source='get_short_name', read_only=True)
+    # Название компании заказчика (ForeignKey)
     company_name = serializers.CharField(source='company.name', read_only=True, allow_null=True)
     # Список проектов пользователя
     user_projects = serializers.SerializerMethodField()
@@ -29,11 +30,11 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'email', 'secondary_email', 'first_name', 'last_name',
             'middle_name', 'full_name', 'short_name', 'role', 'position',
-            'phone', 'telegram_id', 'avatar', 'company', 'company_name',
+            'phone', 'telegram_id', 'avatar', 'company', 'company_name', 'external_company_name', 'supervision_company',
             'is_active', 'is_verified', 'is_superuser', 'approved', 'archived', 'temp_password',
             'user_projects', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'is_verified', 'company', 'is_superuser']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'is_verified', 'is_superuser']
 
     def get_user_projects(self, obj):
         """Получить список проектов пользователя."""
@@ -55,8 +56,17 @@ class UserCreateSerializer(serializers.ModelSerializer):
         fields = [
             'email', 'secondary_email', 'first_name', 'last_name',
             'middle_name', 'role', 'position', 'phone', 'telegram_id',
-            'company', 'project_ids'
+            'company', 'external_company_name', 'supervision_company', 'project_ids'
         ]
+
+    def validate(self, attrs):
+        """Normalize email to lowercase."""
+        # Приводим email к нижнему регистру для case-insensitive входа
+        if 'email' in attrs:
+            attrs['email'] = attrs['email'].lower()
+        if 'secondary_email' in attrs and attrs['secondary_email']:
+            attrs['secondary_email'] = attrs['secondary_email'].lower()
+        return attrs
 
     def create(self, validated_data):
         """Create user with auto-generated password and assign to projects."""
@@ -140,12 +150,12 @@ class RegisterSerializer(serializers.ModelSerializer):
     password_confirm = serializers.CharField(write_only=True)
 
     # Company fields
-    company_legal_form = serializers.ChoiceField(
-        choices=Company.LegalForm.choices,
+    company_name = serializers.CharField(
         write_only=True,
-        required=True
+        required=True,
+        max_length=255,
+        help_text='Укажите полное название компании с организационно-правовой формой (например: ТОО "СтройКомпани", LLC "BuildCorp")'
     )
-    company_name = serializers.CharField(write_only=True, required=True, max_length=255)
     company_country = serializers.CharField(write_only=True, required=False, allow_blank=True)
     company_address = serializers.CharField(write_only=True, required=False, allow_blank=True)
     company_phone = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -156,17 +166,24 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = [
             'email', 'secondary_email', 'first_name', 'last_name',
             'middle_name', 'position', 'password', 'password_confirm',
-            'company_legal_form', 'company_name', 'company_country',
+            'company_name', 'company_country',
             'company_address', 'company_phone', 'company_email'
         ]
 
     def validate(self, attrs):
-        """Validate passwords match."""
+        """Validate passwords match and normalize email."""
         if attrs['password'] != attrs['password_confirm']:
             raise serializers.ValidationError({
                 'password_confirm': 'Пароли не совпадают'
             })
         attrs.pop('password_confirm')
+
+        # Приводим email к нижнему регистру для case-insensitive входа
+        if 'email' in attrs:
+            attrs['email'] = attrs['email'].lower()
+        if 'secondary_email' in attrs and attrs['secondary_email']:
+            attrs['secondary_email'] = attrs['secondary_email'].lower()
+
         return attrs
 
     def create(self, validated_data):
@@ -176,7 +193,6 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         # Extract company data
         company_data = {
-            'legal_form': validated_data.pop('company_legal_form'),
             'name': validated_data.pop('company_name'),
             'country': validated_data.pop('company_country', ''),
             'address': validated_data.pop('company_address', ''),
@@ -254,8 +270,17 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         fields = [
             'email', 'secondary_email', 'first_name', 'last_name',
             'middle_name', 'role', 'position', 'phone', 'telegram_id',
-            'company', 'password', 'project_ids', 'approved'
+            'company', 'external_company_name', 'supervision_company', 'password', 'project_ids', 'approved'
         ]
+
+    def validate(self, attrs):
+        """Normalize email to lowercase."""
+        # Приводим email к нижнему регистру для case-insensitive входа
+        if 'email' in attrs:
+            attrs['email'] = attrs['email'].lower()
+        if 'secondary_email' in attrs and attrs['secondary_email']:
+            attrs['secondary_email'] = attrs['secondary_email'].lower()
+        return attrs
 
     def validate_password(self, value):
         """Validate password if provided."""

@@ -101,19 +101,13 @@ const Users = () => {
     return allowedRoles.includes(currentUser.role)
   }
 
-  // Роли пользователей
+  // Роли пользователей (SUPERVISOR и OBSERVER перенесены на страницу Supervisions)
   const ROLES = {
     ITR: [
       { value: 'ENGINEER', label: 'Инженер ПТО' },
       { value: 'SITE_MANAGER', label: 'Начальник участка' },
       { value: 'FOREMAN', label: 'Прораб' },
       { value: 'MASTER', label: 'Мастер' }
-    ],
-    SUPERVISION: [
-      { value: 'SUPERVISOR', label: 'Технадзор' }
-    ],
-    AUTHOR_SUPERVISION: [
-      { value: 'OBSERVER', label: 'Авторский надзор' }
     ],
     MANAGEMENT: [
       { value: 'PROJECT_MANAGER', label: 'Руководитель проекта' },
@@ -142,10 +136,15 @@ const Users = () => {
     staleTime: 30000
   })
 
-  // Safely extract users from data and filter out contractors
-  // Подрядчики (CONTRACTOR) исключаются из списка обычных пользователей
+  // Safely extract users from data and filter out contractors, supervisors and observers
+  // Подрядчики (CONTRACTOR), Технадзор (SUPERVISOR) и Авторский надзор (OBSERVER) исключаются из списка обычных пользователей
+  // SUPERVISOR и OBSERVER теперь управляются на странице Supervisions
   const allUsers: User[] = Array.isArray(data) ? data : (data?.results || [])
-  const users: User[] = allUsers.filter(user => user.role !== 'CONTRACTOR')
+  const users: User[] = allUsers.filter(user =>
+    user.role !== 'CONTRACTOR' &&
+    user.role !== 'SUPERVISOR' &&
+    user.role !== 'OBSERVER'
+  )
 
   // Fetch projects for assignment
   const { data: projectsData, isLoading: projectsLoading } = useQuery({
@@ -504,17 +503,15 @@ const Users = () => {
   }
 
   const getRoleLabel = (role: string) => {
-    const allRoles = [...ROLES.ITR, ...ROLES.SUPERVISION, ...ROLES.AUTHOR_SUPERVISION, ...ROLES.MANAGEMENT, ...ROLES.CONTRACTOR]
+    const allRoles = [...ROLES.ITR, ...ROLES.MANAGEMENT, ...ROLES.CONTRACTOR]
     const roleObj = allRoles.find(r => r.value === role)
     return roleObj?.label || role
   }
 
   const getRoleOptions = () => {
     if (selectedRole === 'ITR') return ROLES.ITR
-    if (selectedRole === 'SUPERVISION') return ROLES.SUPERVISION
-    if (selectedRole === 'AUTHOR_SUPERVISION') return ROLES.AUTHOR_SUPERVISION
     if (selectedRole === 'MANAGEMENT') return ROLES.MANAGEMENT
-    return [...ROLES.ITR, ...ROLES.SUPERVISION, ...ROLES.AUTHOR_SUPERVISION, ...ROLES.MANAGEMENT]
+    return [...ROLES.ITR, ...ROLES.MANAGEMENT]
   }
 
   const getInitials = (user: User) => {
@@ -589,8 +586,8 @@ const Users = () => {
     <div style={{ padding: '24px' }}>
       {/* Заголовок страницы */}
       <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={2}>Пользователи</Title>
-        {/* Кнопка "Добавить пользователя" */}
+        <Title level={2}>Сотрудники</Title>
+        {/* Кнопка "Добавить сотрудника" */}
         {canAddUser() && (
           <Button
             type="primary"
@@ -598,7 +595,7 @@ const Users = () => {
             onClick={handleCreateUser}
             size="large"
           >
-            Добавить пользователя
+            Добавить сотрудника
           </Button>
         )}
       </div>
@@ -766,7 +763,7 @@ const Users = () => {
 
       {/* Modal для создания/редактирования пользователя */}
       <Modal
-        title={editingUser ? 'Редактировать пользователя' : 'Добавить пользователя'}
+        title={editingUser ? 'Редактировать сотрудника' : 'Добавить сотрудника'}
         open={isModalOpen}
         onOk={handleModalOk}
         onCancel={handleModalCancel}
@@ -820,7 +817,7 @@ const Users = () => {
             <Input placeholder="Иванович" />
           </Form.Item>
 
-          {/* Выбор категории роли */}
+          {/* Выбор категории роли (Технадзор и Авторский надзор управляются на странице Supervisions) */}
           {!editingUser && (
             <Form.Item label="Категория">
               <Select
@@ -832,8 +829,6 @@ const Users = () => {
                 allowClear
               >
                 <Option value="ITR">ИТР</Option>
-                <Option value="SUPERVISION">Технадзор</Option>
-                <Option value="AUTHOR_SUPERVISION">Авторский надзор</Option>
                 <Option value="MANAGEMENT">Руководство</Option>
               </Select>
             </Form.Item>

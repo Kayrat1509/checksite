@@ -13,6 +13,7 @@ import {
   MenuUnfoldOutlined,
   TeamOutlined,
   SafetyOutlined,
+  FileProtectOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../../stores/authStore'
 import { useNotificationStore } from '../../stores/notificationStore'
@@ -106,7 +107,7 @@ const MainLayout = () => {
     {
       key: '/dashboard/users',
       icon: <UserOutlined />,
-      label: <Link to="/dashboard/users">Пользователи</Link>,
+      label: <Link to="/dashboard/users">Сотрудники</Link>,
       // Показываем пункт меню только для разрешенных ролей
       visible: canAccessUsers(),
     },
@@ -123,6 +124,11 @@ const MainLayout = () => {
       label: <Link to="/dashboard/supervisions">Надзоры</Link>,
       // Показываем пункт меню только для разрешенных ролей
       visible: canAccessSupervisions(),
+    },
+    {
+      key: '/dashboard/technical-conditions',
+      icon: <FileProtectOutlined />,
+      label: <Link to="/dashboard/technical-conditions">Техусловия</Link>,
     },
     {
       key: '/dashboard/reports',

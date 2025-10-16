@@ -348,7 +348,7 @@ const Contractors = () => {
       email: contractor.email,
       first_name: contractor.first_name,
       last_name: contractor.last_name,
-      contractor_company: contractor.position,
+      contractor_company: (contractor as any).external_company_name || contractor.position,
       position: contractor.position,
       phone: contractor.phone,
       company: contractor.company,
@@ -367,7 +367,8 @@ const Contractors = () => {
           last_name: values.last_name,
           middle_name: '',
           role: 'CONTRACTOR',
-          position: values.contractor_company || values.position,
+          external_company_name: values.contractor_company,
+          position: values.position || '',
           phone: values.phone,
           project_ids: values.project_ids || []
         }
@@ -388,7 +389,8 @@ const Contractors = () => {
           last_name: values.last_name,
           middle_name: '',
           role: 'CONTRACTOR',
-          position: values.contractor_company || values.position,
+          external_company_name: values.contractor_company,
+          position: values.position || '',
           phone: values.phone,
           project_ids: values.project_ids || []
         }
@@ -564,14 +566,16 @@ const Contractors = () => {
               {/* Компания подрядчика */}
               <div style={{ marginBottom: '8px' }}>
                 <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Компания подрядчика:</Text>
-                <Text style={{ fontSize: '14px' }}>{contractor.position || '-'}</Text>
+                <Text style={{ fontSize: '14px' }}>{(contractor as any).external_company_name || contractor.position || '-'}</Text>
               </div>
 
-              {/* Компания (из системы) */}
-              <div style={{ marginBottom: '8px' }}>
-                <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Компания:</Text>
-                <Text style={{ fontSize: '14px' }}>{contractor.company_name || '-'}</Text>
-              </div>
+              {/* Должность - показываем только если есть external_company_name (новые данные) И должность отличается от названия компании */}
+              {(contractor as any).external_company_name && contractor.position && contractor.position !== (contractor as any).external_company_name && (
+                <div style={{ marginBottom: '8px' }}>
+                  <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Должность:</Text>
+                  <Text style={{ fontSize: '14px' }}>{contractor.position}</Text>
+                </div>
+              )}
 
               {/* Телефон */}
               <div style={{ marginBottom: '8px' }}>

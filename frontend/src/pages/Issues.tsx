@@ -804,9 +804,9 @@ const Issues = () => {
                   </div>
                 )}
 
-                {/* Кнопка Комментарии под описанием */}
+                {/* Кнопка Комментарии под описанием с счетчиком */}
                 {(canAddPhotoBefore() || canAddPhotoAfter()) && (
-                  <div style={{ marginBottom: '12px' }}>
+                  <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <Button
                       type="default"
                       size="small"
@@ -815,6 +815,9 @@ const Issues = () => {
                     >
                       Комментарии
                     </Button>
+                    <Text strong style={{ fontSize: '16px', color: '#ff4d4f' }}>
+                      ({issue.comment_count || 0})
+                    </Text>
                   </div>
                 )}
 
@@ -827,10 +830,10 @@ const Issues = () => {
                   <Text style={{ fontSize: '14px' }}>{issue.project_name}</Text>
                 </div>
 
-                {/* Исполнитель */}
+                {/* Подрядчик */}
                 {issue.assigned_to_name && (
                   <div style={{ marginBottom: '8px' }}>
-                    <Text type="secondary" style={{ fontSize: '12px' }}>Исполнитель:</Text>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>Подрядчик:</Text>
                     <br />
                     <Text style={{ fontSize: '14px' }}>{issue.assigned_to_name}</Text>
                   </div>
@@ -854,23 +857,6 @@ const Issues = () => {
                       Просрочено
                     </Tag>
                   )}
-
-                  {issue.photo_count !== undefined && issue.photo_count > 0 && (
-                    <div>
-                      <FileImageOutlined style={{ marginRight: '8px' }} />
-                      <Text type="secondary" style={{ fontSize: '12px' }}>
-                        Фото: {issue.photo_count}
-                      </Text>
-                    </div>
-                  )}
-
-                  {/* Количество комментариев - всегда показываем */}
-                  <div>
-                    <CommentOutlined style={{ marginRight: '8px' }} />
-                    <Text type="secondary" style={{ fontSize: '12px' }}>
-                      Комментарии: {issue.comment_count || 0}
-                    </Text>
-                  </div>
 
                   {/* Отображение фотографий */}
                   {issue.photos && issue.photos.length > 0 && (

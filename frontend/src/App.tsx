@@ -12,6 +12,7 @@ import Issues from './pages/Issues'
 import Users from './pages/Users'
 import Contractors from './pages/Contractors'
 import Supervisions from './pages/Supervisions'
+import TechnicalConditions from './pages/TechnicalConditions'
 import Reports from './pages/Reports'
 import Profile from './pages/Profile'
 import NotFound from './pages/NotFound'
@@ -53,6 +54,7 @@ function App() {
           <Route path="users" element={<Users />} />
           <Route path="contractors" element={<Contractors />} />
           <Route path="supervisions" element={<Supervisions />} />
+          <Route path="technical-conditions" element={<TechnicalConditions />} />
           <Route path="reports" element={<Reports />} />
           <Route path="profile" element={<Profile />} />
         </Route>

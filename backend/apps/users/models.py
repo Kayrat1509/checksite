@@ -6,25 +6,11 @@ from django.utils.translation import gettext_lazy as _
 class Company(models.Model):
     """Model for companies/organizations."""
 
-    class LegalForm(models.TextChoices):
-        """Legal forms of companies."""
-        LLC = 'LLC', _('ТОО (Товарищество с ограниченной ответственностью)')
-        JSC = 'JSC', _('АО (Акционерное общество)')
-        PE = 'PE', _('ИП (Индивидуальный предприниматель)')
-        CJSC = 'CJSC', _('ЗАО (Закрытое акционерное общество)')
-        OJSC = 'OJSC', _('ОАО (Открытое акционерное общество)')
-        PARTNERSHIP = 'PARTNERSHIP', _('Партнерство')
-        COOPERATIVE = 'COOPERATIVE', _('Кооператив')
-        STATE = 'STATE', _('Государственное предприятие')
-        OTHER = 'OTHER', _('Другое')
-
-    legal_form = models.CharField(
-        _('Организационно-правовая форма (ОПФ)'),
-        max_length=50,
-        choices=LegalForm.choices,
-        default=LegalForm.LLC
+    name = models.CharField(
+        _('Название компании'),
+        max_length=255,
+        help_text=_('Укажите полное название компании с организационно-правовой формой (например: ТОО "СтройКомпани", LLC "BuildCorp")')
     )
-    name = models.CharField(_('Название компании'), max_length=255)
     country = models.CharField(_('Страна'), max_length=100, blank=True)
     address = models.TextField(_('Адрес'), blank=True)
     phone = models.CharField(_('Телефон'), max_length=20, blank=True)
@@ -41,7 +27,8 @@ class Company(models.Model):
         ordering = ['name']
 
     def __str__(self):
-        return f"{self.get_legal_form_display()} {self.name}"
+        # Возвращаем только название компании без ОПФ
+        return self.name
 
 
 class UserManager(BaseUserManager):
@@ -51,7 +38,8 @@ class UserManager(BaseUserManager):
         """Create and save a regular user with the given email and password."""
         if not email:
             raise ValueError(_('Email обязателен'))
-        email = self.normalize_email(email)
+        # Нормализуем email и приводим к нижнему регистру для case-insensitive входа
+        email = self.normalize_email(email).lower()
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -100,14 +88,31 @@ class User(AbstractUser):
     phone = models.CharField(_('Телефон'), max_length=20, blank=True)
     telegram_id = models.CharField(_('Telegram ID'), max_length=100, blank=True, null=True)
 
-    # Company relationship
+    # Company relationship (для сотрудников компании заказчика)
     company = models.ForeignKey(
         Company,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='users',
-        verbose_name=_('Компания')
+        verbose_name=_('Компания'),
+        help_text=_('Компания заказчика/генподрядчика (только для своих сотрудников)')
+    )
+
+    # Название сторонней компании (для подрядчиков и надзоров)
+    external_company_name = models.CharField(
+        _('Название сторонней компании'),
+        max_length=255,
+        blank=True,
+        help_text=_('Название компании для Подрядчиков, Технадзора и Авторского надзора (сторонние компании)')
+    )
+
+    # Надзорная компания (для Технадзора и Авторского надзора) - DEPRECATED, используйте company_name
+    supervision_company = models.CharField(
+        _('Надзорная компания (устарело)'),
+        max_length=255,
+        blank=True,
+        help_text=_('DEPRECATED: Используйте поле company_name. Оставлено для обратной совместимости.')
     )
 
     avatar = models.ImageField(_('Аватар'), upload_to='avatars/', blank=True, null=True)

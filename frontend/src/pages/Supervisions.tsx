@@ -24,11 +24,15 @@ import {
   StopOutlined,
   CheckCircleOutlined,
   UserOutlined,
-  SafetyOutlined
+  SafetyOutlined,
+  EyeOutlined,
+  EyeInvisibleOutlined
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersAPI, User, CreateUserData } from '../api/users'
 import { useAuthStore } from '../stores/authStore'
+import { projectsAPI } from '../api/projects'
+import { companiesAPI } from '../api/companies'
 
 const { Title, Text } = Typography
 
@@ -38,6 +42,8 @@ const Supervisions = () => {
   const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active')
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
+  // Состояние для показа/скрытия паролей
+  const [visiblePasswords, setVisiblePasswords] = useState<{ [key: number]: boolean }>({})
 
   // Получаем текущего пользователя из authStore
   const currentUser = useAuthStore(state => state.user)
@@ -120,6 +126,24 @@ const Supervisions = () => {
   // Разделяем на активные и архивные
   const activeSupervisions = supervisions.filter(s => !s.archived)
   const archivedSupervisions = supervisions.filter(s => s.archived)
+
+  // Fetch projects for assignment
+  const { data: projectsData, isLoading: projectsLoading } = useQuery({
+    queryKey: ['projects'],
+    queryFn: projectsAPI.getProjects,
+    retry: 1
+  })
+
+  const projects = Array.isArray(projectsData) ? projectsData : (projectsData?.results || [])
+
+  // Fetch companies for selection
+  const { data: companiesData, isLoading: companiesLoading } = useQuery({
+    queryKey: ['companies'],
+    queryFn: companiesAPI.getCompanies,
+    retry: 1
+  })
+
+  const companies = Array.isArray(companiesData) ? companiesData : (companiesData?.results || [])
 
   // Create mutation
   const createMutation = useMutation({
@@ -216,7 +240,10 @@ const Supervisions = () => {
       email: supervision.email,
       phone: supervision.phone,
       position: supervision.position,
-      role: supervision.role
+      role: supervision.role,
+      company: supervision.company,
+      project_ids: supervision.user_projects?.map((p: any) => p.id) || [],
+      supervision_company: (supervision as any).external_company_name || (supervision as any).supervision_company || '' // Название надзорной компании
     })
     setIsModalOpen(true)
   }
@@ -241,18 +268,48 @@ const Supervisions = () => {
     form.validateFields().then((values) => {
       if (editingSupervision) {
         // Обновление существующего надзора
+        const updateData: any = {
+          email: values.email,
+          first_name: values.first_name,
+          last_name: values.last_name,
+          middle_name: values.middle_name,
+          role: values.role,
+          position: values.position,
+          phone: values.phone,
+          project_ids: values.project_ids || [],
+          external_company_name: values.supervision_company || '' // Название надзорной компании
+        }
+
+        // Добавляем компанию если это суперадмин
+        if (currentUser?.is_superuser && values.company) {
+          updateData.company = values.company
+        }
+
         updateMutation.mutate({
           id: editingSupervision.id,
-          data: values
+          data: updateData
         })
       } else {
-        // Создание нового надзора
-        const newSupervision: CreateUserData = {
-          ...values,
-          password: Math.random().toString(36).slice(-8), // Временный пароль
-          password_confirm: Math.random().toString(36).slice(-8)
+        // Создание нового надзора - пароль генерируется автоматически на backend
+        const userData: any = {
+          email: values.email,
+          first_name: values.first_name,
+          last_name: values.last_name,
+          middle_name: values.middle_name,
+          role: values.role,
+          position: values.position,
+          phone: values.phone,
+          project_ids: values.project_ids || [],
+          external_company_name: values.supervision_company || '' // Название надзорной компании
         }
-        createMutation.mutate(newSupervision)
+
+        // Компания передается только для суперадмина, для остальных backend подставит автоматически
+        if (currentUser?.is_superuser && values.company) {
+          userData.company = values.company
+        }
+
+        console.log('Creating supervision with data:', userData)
+        createMutation.mutate(userData)
       }
     })
   }
@@ -275,6 +332,32 @@ const Supervisions = () => {
   // Функция для получения цвета статуса
   const getStatusColor = (isActive: boolean) => {
     return isActive ? 'green' : 'red'
+  }
+
+  // Функция для переключения видимости пароля
+  const togglePasswordVisibility = (userId: number) => {
+    setVisiblePasswords(prev => ({
+      ...prev,
+      [userId]: !prev[userId]
+    }))
+  }
+
+  // Функция для форматирования инициалов
+  const getInitials = (user: User) => {
+    const firstNameInitial = user.first_name ? user.first_name.charAt(0) + '.' : ''
+    const middleNameInitial = user.middle_name ? user.middle_name.charAt(0) + '.' : ''
+    return `${user.last_name} ${firstNameInitial}${middleNameInitial}`
+  }
+
+  // Функция для форматирования телефона
+  const formatPhone = (phone?: string) => {
+    if (!phone) return '-'
+    // Форматирование телефона +7 (777) 777-77-77
+    const cleaned = phone.replace(/\D/g, '')
+    if (cleaned.length === 11 && cleaned.startsWith('7')) {
+      return `+7 (${cleaned.slice(1, 4)}) ${cleaned.slice(4, 7)}-${cleaned.slice(7, 9)}-${cleaned.slice(9, 11)}`
+    }
+    return phone
   }
 
   // Loading state
@@ -357,29 +440,91 @@ const Supervisions = () => {
                     {supervision.full_name}
                   </Text>
                 </div>
-                <Tag color={supervision.role === 'SUPERVISOR' ? 'blue' : 'green'}>
-                  {getRoleName(supervision.role)}
-                </Tag>
-                <Tag color={getStatusColor(supervision.is_active)}>
-                  {supervision.is_active ? 'Активен' : 'Неактивен'}
-                </Tag>
+                <Space size="small" wrap style={{ marginBottom: '8px' }}>
+                  <Tag color={supervision.role === 'SUPERVISOR' ? 'blue' : 'green'}>
+                    {getRoleName(supervision.role)}
+                  </Tag>
+                  <Tag color={getStatusColor(supervision.is_active)}>
+                    {supervision.is_active ? 'Активен' : 'Неактивен'}
+                  </Tag>
+                </Space>
+                {/* Надзорная компания - видна в сетке */}
+                {((supervision as any).external_company_name || (supervision as any).supervision_company) && (
+                  <div style={{
+                    padding: '8px 12px',
+                    background: '#e6f7ff',
+                    borderRadius: '4px',
+                    border: '1px solid #91d5ff',
+                    marginTop: '8px'
+                  }}>
+                    <Text type="secondary" style={{ fontSize: '11px', display: 'block', marginBottom: '2px' }}>
+                      из Компании:
+                    </Text>
+                    <Text strong style={{ fontSize: '14px', color: '#1890ff' }}>
+                      {(supervision as any).external_company_name || (supervision as any).supervision_company}
+                    </Text>
+                  </div>
+                )}
               </div>
 
               <Divider style={{ margin: '12px 0' }} />
 
               {/* Информация о надзоре */}
               <div style={{ marginBottom: '12px' }}>
-                <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
-                  Email: {supervision.email || 'Не указан'}
-                </Text>
-                <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
-                  Телефон: {supervision.phone || 'Не указан'}
-                </Text>
+                {/* Email */}
+                <div style={{ marginBottom: '8px' }}>
+                  <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Email:</Text>
+                  <Text style={{ fontSize: '14px' }}>{supervision.email}</Text>
+                </div>
+
+                {/* Пароль (скрыт) */}
+                <div style={{ marginBottom: '8px' }}>
+                  <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Пароль:</Text>
+                  <Space>
+                    <Text code style={{ fontSize: '14px' }}>
+                      {visiblePasswords[supervision.id] ? (supervision.temp_password || '-') : '••••••••'}
+                    </Text>
+                    {supervision.temp_password && (
+                      <Button
+                        type="link"
+                        size="small"
+                        icon={visiblePasswords[supervision.id] ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+                        onClick={() => togglePasswordVisibility(supervision.id)}
+                        style={{ padding: 0 }}
+                      />
+                    )}
+                  </Space>
+                </div>
+
+                {/* Должность */}
                 {supervision.position && (
-                  <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
-                    Должность: {supervision.position}
-                  </Text>
+                  <div style={{ marginBottom: '8px' }}>
+                    <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Должность:</Text>
+                    <Text style={{ fontSize: '14px' }}>{supervision.position}</Text>
+                  </div>
                 )}
+
+                {/* Телефон */}
+                <div style={{ marginBottom: '8px' }}>
+                  <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Телефон:</Text>
+                  <Text style={{ fontSize: '14px' }}>{formatPhone(supervision.phone)}</Text>
+                </div>
+
+                {/* Объекты */}
+                <div style={{ marginBottom: '8px' }}>
+                  <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Объекты:</Text>
+                  {supervision.user_projects && supervision.user_projects.length > 0 ? (
+                    <Space size="small" wrap>
+                      {supervision.user_projects.map((project) => (
+                        <Tag key={project.id}>
+                          {project.name}
+                        </Tag>
+                      ))}
+                    </Space>
+                  ) : (
+                    <Text type="secondary" style={{ fontSize: '14px' }}>Не назначены</Text>
+                  )}
+                </div>
               </div>
 
               <Divider style={{ margin: '12px 0' }} />
@@ -556,6 +701,51 @@ const Supervisions = () => {
             label="Должность"
           >
             <Input placeholder="Должность" />
+          </Form.Item>
+
+          {/* Надзорная компания (из какой компании работает специалист) */}
+          <Form.Item
+            name="supervision_company"
+            label="из Компании (Надзорная компания)"
+            help="Укажите надзорную компанию, из которой работает этот специалист"
+          >
+            <Input placeholder="Название надзорной компании" />
+          </Form.Item>
+
+          {/* Компания (только для суперадмина) */}
+          {currentUser?.is_superuser && (
+            <Form.Item
+              name="company"
+              label="Компания"
+              rules={[{ required: !editingSupervision, message: 'Выберите компанию' }]}
+            >
+              <Select
+                placeholder="Выберите компанию"
+                loading={companiesLoading}
+                disabled={!!editingSupervision} // При редактировании компанию нельзя менять
+                options={companies.map((company: any) => ({
+                  label: company.name,
+                  value: company.id
+                }))}
+              />
+            </Form.Item>
+          )}
+
+          {/* Объекты - доступны и при создании, и при редактировании */}
+          <Form.Item
+            name="project_ids"
+            label="Выберите объекты"
+            help="Надзор будет привязан к выбранным объектам"
+          >
+            <Select
+              mode="multiple"
+              placeholder="Выберите один или несколько объектов"
+              loading={projectsLoading}
+              options={projects.map((project: any) => ({
+                label: project.name,
+                value: project.id
+              }))}
+            />
           </Form.Item>
         </Form>
       </Modal>

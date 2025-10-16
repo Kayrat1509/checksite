@@ -478,7 +478,7 @@ const Projects = () => {
       },
     },
     {
-      title: 'Персонал',
+      title: 'Сотрудники',
       key: 'personnel',
       render: (_: any, record: Project) => {
         // Фильтруем пользователей: ИТР и Руководство, привязанные к этому проекту
@@ -499,7 +499,7 @@ const Projects = () => {
               icon={<UserOutlined />}
               onClick={() => showPersonnel(record)}
             >
-              Персонал ({count})
+              Сотрудники ({count})
             </Button>
           </Space>
         )
@@ -807,9 +807,9 @@ const Projects = () => {
         </Upload.Dragger>
       </Modal>
 
-      {/* Модальное окно списка персонала */}
+      {/* Модальное окно списка сотрудников */}
       <Modal
-        title={`Персонал объекта: ${selectedProject?.name || ''}`}
+        title={`Сотрудники объекта: ${selectedProject?.name || ''}`}
         open={isPersonnelModalOpen}
         onCancel={handlePersonnelModalCancel}
         footer={[
