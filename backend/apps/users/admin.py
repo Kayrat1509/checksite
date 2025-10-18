@@ -8,7 +8,7 @@ from .models import User, Company
 class CompanyAdmin(admin.ModelAdmin):
     """Admin interface for Company model."""
 
-    list_display = ['name', 'country', 'phone', 'email', 'is_active', 'created_at']
+    list_display = ['name', 'country', 'phone', 'email', 'get_storage_size', 'is_active', 'created_at']
     list_filter = ['country', 'is_active', 'created_at']
     search_fields = ['name', 'country', 'email', 'phone']
     ordering = ['name']
@@ -21,13 +21,22 @@ class CompanyAdmin(admin.ModelAdmin):
         (_('Статус'), {
             'fields': ('is_active',)
         }),
+        (_('Статистика'), {
+            'fields': ('get_storage_size',),
+            'classes': ('collapse',)
+        }),
         (_('Даты'), {
             'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )
 
-    readonly_fields = ['created_at', 'updated_at']
+    readonly_fields = ['created_at', 'updated_at', 'get_storage_size']
+
+    def get_storage_size(self, obj):
+        """Отображение общего размера занятого хранилища компании."""
+        return obj.get_formatted_storage_size()
+    get_storage_size.short_description = 'Занято места'
 
 
 @admin.register(User)

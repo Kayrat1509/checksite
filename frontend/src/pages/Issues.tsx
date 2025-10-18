@@ -306,6 +306,15 @@ const Issues = () => {
     return user.is_superuser || allowedRoles.includes(user.role)
   }
 
+  // Функция проверки прав на создание замечания
+  // Доступно всем, кроме: Подрядчик
+  const canCreateIssue = () => {
+    if (!user) return false
+    // Запрещаем создание замечаний для роли CONTRACTOR
+    if (user.role === 'CONTRACTOR') return false
+    return true
+  }
+
   // Загрузка замечаний
   const { data: issuesData, isLoading, error } = useQuery({
     queryKey: ['issues', statusFilter, priorityFilter, searchTerm],
@@ -696,9 +705,12 @@ const Issues = () => {
       {/* Заголовок */}
       <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Title level={2} style={{ margin: 0 }}>Замечания</Title>
-        <Button type="primary" icon={<PlusOutlined />} size="large" onClick={handleAddIssue}>
-          Добавить замечание
-        </Button>
+        {/* Кнопка "Добавить замечание" доступна всем, кроме роли "Подрядчик" */}
+        {canCreateIssue() && (
+          <Button type="primary" icon={<PlusOutlined />} size="large" onClick={handleAddIssue}>
+            Добавить замечание
+          </Button>
+        )}
       </div>
 
       {/* Фильтры */}
@@ -1069,6 +1081,30 @@ const Issues = () => {
                           }}
                         >
                           {issue.status === 'COMPLETED' ? 'Принято' : 'Принять'}
+                        </Button>
+                      </Col>
+                    </Row>
+                  )}
+
+                  {/* Ряд 4.5: Отметка "Принято" для Подрядчика (только для просмотра) */}
+                  {user && user.role === 'CONTRACTOR' && issue.status === 'COMPLETED' && (
+                    <Row gutter={8}>
+                      <Col span={24}>
+                        <Button
+                          type="default"
+                          size="small"
+                          icon={<CheckOutlined />}
+                          block
+                          disabled
+                          style={{
+                            background: '#f6ffed',
+                            borderColor: '#52c41a',
+                            color: '#52c41a',
+                            cursor: 'not-allowed',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          Принято
                         </Button>
                       </Col>
                     </Row>

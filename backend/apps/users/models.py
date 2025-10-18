@@ -30,6 +30,67 @@ class Company(models.Model):
         # Возвращаем только название компании без ОПФ
         return self.name
 
+    def get_total_storage_size(self):
+        """
+        Вычисляет общий размер всех файлов, связанных с компанией.
+
+        Включает:
+        - Аватары пользователей компании
+        - Чертежи проектов компании
+        - Фото замечаний в проектах компании
+
+        Возвращает размер в байтах.
+        """
+        total_size = 0
+
+        # 1. Размер аватаров пользователей компании
+        for user in self.users.all():
+            if user.avatar and hasattr(user.avatar, 'size'):
+                try:
+                    total_size += user.avatar.size
+                except (FileNotFoundError, OSError):
+                    # Файл может быть удален с диска, но запись в БД осталась
+                    pass
+
+        # 2. Размер чертежей всех проектов компании
+        for project in self.projects.all():
+            for drawing in project.drawings.all():
+                if drawing.file and hasattr(drawing.file, 'size'):
+                    try:
+                        total_size += drawing.file.size
+                    except (FileNotFoundError, OSError):
+                        pass
+
+            # 3. Размер фото замечаний во всех проектах компании
+            for issue in project.issues.all():
+                for photo in issue.photos.all():
+                    if photo.photo and hasattr(photo.photo, 'size'):
+                        try:
+                            total_size += photo.photo.size
+                        except (FileNotFoundError, OSError):
+                            pass
+
+        return total_size
+
+    def get_formatted_storage_size(self):
+        """
+        Возвращает размер хранилища в удобочитаемом формате.
+        """
+        size_bytes = self.get_total_storage_size()
+
+        # Форматируем размер
+        if size_bytes < 1024:
+            return f"{size_bytes} B"
+        elif size_bytes < 1024 * 1024:
+            size_kb = size_bytes / 1024
+            return f"{size_kb:.2f} KB"
+        elif size_bytes < 1024 * 1024 * 1024:
+            size_mb = size_bytes / (1024 * 1024)
+            return f"{size_mb:.2f} MB"
+        else:
+            size_gb = size_bytes / (1024 * 1024 * 1024)
+            return f"{size_gb:.2f} GB"
+
 
 class UserManager(BaseUserManager):
     """Custom user manager for email-based authentication."""

@@ -215,6 +215,47 @@ class IssuePhoto(models.Model):
 
     created_at = models.DateTimeField(_('Загружено'), auto_now_add=True)
 
+    def save(self, *args, **kwargs):
+        """
+        Переопределяем метод save для автоматической конвертации изображений в WebP.
+        """
+        # Если фото загружается впервые (не обновление существующей записи)
+        # self.photo может быть:
+        # 1. InMemoryUploadedFile - при загрузке через API
+        # 2. TemporaryUploadedFile - при загрузке больших файлов
+        # 3. ImageFieldFile - при обновлении существующей записи (пропускаем конвертацию)
+        if self.photo:
+            from .utils import convert_image_to_webp, validate_image_format
+
+            # Проверяем, что это новый загружаемый файл, а не существующий
+            # ImageFieldFile не имеет атрибута content_type
+            is_new_upload = hasattr(self.photo, 'content_type') or (
+                hasattr(self.photo, 'file') and
+                hasattr(self.photo.file, 'content_type')
+            )
+
+            if is_new_upload:
+                # Проверяем, что формат изображения поддерживается
+                if validate_image_format(self.photo):
+                    try:
+                        # Конвертируем изображение в WebP
+                        # качество=85, максимальный размер=2560px
+                        converted_file = convert_image_to_webp(
+                            self.photo,
+                            quality=85,
+                            max_dimension=2560
+                        )
+                        # Заменяем исходное фото конвертированным
+                        self.photo = converted_file
+                    except Exception as e:
+                        # Логируем ошибку, но не прерываем сохранение
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.error(f"Ошибка конвертации изображения в WebP: {str(e)}")
+                        # Продолжаем сохранение с исходным форматом
+
+        super().save(*args, **kwargs)
+
     class Meta:
         verbose_name = _('Фото замечания')
         verbose_name_plural = _('Фото замечаний')

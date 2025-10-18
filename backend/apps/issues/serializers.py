@@ -19,6 +19,30 @@ class IssuePhotoSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'photo_url', 'created_at']
 
+    def validate_photo(self, value):
+        """
+        Валидация загружаемого изображения.
+        Проверяет формат и размер файла.
+        """
+        from .utils import ALLOWED_IMAGE_FORMATS
+
+        # Проверяем content_type
+        if value.content_type not in ALLOWED_IMAGE_FORMATS:
+            raise serializers.ValidationError(
+                f"Неподдерживаемый формат изображения: {value.content_type}. "
+                f"Допустимые форматы: JPG, PNG, HEIC, HEIF, BMP, TIFF, WebP"
+            )
+
+        # Проверяем размер файла (максимум 50 МБ)
+        max_size = 50 * 1024 * 1024  # 50 MB
+        if value.size > max_size:
+            raise serializers.ValidationError(
+                f"Размер файла слишком большой. Максимальный размер: 50 МБ. "
+                f"Размер загруженного файла: {value.size / (1024 * 1024):.2f} МБ"
+            )
+
+        return value
+
     def get_photo_url(self, obj):
         """Возвращает полный URL для фото."""
         if obj.photo and hasattr(obj.photo, 'url'):
