@@ -116,6 +116,12 @@ const Users = () => {
     ],
     CONTRACTOR: [
       { value: 'CONTRACTOR', label: 'Подрядчик' }
+    ],
+    // Роли для работы с заявками на материалы
+    MATERIAL_REQUESTS: [
+      { value: 'SUPPLY_MANAGER', label: 'Снабженец' },
+      { value: 'WAREHOUSE_HEAD', label: 'Зав.Центрсклада' },
+      { value: 'ACCOUNTANT', label: 'Бухгалтер' }
     ]
   }
 
@@ -503,7 +509,7 @@ const Users = () => {
   }
 
   const getRoleLabel = (role: string) => {
-    const allRoles = [...ROLES.ITR, ...ROLES.MANAGEMENT, ...ROLES.CONTRACTOR]
+    const allRoles = [...ROLES.ITR, ...ROLES.MANAGEMENT, ...ROLES.CONTRACTOR, ...ROLES.MATERIAL_REQUESTS]
     const roleObj = allRoles.find(r => r.value === role)
     return roleObj?.label || role
   }
@@ -511,7 +517,8 @@ const Users = () => {
   const getRoleOptions = () => {
     if (selectedRole === 'ITR') return ROLES.ITR
     if (selectedRole === 'MANAGEMENT') return ROLES.MANAGEMENT
-    return [...ROLES.ITR, ...ROLES.MANAGEMENT]
+    if (selectedRole === 'MATERIAL_REQUESTS') return ROLES.MATERIAL_REQUESTS
+    return [...ROLES.ITR, ...ROLES.MANAGEMENT, ...ROLES.MATERIAL_REQUESTS]
   }
 
   const getInitials = (user: User) => {
@@ -830,6 +837,7 @@ const Users = () => {
               >
                 <Option value="ITR">ИТР</Option>
                 <Option value="MANAGEMENT">Руководство</Option>
+                <Option value="MATERIAL_REQUESTS">Заявки на материалы</Option>
               </Select>
             </Form.Item>
           )}

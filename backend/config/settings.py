@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'apps.notifications',
     'apps.reports',
     'apps.technical_conditions',
+    'apps.material_requests',  # Заявки на строительные материалы
 ]
 
 MIDDLEWARE = [

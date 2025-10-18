@@ -13,9 +13,24 @@ import Users from './pages/Users'
 import Contractors from './pages/Contractors'
 import Supervisions from './pages/Supervisions'
 import TechnicalConditions from './pages/TechnicalConditions'
+import MaterialRequests from './pages/MaterialRequests'
 import Reports from './pages/Reports'
 import Profile from './pages/Profile'
 import NotFound from './pages/NotFound'
+
+// Компонент редиректа для дашборда в зависимости от роли
+function DashboardRedirect() {
+  const { user } = useAuthStore()
+
+  // Роли снабжения перенаправляются на страницу проектов
+  const supplyRoles = ['SUPPLY_MANAGER', 'WAREHOUSE_HEAD', 'ACCOUNTANT']
+  if (user && supplyRoles.includes(user.role)) {
+    return <Navigate to="/dashboard/projects" replace />
+  }
+
+  // Остальные пользователи видят обычный дашборд
+  return <Dashboard />
+}
 
 function App() {
   const { isAuthenticated, isLoading, checkAuth } = useAuthStore()
@@ -48,13 +63,14 @@ function App() {
           path="/dashboard"
           element={isAuthenticated ? <MainLayout /> : <Navigate to="/" />}
         >
-          <Route index element={<Dashboard />} />
+          <Route index element={<DashboardRedirect />} />
           <Route path="projects" element={<Projects />} />
           <Route path="issues" element={<Issues />} />
           <Route path="users" element={<Users />} />
           <Route path="contractors" element={<Contractors />} />
           <Route path="supervisions" element={<Supervisions />} />
           <Route path="technical-conditions" element={<TechnicalConditions />} />
+          <Route path="material-requests" element={<MaterialRequests />} />
           <Route path="reports" element={<Reports />} />
           <Route path="profile" element={<Profile />} />
         </Route>

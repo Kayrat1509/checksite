@@ -135,6 +135,10 @@ class User(AbstractUser):
         SUPERVISOR = 'SUPERVISOR', _('Технадзор')
         CONTRACTOR = 'CONTRACTOR', _('Подрядчик')
         OBSERVER = 'OBSERVER', _('Наблюдатель')
+        # Роли для работы с заявками на материалы
+        SUPPLY_MANAGER = 'SUPPLY_MANAGER', _('Снабженец')
+        WAREHOUSE_HEAD = 'WAREHOUSE_HEAD', _('Зав.Центрсклада')
+        ACCOUNTANT = 'ACCOUNTANT', _('Бухгалтер')
 
     username = None
     email = models.EmailField(_('Email'), unique=True)

@@ -45,11 +45,6 @@ code {
   margin-left: 80px;
 }
 
-.ant-layout-content {
-  padding: 24px;
-  background: #f0f2f5;
-}
-
 /* Mobile responsiveness */
 @media (max-width: 992px) {
   .ant-layout-sider + .ant-layout {
@@ -62,8 +57,4 @@ code {
   }
 }
 
-@media (max-width: 768px) {
-  .ant-layout-content {
-    padding: 16px;
-  }
-}
+/* Убрано: padding управляется через inline стили в MainLayout.tsx */

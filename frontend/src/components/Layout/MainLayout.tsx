@@ -14,6 +14,7 @@ import {
   TeamOutlined,
   SafetyOutlined,
   FileProtectOutlined,
+  ShoppingCartOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../../stores/authStore'
 import { useNotificationStore } from '../../stores/notificationStore'
@@ -87,55 +88,75 @@ const MainLayout = () => {
     return true
   }
 
+  // Проверка, является ли пользователь ролью снабжения/склада/бухгалтерии
+  const isSupplyRole = () => {
+    if (!user) return false
+    const supplyRoles = ['SUPPLY_MANAGER', 'WAREHOUSE_HEAD', 'ACCOUNTANT']
+    return supplyRoles.includes(user.role)
+  }
+
   // Фильтруем меню в зависимости от прав доступа пользователя
   const allMenuItems = [
     {
       key: '/dashboard',
       icon: <DashboardOutlined />,
       label: <Link to="/dashboard">Дашборд</Link>,
+      // Роли снабжения не имеют доступа к дашборду
+      visible: !isSupplyRole(),
     },
     {
       key: '/dashboard/projects',
       icon: <ProjectOutlined />,
       label: <Link to="/dashboard/projects">Проекты</Link>,
+      // Роли снабжения имеют доступ к проектам
     },
     {
       key: '/dashboard/issues',
       icon: <FileTextOutlined />,
       label: <Link to="/dashboard/issues">Замечания</Link>,
+      // Роли снабжения не имеют доступа к замечаниям
+      visible: !isSupplyRole(),
     },
     {
       key: '/dashboard/users',
       icon: <UserOutlined />,
       label: <Link to="/dashboard/users">Сотрудники</Link>,
       // Показываем пункт меню только для разрешенных ролей
-      visible: canAccessUsers(),
+      visible: canAccessUsers() && !isSupplyRole(),
     },
     {
       key: '/dashboard/contractors',
       icon: <TeamOutlined />,
       label: <Link to="/dashboard/contractors">Подрядчики</Link>,
       // Показываем пункт меню только для разрешенных ролей
-      visible: canAccessContractors(),
+      visible: canAccessContractors() && !isSupplyRole(),
     },
     {
       key: '/dashboard/supervisions',
       icon: <SafetyOutlined />,
       label: <Link to="/dashboard/supervisions">Надзоры</Link>,
       // Показываем пункт меню только для разрешенных ролей
-      visible: canAccessSupervisions(),
+      visible: canAccessSupervisions() && !isSupplyRole(),
     },
     {
       key: '/dashboard/technical-conditions',
       icon: <FileProtectOutlined />,
       label: <Link to="/dashboard/technical-conditions">Техусловия</Link>,
+      // Роли снабжения не имеют доступа к техусловиям
+      visible: !isSupplyRole(),
+    },
+    {
+      key: '/dashboard/material-requests',
+      icon: <ShoppingCartOutlined />,
+      label: <Link to="/dashboard/material-requests">Заявки</Link>,
+      // Роли снабжения имеют доступ к заявкам
     },
     {
       key: '/dashboard/reports',
       icon: <BarChartOutlined />,
       label: <Link to="/dashboard/reports">Отчеты</Link>,
-      // Подрядчики не имеют доступа к отчетам
-      visible: canAccessReports(),
+      // Подрядчики и роли снабжения не имеют доступа к отчетам
+      visible: canAccessReports() && !isSupplyRole(),
     },
   ]
 
@@ -186,7 +207,7 @@ const MainLayout = () => {
         />
       </Sider>
 
-      <Layout>
+      <Layout style={{ background: '#f0f2f5' }}>
         <Header style={{
           padding: '0 24px',
           background: '#fff',
@@ -215,7 +236,7 @@ const MainLayout = () => {
           </div>
         </Header>
 
-        <Content style={{ margin: '24px 16px', padding: 24, background: '#fff', minHeight: 280 }}>
+        <Content style={{ margin: '24px 16px', padding: 0, background: '#f0f2f5', minHeight: 280 }}>
           <Outlet />
         </Content>
       </Layout>
