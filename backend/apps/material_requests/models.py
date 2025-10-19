@@ -114,28 +114,43 @@ class MaterialRequest(models.Model):
         return f"{self.request_number} - {self.project.name}"
 
     def save(self, *args, **kwargs):
-        """Автоматическая генерация номера заявки при создании."""
+        """
+        Автоматическая генерация номера заявки при создании.
+        Нумерация независимая для каждого объекта (проекта).
+        Формат: З-{project_id}-{number}/{year}
+        Например: З-10-001/25 (проект 10, заявка 001, год 2025)
+        """
         if not self.request_number:
-            # Генерация номера вида: З-001/25
             from django.utils import timezone
             year = timezone.now().year % 100  # Последние 2 цифры года
+            project_id = self.project.id
 
-            # Находим последнюю заявку текущего года
+            # Находим последнюю заявку текущего года для ДАННОГО ПРОЕКТА
             last_request = MaterialRequest.objects.filter(
+                project=self.project,
                 request_number__endswith=f'/{year:02d}'
-            ).order_by('-request_number').first()
+            ).order_by('-created_at').first()
 
             if last_request:
-                # Извлекаем номер из последней заявки
+                # Извлекаем номер из последней заявки этого проекта
+                # Формат: З-{project_id}-{number}/{year}
                 try:
-                    last_number = int(last_request.request_number.split('-')[1].split('/')[0])
+                    parts = last_request.request_number.split('-')
+                    if len(parts) >= 3:
+                        # Новый формат: З-{project_id}-{number}/{year}
+                        number_part = parts[2].split('/')[0]
+                        last_number = int(number_part)
+                    else:
+                        # Старый формат: З-{number}/{year}
+                        last_number = int(parts[1].split('/')[0])
                     new_number = last_number + 1
                 except (IndexError, ValueError):
                     new_number = 1
             else:
+                # Первая заявка для этого проекта в текущем году
                 new_number = 1
 
-            self.request_number = f'З-{new_number:03d}/{year:02d}'
+            self.request_number = f'З-{project_id}-{new_number:03d}/{year:02d}'
 
         super().save(*args, **kwargs)
 
@@ -164,6 +179,29 @@ class MaterialRequestItem(models.Model):
         IN_STOCK = 'IN_STOCK', _('В наличии')
         PARTIALLY_IN_STOCK = 'PARTIALLY_IN_STOCK', _('Частично в наличии')
         OUT_OF_STOCK = 'OUT_OF_STOCK', _('Нет на складе')
+
+    class ProcessStatus(models.TextChoices):
+        # Независимый статус движения позиции по процессу согласования
+        # Новая логика: Автор → Снабжение → Завсклад → Снабжение → Инженер ПТО → Снабжение → Рук.проекта → Снабжение → Директор → Снабжение
+        DRAFT = 'DRAFT', _('Черновик')
+        UNDER_REVIEW = 'UNDER_REVIEW', _('Снабжение (проверка)')
+        WAREHOUSE_CHECK = 'WAREHOUSE_CHECK', _('Завсклад')
+        BACK_TO_SUPPLY = 'BACK_TO_SUPPLY', _('Снабжение (после склада)')
+        ENGINEER_APPROVAL = 'ENGINEER_APPROVAL', _('Инженер ПТО')
+        BACK_TO_SUPPLY_AFTER_ENGINEER = 'BACK_TO_SUPPLY_AFTER_ENGINEER', _('Снабжение (после инженера)')
+        PROJECT_MANAGER_APPROVAL = 'PROJECT_MANAGER_APPROVAL', _('Руководитель проекта')
+        BACK_TO_SUPPLY_AFTER_PM = 'BACK_TO_SUPPLY_AFTER_PM', _('Снабжение (после рук.проекта)')
+        DIRECTOR_APPROVAL = 'DIRECTOR_APPROVAL', _('Директор')
+        BACK_TO_SUPPLY_AFTER_DIRECTOR = 'BACK_TO_SUPPLY_AFTER_DIRECTOR', _('Снабжение (после директора)')
+        RETURNED_FOR_REVISION = 'RETURNED_FOR_REVISION', _('На доработке (у автора)')
+        REWORK = 'REWORK', _('На доработке')
+        APPROVED = 'APPROVED', _('Согласовано')
+        SENT_TO_SITE = 'SENT_TO_SITE', _('Отправить на объект (у зав.склада)')
+        WAREHOUSE_SHIPPING = 'WAREHOUSE_SHIPPING', _('Отправлено на объект (у автора)')
+        PAYMENT = 'PAYMENT', _('На оплате')
+        PAID = 'PAID', _('Оплачено')
+        DELIVERY = 'DELIVERY', _('Доставлено')
+        COMPLETED = 'COMPLETED', _('Отработано')
 
     request = models.ForeignKey(
         MaterialRequest,
@@ -230,6 +268,15 @@ class MaterialRequestItem(models.Model):
         choices=AvailabilityStatus.choices,
         default=AvailabilityStatus.NOT_CHECKED,
         help_text=_('Статус проверки наличия материала на складе')
+    )
+
+    # Независимый статус движения позиции по процессу согласования
+    item_status = models.CharField(
+        _('Статус позиции в процессе'),
+        max_length=30,
+        choices=ProcessStatus.choices,
+        default=ProcessStatus.DRAFT,
+        help_text=_('Независимый статус движения позиции материала по процессу согласования')
     )
 
     # Количество в наличии (если частично)

@@ -73,9 +73,11 @@ class MaterialRequestPermission(permissions.BasePermission):
             return False
 
         # Редактирование и удаление:
-        # - Автор может редактировать свою заявку в статусе DRAFT
+        # - Автор может редактировать свою заявку в статусе DRAFT или если хотя бы одна позиция в статусе RETURNED_FOR_REVISION
         if request.method in ['PUT', 'PATCH', 'DELETE']:
-            if obj.author == user and obj.status == 'DRAFT':
+            # Проверяем статус заявки и статусы позиций
+            has_returned_items = obj.items.filter(item_status='RETURNED_FOR_REVISION').exists()
+            if obj.author == user and (obj.status == 'DRAFT' or has_returned_items):
                 return True
             # Руководители и снабжение могут редактировать любые заявки
             if user.role in ['DIRECTOR', 'CHIEF_ENGINEER', 'SUPERADMIN', 'SUPPLY_MANAGER']:
@@ -135,8 +137,9 @@ class MaterialRequestStatusChangePermission(permissions.BasePermission):
         if obj.responsible == user:
             return True
 
-        # Автор заявки может менять статус если заявка в статусе DRAFT или REWORK
-        if obj.author == user and obj.status in ['DRAFT', 'REWORK']:
+        # Автор заявки может менять статус если заявка в статусе DRAFT или REWORK, или если позиции в статусе RETURNED_FOR_REVISION
+        has_returned_items = obj.items.filter(item_status='RETURNED_FOR_REVISION').exists()
+        if obj.author == user and (obj.status in ['DRAFT', 'REWORK'] or has_returned_items):
             return True
 
         return False

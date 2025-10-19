@@ -18,20 +18,25 @@ interface Project {
 // Маппинг статусов на цвета согласно новой схеме согласования
 const getStatusColor = (status: string): string => {
   const colors: Record<string, string> = {
-    DRAFT: 'default',                       // Серый - Черновик
-    UNDER_REVIEW: 'blue',                   // Синий - На проверке снабжения
-    WAREHOUSE_CHECK: 'cyan',                // Голубой - Центр склад
-    BACK_TO_SUPPLY: 'blue',                 // Синий - Снабжение
-    PROJECT_MANAGER_APPROVAL: 'geekblue',   // Темно-синий - У руководителя проекта
-    DIRECTOR_APPROVAL: 'purple',            // Фиолетовый - У директора
-    REWORK: 'orange',                       // Оранжевый - На доработке
-    APPROVED: 'green',                      // Зелёный - Согласовано
-    SENT_TO_SITE: 'cyan',                   // Голубой - Отправить на объект (у зав.склада)
-    WAREHOUSE_SHIPPING: 'geekblue',         // Темно-синий - Отправлено на объект (у автора)
-    PAYMENT: 'gold',                        // Золотой - На оплате
-    PAID: 'lime',                           // Салатовый - Оплачено
-    DELIVERY: 'magenta',                    // Пурпурный - Доставлено
-    COMPLETED: 'green',                     // Зелёный - Отработано
+    DRAFT: 'default',                            // Серый - Черновик
+    UNDER_REVIEW: 'blue',                        // Синий - На проверке снабжения
+    WAREHOUSE_CHECK: 'cyan',                     // Голубой - Центр склад
+    BACK_TO_SUPPLY: 'blue',                      // Синий - Снабжение (после склада)
+    ENGINEER_APPROVAL: 'orange',                 // Оранжевый - У инженера ПТО
+    BACK_TO_SUPPLY_AFTER_ENGINEER: 'blue',       // Синий - Снабжение (после инженера)
+    PROJECT_MANAGER_APPROVAL: 'geekblue',        // Темно-синий - У руководителя проекта
+    BACK_TO_SUPPLY_AFTER_PM: 'blue',             // Синий - Снабжение (после рук.проекта)
+    DIRECTOR_APPROVAL: 'purple',                 // Фиолетовый - У директора
+    BACK_TO_SUPPLY_AFTER_DIRECTOR: 'blue',       // Синий - Снабжение (после директора)
+    RETURNED_FOR_REVISION: 'red',                // Красный - На доработке (у автора)
+    REWORK: 'orange',                            // Оранжевый - На доработке
+    APPROVED: 'green',                           // Зелёный - Согласовано
+    SENT_TO_SITE: 'cyan',                        // Голубой - Отправить на объект (у зав.склада)
+    WAREHOUSE_SHIPPING: 'geekblue',              // Темно-синий - Отправлено на объект (у автора)
+    PAYMENT: 'gold',                             // Золотой - На оплате
+    PAID: 'lime',                                // Салатовый - Оплачено
+    DELIVERY: 'magenta',                         // Пурпурный - Доставлено
+    COMPLETED: 'green',                          // Зелёный - Отработано
   };
   return colors[status] || 'default';
 };
@@ -40,23 +45,36 @@ const MaterialRequests = () => {
   const { user } = useAuthStore();
   const [requests, setRequests] = useState<MaterialRequest[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [isEditItemModalVisible, setIsEditItemModalVisible] = useState(false);
   const [editingRequest, setEditingRequest] = useState<MaterialRequest | null>(null);
+  const [editingItem, setEditingItem] = useState<any | null>(null);
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
+  const [editItemForm] = Form.useForm();
 
   // Загрузка данных
   useEffect(() => {
-    fetchRequests();
     fetchProjects();
   }, []);
 
+  // При изменении выбранного проекта загружаем заявки
+  useEffect(() => {
+    if (selectedProjectId) {
+      fetchRequests();
+    }
+  }, [selectedProjectId]);
+
   const fetchRequests = async () => {
+    if (!selectedProjectId) return;
+
     setLoading(true);
     try {
-      const data = await materialRequestsAPI.getMaterialRequests();
+      // Фильтруем заявки по выбранному проекту
+      const data = await materialRequestsAPI.getMaterialRequests({ project: selectedProjectId });
       // Убеждаемся, что data - это массив
       if (Array.isArray(data)) {
         setRequests(data);
@@ -81,13 +99,21 @@ const MaterialRequests = () => {
     try {
       const data = await projectsAPI.getProjects();
       // Убеждаемся, что data - это массив для проектов
+      let projectsList: Project[] = [];
       if (Array.isArray(data)) {
-        setProjects(data);
+        projectsList = data;
       } else if (data && typeof data === 'object' && Array.isArray(data.results)) {
-        setProjects(data.results);
+        projectsList = data.results;
       } else {
-        setProjects([]);
+        projectsList = [];
         console.warn('Неожиданный формат данных проектов:', data);
+      }
+
+      setProjects(projectsList);
+
+      // Автоматически выбираем первый проект, если он есть
+      if (projectsList.length > 0 && !selectedProjectId) {
+        setSelectedProjectId(projectsList[0].id);
       }
     } catch (error) {
       console.error('Ошибка загрузки проектов:', error);
@@ -98,7 +124,12 @@ const MaterialRequests = () => {
   // Создание новой заявки
   const handleCreateRequest = async (values: CreateMaterialRequestData) => {
     try {
-      await materialRequestsAPI.createMaterialRequest(values);
+      // Автоматически привязываем к выбранному проекту
+      const requestData = {
+        ...values,
+        project: selectedProjectId,
+      };
+      await materialRequestsAPI.createMaterialRequest(requestData);
       message.success('Заявка создана успешно!');
       setIsModalVisible(false);
       form.resetFields();
@@ -171,6 +202,43 @@ const MaterialRequests = () => {
     }
   };
 
+  // Редактирование позиции материала
+  const handleEditItem = async (item: any) => {
+    try {
+      setEditingItem(item);
+
+      // Предзаполняем форму данными позиции
+      editItemForm.setFieldsValue({
+        material_name: item.material_name,
+        quantity: item.quantity,
+        unit: item.unit,
+        specifications: item.specifications,
+      });
+
+      setIsEditItemModalVisible(true);
+    } catch (error) {
+      message.error('Ошибка при загрузке данных позиции');
+      console.error(error);
+    }
+  };
+
+  // Обновление позиции материала
+  const handleUpdateItem = async (values: any) => {
+    if (!editingItem) return;
+
+    try {
+      await materialRequestsAPI.updateItem(editingItem.id, values);
+      message.success('Позиция обновлена успешно!');
+      setIsEditItemModalVisible(false);
+      editItemForm.resetFields();
+      setEditingItem(null);
+      fetchRequests();
+    } catch (error) {
+      message.error('Ошибка обновления позиции');
+      console.error(error);
+    }
+  };
+
   // Отмена позиции материала из заявки
   const handleCancelItem = async (material: any) => {
     // Проверяем, есть ли у материала id
@@ -203,7 +271,7 @@ const MaterialRequests = () => {
     }
   };
 
-  // Универсальная функция смены статуса
+  // Универсальная функция смены статуса заявки (устаревшая, для совместимости)
   const handleChangeStatus = async (request: MaterialRequest, newStatus: string, comment: string, loadingText: string, successText: string) => {
     try {
       message.loading({ content: loadingText, key: 'status' });
@@ -221,6 +289,27 @@ const MaterialRequests = () => {
                           'Ошибка при смене статуса';
       message.error({ content: errorMessage, key: 'status' });
       console.error('Status change error:', error?.response?.data);
+    }
+  };
+
+  // Универсальная функция смены статуса отдельной позиции материала
+  const handleChangeItemStatus = async (item: any, newStatus: string, comment: string, loadingText: string, successText: string) => {
+    try {
+      message.loading({ content: loadingText, key: 'item-status' });
+
+      await materialRequestsAPI.changeItemStatus(item.id!, {
+        new_status: newStatus,
+        comment: comment
+      });
+
+      message.success({ content: successText, key: 'item-status' });
+      fetchRequests();
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.detail ||
+                          error?.response?.data?.new_status?.[0] ||
+                          'Ошибка при смене статуса';
+      message.error({ content: errorMessage, key: 'item-status' });
+      console.error('Item status change error:', error?.response?.data);
     }
   };
 
@@ -407,18 +496,6 @@ const MaterialRequests = () => {
     }
   };
 
-  const handleMarkOutOfStock = async (itemId: number) => {
-    try {
-      message.loading({ content: 'Отметка отсутствия...', key: 'availability' });
-      await materialRequestsAPI.updateAvailability(itemId, 'OUT_OF_STOCK');
-      message.success({ content: 'Материал отмечен как "Нет на складе"', key: 'availability' });
-      fetchRequests();
-    } catch (error: any) {
-      const errorMessage = error?.response?.data?.detail || 'Ошибка при обновлении статуса';
-      message.error({ content: errorMessage, key: 'availability' });
-    }
-  };
-
   // Функция отправки материалов со склада на объект (для снабженца)
   const handleSendToSite = async (request: MaterialRequest) => {
     await handleChangeStatus(
@@ -458,6 +535,7 @@ const MaterialRequests = () => {
     request: MaterialRequest;
     material: any;
     materialIndex: number;
+    isFirstRowOfRequest: boolean; // Флаг для первой строки заявки
   }
 
   // Преобразуем данные в плоскую структуру для таблицы
@@ -465,8 +543,13 @@ const MaterialRequests = () => {
     const flatData: FlatMaterialRow[] = [];
 
     requests.forEach((request) => {
-      // Фильтруем черновики: показываем только автору
-      if (request.status === 'DRAFT' && request.author_data?.id !== user?.id) {
+      // Фильтруем по статусам позиций, а не по статусу заявки
+      // Показываем заявку, если хотя бы одна позиция не в DRAFT или пользователь - автор
+      const hasNonDraftItems = request.items?.some(item => item.item_status !== 'DRAFT') || false;
+      const isAuthor = request.author_data?.id === user?.id;
+
+      // Если все позиции в DRAFT и пользователь не автор - скрываем
+      if (!hasNonDraftItems && !isAuthor) {
         return; // Пропускаем эту заявку
       }
 
@@ -477,6 +560,7 @@ const MaterialRequests = () => {
             request: request,
             material: item,
             materialIndex: index + 1,
+            isFirstRowOfRequest: index === 0, // Первая позиция в заявке
           });
         });
       } else {
@@ -486,6 +570,7 @@ const MaterialRequests = () => {
           request: request,
           material: null,
           materialIndex: 0,
+          isFirstRowOfRequest: true,
         });
       }
     });
@@ -537,11 +622,6 @@ const MaterialRequests = () => {
               <div style={{ textDecoration: 'line-through', color: '#999' }}>
                 {material.material_name}
               </div>
-              {material.cancellation_reason && (
-                <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>
-                  {material.cancellation_reason}
-                </div>
-              )}
             </div>
           );
         }
@@ -579,8 +659,11 @@ const MaterialRequests = () => {
               </Tag>
             )}
 
-            {/* Показываем статус наличия на складе (кроме отработанных) */}
-            {requestStatus !== 'COMPLETED' && material.availability_status && material.availability_status !== 'NOT_CHECKED' && (
+            {/* Показываем статус наличия на складе (кроме отработанных и статуса "Нет на складе") */}
+            {requestStatus !== 'COMPLETED' &&
+             material.availability_status &&
+             material.availability_status !== 'NOT_CHECKED' &&
+             material.availability_status !== 'OUT_OF_STOCK' && (
               <Tag color={getAvailabilityStatusColor(material.availability_status)} style={{ marginBottom: 4 }}>
                 {material.availability_status_display}
                 {material.availability_status === 'PARTIALLY_IN_STOCK' && material.available_quantity && (
@@ -622,7 +705,7 @@ const MaterialRequests = () => {
             )}
 
             {/* Кнопки для зав.центрскладом при статусе WAREHOUSE_CHECK */}
-            {requestStatus === 'WAREHOUSE_CHECK' && ['WAREHOUSE_HEAD', 'SUPERADMIN'].includes(userRole || '') && (
+            {material.item_status === 'WAREHOUSE_CHECK' && ['WAREHOUSE_HEAD', 'SUPERADMIN'].includes(userRole || '') && (
               <Space direction="vertical" size="small" style={{ width: '100%', marginTop: 8 }}>
                 <Button
                   type="primary"
@@ -702,7 +785,7 @@ const MaterialRequests = () => {
       },
     },
     {
-      title: 'Автор (Прораб)',
+      title: 'Автор',
       key: 'author',
       width: 180,
       render: (record: FlatMaterialRow) =>
@@ -713,16 +796,17 @@ const MaterialRequests = () => {
       key: 'status',
       width: 250,
       render: (record: FlatMaterialRow) => {
-        const status = record.request.status;
+        // Используем item_status для каждой позиции отдельно
+        const itemStatus = record.material?.item_status || 'DRAFT';
         const userRole = user?.role;
         const isCancelled = record.material?.status === 'CANCELLED';
 
         return (
           <Space direction="vertical" size="small" style={{ width: '100%' }}>
-            {/* Показываем статус заявки только для активных позиций */}
+            {/* Показываем статус позиции только для активных позиций */}
             {!isCancelled && (
-              <Tag color={getStatusColor(status)} style={{ width: '100%', textAlign: 'center' }}>
-                {record.request.status_display}
+              <Tag color={getStatusColor(itemStatus)} style={{ width: '100%', textAlign: 'center' }}>
+                {record.material?.item_status_display || 'Черновик'}
               </Tag>
             )}
 
@@ -733,13 +817,38 @@ const MaterialRequests = () => {
               </Tag>
             )}
 
+            {/* 0. RETURNED_FOR_REVISION → Автор может редактировать позицию и повторно отправлять на согласование */}
+            {itemStatus === 'RETURNED_FOR_REVISION' && ['FOREMAN', 'MASTER', 'SITE_MANAGER'].includes(userRole || '') && !isCancelled && record.material && (
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <Button
+                  type="default"
+                  icon={<EditOutlined />}
+                  size="small"
+                  onClick={() => handleEditItem(record.material)}
+                  block
+                  style={{ backgroundColor: '#faad14', borderColor: '#faad14', color: '#fff' }}
+                >
+                  Редактировать позицию
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<SendOutlined />}
+                  size="small"
+                  onClick={() => handleChangeItemStatus(record.material, 'UNDER_REVIEW', 'Отправлено на проверку снабжения после доработки', 'Отправка на согласование...', 'Позиция отправлена на согласование после доработки')}
+                  block
+                >
+                  Отправить после доработки
+                </Button>
+              </Space>
+            )}
+
             {/* 1. DRAFT → Прораб отправляет на согласование */}
-            {status === 'DRAFT' && ['FOREMAN', 'MASTER', 'SITE_MANAGER'].includes(userRole || '') && !isCancelled && (
+            {itemStatus === 'DRAFT' && ['FOREMAN', 'MASTER', 'SITE_MANAGER'].includes(userRole || '') && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<SendOutlined />}
                 size="small"
-                onClick={() => handleSendToReview(record.request)}
+                onClick={() => handleChangeItemStatus(record.material, 'UNDER_REVIEW', 'Отправлено на проверку снабжения', 'Отправка на согласование...', 'Позиция отправлена на согласование')}
                 block
               >
                 На согласование
@@ -747,12 +856,12 @@ const MaterialRequests = () => {
             )}
 
             {/* 2. UNDER_REVIEW → Снабженец отправляет на склад */}
-            {status === 'UNDER_REVIEW' && ['SUPPLY_MANAGER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && (
+            {itemStatus === 'UNDER_REVIEW' && ['SUPPLY_MANAGER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<SendOutlined />}
                 size="small"
-                onClick={() => handleSendToWarehouse(record.request)}
+                onClick={() => handleChangeItemStatus(record.material, 'WAREHOUSE_CHECK', 'Отправлено на проверку склада', 'Отправка на склад...', 'Позиция отправлена на склад')}
                 block
               >
                 На проверку склада
@@ -760,192 +869,214 @@ const MaterialRequests = () => {
             )}
 
             {/* 3. WAREHOUSE_CHECK → Зав.склада возвращает снабженцу */}
-            {status === 'WAREHOUSE_CHECK' && userRole === 'WAREHOUSE_HEAD' && !isCancelled && (
+            {itemStatus === 'WAREHOUSE_CHECK' && userRole === 'WAREHOUSE_HEAD' && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<RollbackOutlined />}
                 size="small"
-                onClick={() => handleReturnToSupply(record.request)}
+                onClick={() => handleChangeItemStatus(record.material, 'BACK_TO_SUPPLY', 'Возвращено снабженцу с отметками о наличии', 'Возврат снабженцу...', 'Позиция возвращена снабженцу')}
                 block
               >
                 Вернуть снабженцу
               </Button>
             )}
 
-            {/* 4. BACK_TO_SUPPLY → Снабженец отправляет руководителю или на оплату */}
-            {status === 'BACK_TO_SUPPLY' && ['SUPPLY_MANAGER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && (
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                {/* Проверяем наличие материалов на складе */}
-                {(() => {
-                  // Считаем статусы наличия всех позиций в заявке
-                  const hasInStock = record.request.items?.some((item: any) => item.availability_status === 'IN_STOCK');
-                  const hasPartiallyInStock = record.request.items?.some((item: any) => item.availability_status === 'PARTIALLY_IN_STOCK');
-                  const hasOutOfStock = record.request.items?.some((item: any) => item.availability_status === 'OUT_OF_STOCK' || !item.availability_status || item.availability_status === 'NOT_CHECKED');
-
-                  return (
-                    <>
-                      {/* Если все в наличии - только кнопка "Отправить на объект" */}
-                      {hasInStock && !hasOutOfStock && !hasPartiallyInStock && (
-                        <Button
-                          type="primary"
-                          icon={<SendOutlined />}
-                          size="small"
-                          onClick={() => handleSendToSite(record.request)}
-                          block
-                        >
-                          Отправить на объект
-                        </Button>
-                      )}
-
-                      {/* Если частично в наличии - обе кнопки */}
-                      {hasPartiallyInStock && (
-                        <>
-                          <Button
-                            type="primary"
-                            icon={<SendOutlined />}
-                            size="small"
-                            onClick={() => handleSendToSite(record.request)}
-                            block
-                          >
-                            Отправить на объект
-                          </Button>
-                          <Button
-                            type="default"
-                            size="small"
-                            onClick={() => handleSendToPayment(record.request)}
-                            block
-                          >
-                            На оплату
-                          </Button>
-                        </>
-                      )}
-
-                      {/* Если нет на складе - кнопки для согласования и оплаты */}
-                      {!hasInStock && !hasPartiallyInStock && (
-                        <>
-                          <Button
-                            type="primary"
-                            icon={<SendOutlined />}
-                            size="small"
-                            onClick={() => handleSendToProjectManager(record.request)}
-                            block
-                          >
-                            Руководителю
-                          </Button>
-                          <Button
-                            type="default"
-                            size="small"
-                            onClick={() => handleSendToPayment(record.request)}
-                            block
-                          >
-                            На оплату
-                          </Button>
-                        </>
-                      )}
-                    </>
-                  );
-                })()}
-              </Space>
-            )}
-
-            {/* 5. PROJECT_MANAGER_APPROVAL → Руководитель согласовывает */}
-            {status === 'PROJECT_MANAGER_APPROVAL' && userRole === 'PROJECT_MANAGER' && !isCancelled && (
-              <Button
-                type="primary"
-                icon={<CheckOutlined />}
-                size="small"
-                onClick={() => handleApproveByProjectManager(record.request)}
-                block
-              >
-                Согласовать
-              </Button>
-            )}
-
-            {/* 6. DIRECTOR_APPROVAL → Директор возвращает снабженцу */}
-            {status === 'DIRECTOR_APPROVAL' && userRole === 'DIRECTOR' && !isCancelled && (
-              <Button
-                type="primary"
-                icon={<RollbackOutlined />}
-                size="small"
-                onClick={() => handleDirectorReturnToSupply(record.request)}
-                block
-              >
-                Вернуть снабженцу
-              </Button>
-            )}
-
-            {/* 7. REWORK → Автор отправляет повторно */}
-            {status === 'REWORK' && ['FOREMAN', 'MASTER', 'SITE_MANAGER'].includes(userRole || '') && !isCancelled && (
+            {/* 4. BACK_TO_SUPPLY → Снабженец отправляет Инженеру ПТО */}
+            {itemStatus === 'BACK_TO_SUPPLY' && ['SUPPLY_MANAGER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<SendOutlined />}
                 size="small"
-                onClick={() => handleSendToReview(record.request)}
+                onClick={() => handleChangeItemStatus(record.material, 'ENGINEER_APPROVAL', 'Отправлено Инженеру ПТО', 'Отправка...', 'Позиция отправлена Инженеру ПТО')}
+                block
+              >
+                Инженеру ПТО
+              </Button>
+            )}
+
+            {/* 5. ENGINEER_APPROVAL → Инженер ПТО возвращает снабженцу или отправляет на доработку */}
+            {itemStatus === 'ENGINEER_APPROVAL' && userRole === 'ENGINEER' && !isCancelled && record.material && (
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <Button
+                  type="primary"
+                  icon={<CheckOutlined />}
+                  size="small"
+                  onClick={() => handleChangeItemStatus(record.material, 'BACK_TO_SUPPLY_AFTER_ENGINEER', 'Согласовано инженером ПТО', 'Согласование...', 'Позиция согласована инженером')}
+                  block
+                >
+                  Согласовать
+                </Button>
+                <Button
+                  danger
+                  icon={<RollbackOutlined />}
+                  size="small"
+                  onClick={() => handleChangeItemStatus(record.material, 'RETURNED_FOR_REVISION', 'Возвращено автору на доработку', 'Возврат на доработку...', 'Позиция возвращена автору на доработку')}
+                  block
+                >
+                  На доработку
+                </Button>
+              </Space>
+            )}
+
+            {/* 6. BACK_TO_SUPPLY_AFTER_ENGINEER → Снабженец отправляет Руководителю проекта */}
+            {itemStatus === 'BACK_TO_SUPPLY_AFTER_ENGINEER' && ['SUPPLY_MANAGER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && record.material && (
+              <Button
+                type="primary"
+                icon={<SendOutlined />}
+                size="small"
+                onClick={() => handleChangeItemStatus(record.material, 'PROJECT_MANAGER_APPROVAL', 'Отправлено руководителю проекта', 'Отправка...', 'Позиция отправлена руководителю')}
+                block
+              >
+                Руководителю проекта
+              </Button>
+            )}
+
+            {/* 7. PROJECT_MANAGER_APPROVAL → Руководитель проекта возвращает снабженцу или отправляет на доработку */}
+            {itemStatus === 'PROJECT_MANAGER_APPROVAL' && userRole === 'PROJECT_MANAGER' && !isCancelled && record.material && (
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <Button
+                  type="primary"
+                  icon={<CheckOutlined />}
+                  size="small"
+                  onClick={() => handleChangeItemStatus(record.material, 'BACK_TO_SUPPLY_AFTER_PM', 'Согласовано руководителем проекта', 'Согласование...', 'Позиция согласована руководителем')}
+                  block
+                >
+                  Согласовать
+                </Button>
+                <Button
+                  danger
+                  icon={<RollbackOutlined />}
+                  size="small"
+                  onClick={() => handleChangeItemStatus(record.material, 'RETURNED_FOR_REVISION', 'Возвращено автору на доработку', 'Возврат на доработку...', 'Позиция возвращена автору на доработку')}
+                  block
+                >
+                  На доработку
+                </Button>
+              </Space>
+            )}
+
+            {/* 8. BACK_TO_SUPPLY_AFTER_PM → Снабженец отправляет Директору */}
+            {itemStatus === 'BACK_TO_SUPPLY_AFTER_PM' && ['SUPPLY_MANAGER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && record.material && (
+              <Button
+                type="primary"
+                icon={<SendOutlined />}
+                size="small"
+                onClick={() => handleChangeItemStatus(record.material, 'DIRECTOR_APPROVAL', 'Отправлено директору', 'Отправка...', 'Позиция отправлена директору')}
+                block
+              >
+                Директору
+              </Button>
+            )}
+
+            {/* 9. DIRECTOR_APPROVAL → Директор/Главный инженер возвращают снабженцу или отправляют на доработку */}
+            {itemStatus === 'DIRECTOR_APPROVAL' && ['DIRECTOR', 'CHIEF_ENGINEER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && record.material && (
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <Button
+                  type="primary"
+                  icon={<CheckOutlined />}
+                  size="small"
+                  onClick={() => handleChangeItemStatus(record.material, 'BACK_TO_SUPPLY_AFTER_DIRECTOR', 'Согласовано директором', 'Согласование...', 'Позиция согласована директором')}
+                  block
+                >
+                  Согласовать
+                </Button>
+                <Button
+                  danger
+                  icon={<RollbackOutlined />}
+                  size="small"
+                  onClick={() => handleChangeItemStatus(record.material, 'RETURNED_FOR_REVISION', 'Возвращено автору на доработку', 'Возврат на доработку...', 'Позиция возвращена автору на доработку')}
+                  block
+                >
+                  На доработку
+                </Button>
+              </Space>
+            )}
+
+            {/* 10. BACK_TO_SUPPLY_AFTER_DIRECTOR → Снабженец переводит в процесс оплаты/доставки */}
+            {itemStatus === 'BACK_TO_SUPPLY_AFTER_DIRECTOR' && ['SUPPLY_MANAGER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && record.material && (
+              <Button
+                type="primary"
+                icon={<SendOutlined />}
+                size="small"
+                onClick={() => handleChangeItemStatus(record.material, 'PAYMENT', 'Переведено на оплату', 'Отправка на оплату...', 'Позиция переведена на оплату')}
+                block
+              >
+                На оплату
+              </Button>
+            )}
+
+            {/* 11. REWORK → Автор отправляет повторно */}
+            {itemStatus === 'REWORK' && ['FOREMAN', 'MASTER', 'SITE_MANAGER'].includes(userRole || '') && !isCancelled && record.material && (
+              <Button
+                type="primary"
+                icon={<SendOutlined />}
+                size="small"
+                onClick={() => handleChangeItemStatus(record.material, 'UNDER_REVIEW', 'Отправлено повторно на проверку', 'Отправка...', 'Позиция отправлена повторно')}
                 block
               >
                 Отправить повторно
               </Button>
             )}
 
-            {/* 8. PAYMENT → Снабженец отмечает оплачено */}
-            {status === 'PAYMENT' && userRole === 'SUPPLY_MANAGER' && !isCancelled && (
+            {/* 12. PAYMENT → Снабженец отмечает оплачено */}
+            {itemStatus === 'PAYMENT' && ['SUPPLY_MANAGER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<CheckOutlined />}
                 size="small"
-                onClick={() => handleMarkAsPaid(record.request)}
+                onClick={() => handleChangeItemStatus(record.material, 'PAID', 'Оплачено', 'Отметка оплаты...', 'Позиция помечена как оплаченная')}
                 block
               >
                 Оплачено
               </Button>
             )}
 
-            {/* 9. PAID → Снабженец отмечает доставлено */}
-            {status === 'PAID' && userRole === 'SUPPLY_MANAGER' && !isCancelled && (
+            {/* 13. PAID → Снабженец отмечает доставлено */}
+            {itemStatus === 'PAID' && ['SUPPLY_MANAGER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<CheckOutlined />}
                 size="small"
-                onClick={() => handleMarkAsDelivered(record.request)}
+                onClick={() => handleChangeItemStatus(record.material, 'DELIVERY', 'Доставлено', 'Отметка доставки...', 'Позиция помечена как доставленная')}
                 block
               >
                 Доставлено
               </Button>
             )}
 
-            {/* 10. DELIVERY → Прораб/Мастер/Начальник отмечает отработано */}
-            {status === 'DELIVERY' && ['FOREMAN', 'MASTER', 'SITE_MANAGER'].includes(userRole || '') && !isCancelled && (
+            {/* 14. DELIVERY → Прораб/Мастер/Начальник отмечает отработано */}
+            {itemStatus === 'DELIVERY' && ['FOREMAN', 'MASTER', 'SITE_MANAGER'].includes(userRole || '') && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<CheckOutlined />}
                 size="small"
-                onClick={() => handleMarkAsCompleted(record.request)}
+                onClick={() => handleChangeItemStatus(record.material, 'COMPLETED', 'Отработано', 'Завершение...', 'Позиция отработана')}
                 block
               >
                 Отработано
               </Button>
             )}
 
-            {/* 11. SENT_TO_SITE → Зав.склада подтверждает отправку */}
-            {status === 'SENT_TO_SITE' && ['WAREHOUSE_HEAD', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && (
+            {/* 15. SENT_TO_SITE → Зав.склада подтверждает отправку */}
+            {itemStatus === 'SENT_TO_SITE' && ['WAREHOUSE_HEAD', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<CheckOutlined />}
                 size="small"
-                onClick={() => handleConfirmShipping(record.request)}
+                onClick={() => handleChangeItemStatus(record.material, 'WAREHOUSE_SHIPPING', 'Материалы отправлены со склада на объект', 'Подтверждение отправки...', 'Отправка подтверждена')}
                 block
               >
                 Отправлено на объект
               </Button>
             )}
 
-            {/* 12. WAREHOUSE_SHIPPING → Автор принимает на объекте */}
-            {status === 'WAREHOUSE_SHIPPING' && ['FOREMAN', 'MASTER', 'SITE_MANAGER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && (
+            {/* 16. WAREHOUSE_SHIPPING → Автор принимает на объекте */}
+            {itemStatus === 'WAREHOUSE_SHIPPING' && ['FOREMAN', 'MASTER', 'SITE_MANAGER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<CheckOutlined />}
                 size="small"
-                onClick={() => handleAcceptOnSite(record.request)}
+                onClick={() => handleChangeItemStatus(record.material, 'COMPLETED', 'Материалы приняты на объекте и отработаны', 'Приемка материалов...', 'Материалы приняты и отработаны')}
                 block
               >
                 Принято на объекте
@@ -954,13 +1085,6 @@ const MaterialRequests = () => {
           </Space>
         );
       },
-    },
-    {
-      title: 'Ответственный',
-      key: 'responsible',
-      width: 180,
-      render: (record: FlatMaterialRow) =>
-        record.request.responsible_data?.full_name || '-',
     },
     {
       title: 'Последнее действие',
@@ -975,43 +1099,53 @@ const MaterialRequests = () => {
       width: 120,
       align: 'center' as const,
       fixed: 'right' as const,
-      render: (record: FlatMaterialRow) => (
-        <Space size="small">
-          <Tooltip title="Скачать Excel">
-            <Button
-              type="primary"
-              icon={<DownloadOutlined />}
-              onClick={() => handleExportExcel(record.request)}
-              size="small"
-            />
-          </Tooltip>
-          <Tooltip title="Изменить">
-            <Button
-              type="default"
-              icon={<EditOutlined />}
-              onClick={() => handleEditRequest(record.request)}
-              size="small"
-            />
-          </Tooltip>
-          <Tooltip title="Отменить позицию">
-            <Popconfirm
-              title="Отменить позицию?"
-              description="Позиция будет отменена (видна снабжению для отмены закупа)"
-              onConfirm={() => handleCancelItem(record.material)}
-              okText="Да"
-              cancelText="Нет"
-              disabled={!record.material || record.material.status === 'CANCELLED'}
-            >
+      render: (record: FlatMaterialRow) => {
+        // Определяем, можно ли редактировать заявку
+        const isAuthor = record.request.author_data?.id === user?.id;
+        const canEdit = isAuthor && record.material &&
+                        (record.material.item_status === 'DRAFT' || record.material.item_status === 'RETURNED_FOR_REVISION');
+
+        return (
+          <Space size="small">
+            <Tooltip title="Скачать Excel">
               <Button
-                danger
-                icon={<CloseCircleOutlined />}
+                type="primary"
+                icon={<DownloadOutlined />}
+                onClick={() => handleExportExcel(record.request)}
                 size="small"
-                disabled={!record.material || record.material.status === 'CANCELLED'}
               />
-            </Popconfirm>
-          </Tooltip>
-        </Space>
-      ),
+            </Tooltip>
+            {/* Кнопка "Редактировать" доступна только автору при статусах DRAFT или RETURNED_FOR_REVISION */}
+            {canEdit && (
+              <Tooltip title="Изменить">
+                <Button
+                  type="default"
+                  icon={<EditOutlined />}
+                  onClick={() => handleEditRequest(record.request)}
+                  size="small"
+                />
+              </Tooltip>
+            )}
+            <Tooltip title="Отменить позицию">
+              <Popconfirm
+                title="Отменить позицию?"
+                description="Позиция будет отменена (видна снабжению для отмены закупа)"
+                onConfirm={() => handleCancelItem(record.material)}
+                okText="Да"
+                cancelText="Нет"
+                disabled={!record.material || record.material.status === 'CANCELLED'}
+              >
+                <Button
+                  danger
+                  icon={<CloseCircleOutlined />}
+                  size="small"
+                  disabled={!record.material || record.material.status === 'CANCELLED'}
+                />
+              </Popconfirm>
+            </Tooltip>
+          </Space>
+        );
+      },
     },
   ];
 
@@ -1027,35 +1161,95 @@ const MaterialRequests = () => {
     <div style={{ padding: '24px' }}>
       <Title level={2}>Заявки на материалы</Title>
 
-      <Card
-        extra={
-          canCreateRequest() && (
+      {/* Фильтр по объектам */}
+      <Card style={{ marginTop: 16, marginBottom: 16 }}>
+        <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space align="center">
+            <span style={{ fontWeight: 500 }}>Объект:</span>
+            <Select
+              style={{ width: 400 }}
+              placeholder="Выберите объект"
+              value={selectedProjectId}
+              onChange={(value) => setSelectedProjectId(value)}
+              showSearch
+              optionFilterProp="children"
+              size="large"
+            >
+              {projects.map((project) => (
+                <Option key={project.id} value={project.id}>
+                  {project.name}
+                </Option>
+              ))}
+            </Select>
+            {selectedProjectId && (
+              <span style={{ color: '#666' }}>
+                (Заявки привязаны к выбранному объекту)
+              </span>
+            )}
+          </Space>
+          {canCreateRequest() && selectedProjectId && (
             <Button
               type="primary"
               icon={<PlusOutlined />}
               onClick={() => setIsModalVisible(true)}
+              size="large"
             >
               Создать заявку
             </Button>
-          )
-        }
-        style={{ marginTop: 16 }}
-      >
-        <Table
-          columns={columns}
-          dataSource={flattenData()}
-          loading={loading}
-          rowKey="key"
-          scroll={{ x: 1600 }}
-          pagination={{
-            pageSize: 20,
-            showSizeChanger: true,
-            showTotal: (total: number) => `Всего позиций: ${total}`,
-          }}
-          size="small"
-          bordered
-        />
+          )}
+        </Space>
       </Card>
+
+      {!selectedProjectId && projects.length > 0 && (
+        <Card style={{ marginTop: 16 }}>
+          <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+            <Title level={4}>Выберите объект для просмотра заявок</Title>
+            <p>Все заявки привязаны к конкретному объекту.</p>
+          </div>
+        </Card>
+      )}
+
+      {projects.length === 0 && !loading && (
+        <Card style={{ marginTop: 16 }}>
+          <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+            <Title level={4}>У вас нет доступных объектов</Title>
+            <p>Обратитесь к администратору для получения доступа к объектам.</p>
+          </div>
+        </Card>
+      )}
+
+      {selectedProjectId && (
+        <Card style={{ marginTop: 16 }}>
+          <style>
+            {`
+              .request-separator {
+                border-top: 3px solid #1890ff !important;
+                background-color: #f0f5ff;
+              }
+              .request-separator:hover {
+                background-color: #e6f0ff !important;
+              }
+            `}
+          </style>
+          <Table
+            columns={columns}
+            dataSource={flattenData()}
+            loading={loading}
+            rowKey="key"
+            scroll={{ x: 1600 }}
+            pagination={{
+              pageSize: 20,
+              showSizeChanger: true,
+              showTotal: (total: number) => `Всего позиций: ${total}`,
+            }}
+            size="small"
+            bordered
+            rowClassName={(record: FlatMaterialRow) =>
+              record.isFirstRowOfRequest ? 'request-separator' : ''
+            }
+          />
+        </Card>
+      )}
 
       {/* Модальное окно создания заявки */}
       <Modal
@@ -1068,29 +1262,29 @@ const MaterialRequests = () => {
         footer={null}
         width={800}
       >
+        {/* Информация о выбранном объекте */}
+        {selectedProjectId && (
+          <div style={{
+            marginBottom: 16,
+            padding: '12px 16px',
+            background: '#f0f5ff',
+            borderRadius: '4px',
+            border: '1px solid #adc6ff'
+          }}>
+            <Space>
+              <span style={{ fontWeight: 500 }}>Объект:</span>
+              <span style={{ color: '#1890ff' }}>
+                {projects.find(p => p.id === selectedProjectId)?.name}
+              </span>
+            </Space>
+          </div>
+        )}
+
         <Form
           form={form}
           layout="vertical"
           onFinish={handleCreateRequest}
         >
-          <Form.Item
-            name="project"
-            label="Объект"
-            rules={[{ required: true, message: 'Выберите объект' }]}
-          >
-            <Select
-              placeholder="Выберите объект"
-              showSearch
-              optionFilterProp="children"
-            >
-              {projects.map((project) => (
-                <Option key={project.id} value={project.id}>
-                  {project.name}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-
           <Form.Item
             name="drawing_reference"
             label="Чертёж / Лист"
@@ -1156,9 +1350,14 @@ const MaterialRequests = () => {
                         <Select style={{ width: 100 }}>
                           <Option value="шт">шт</Option>
                           <Option value="кг">кг</Option>
+                          <Option value="тн">тн</Option>
                           <Option value="м">м</Option>
+                          <Option value="м.п.">м.п.</Option>
                           <Option value="м²">м²</Option>
                           <Option value="м³">м³</Option>
+                          <Option value="литр">литр</Option>
+                          <Option value="комплект">комплект</Option>
+                          <Option value="партия">партия</Option>
                         </Select>
                       </Form.Item>
                       <Form.Item
@@ -1252,6 +1451,86 @@ const MaterialRequests = () => {
                 setIsEditModalVisible(false);
                 editForm.resetFields();
                 setEditingRequest(null);
+              }}>
+                Отмена
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Модальное окно редактирования позиции материала */}
+      <Modal
+        title="Редактировать позицию материала"
+        open={isEditItemModalVisible}
+        onCancel={() => {
+          setIsEditItemModalVisible(false);
+          editItemForm.resetFields();
+          setEditingItem(null);
+        }}
+        footer={null}
+        width={600}
+      >
+        <Form
+          form={editItemForm}
+          layout="vertical"
+          onFinish={handleUpdateItem}
+        >
+          <Form.Item
+            name="material_name"
+            label="Материал"
+            rules={[{ required: true, message: 'Укажите название материала' }]}
+          >
+            <Input placeholder="Название материала (например: Арматура Ø12)" />
+          </Form.Item>
+
+          <Form.Item
+            name="quantity"
+            label="Количество"
+            rules={[{ required: true, message: 'Укажите количество' }]}
+          >
+            <InputNumber
+              min={0.01}
+              step={0.01}
+              placeholder="Количество"
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="unit"
+            label="Единица измерения"
+            rules={[{ required: true, message: 'Укажите единицу измерения' }]}
+          >
+            <Select placeholder="Выберите единицу измерения">
+              <Option value="шт">шт (штуки)</Option>
+              <Option value="кг">кг (килограммы)</Option>
+              <Option value="т">т (тонны)</Option>
+              <Option value="м">м (метры)</Option>
+              <Option value="м²">м² (квадратные метры)</Option>
+              <Option value="м³">м³ (кубические метры)</Option>
+              <Option value="л">л (литры)</Option>
+              <Option value="уп">уп (упаковки)</Option>
+              <Option value="комп">комп (комплекты)</Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            name="specifications"
+            label="Примечание / Спецификация"
+          >
+            <TextArea rows={3} placeholder="Дополнительные характеристики материала" />
+          </Form.Item>
+
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit">
+                Сохранить изменения
+              </Button>
+              <Button onClick={() => {
+                setIsEditItemModalVisible(false);
+                editItemForm.resetFields();
+                setEditingItem(null);
               }}>
                 Отмена
               </Button>

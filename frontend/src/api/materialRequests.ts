@@ -14,6 +14,8 @@ export interface MaterialRequestItem {
   approval_status_display?: string
   availability_status?: string
   availability_status_display?: string
+  item_status?: string
+  item_status_display?: string
   available_quantity?: number
   cancellation_reason?: string
   cancelled_by?: number
@@ -150,6 +152,18 @@ export const materialRequestsAPI = {
       availability_status,
       available_quantity
     })
+    return response.data
+  },
+
+  // Изменить статус отдельной позиции материала
+  changeItemStatus: async (itemId: number, data: { new_status: string; comment?: string }) => {
+    const response = await axios.patch(`/material-request-items/${itemId}/change_item_status/`, data)
+    return response.data
+  },
+
+  // Обновить позицию материала (название, количество, единицу измерения, примечания)
+  updateItem: async (itemId: number, data: Partial<MaterialRequestItem>) => {
+    const response = await axios.patch(`/material-request-items/${itemId}/`, data)
     return response.data
   },
 }

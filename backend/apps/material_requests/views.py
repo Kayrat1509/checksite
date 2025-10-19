@@ -376,6 +376,37 @@ class MaterialRequestItemViewSet(viewsets.ModelViewSet):
     filterset_fields = ['request', 'unit', 'status']
     search_fields = ['material_name', 'specifications']
 
+    def update(self, request, *args, **kwargs):
+        """
+        Обновление позиции материала.
+        Разрешено только автору при статусе RETURNED_FOR_REVISION или DRAFT.
+        """
+        item = self.get_object()
+        material_request = item.request
+        user = request.user
+
+        # Проверка прав: автор может редактировать при RETURNED_FOR_REVISION или DRAFT
+        if user.role == 'SUPERADMIN':
+            pass  # Суперадмин может всё
+        elif material_request.author == user:
+            # Автор может редактировать только при определенных статусах
+            if item.item_status not in ['DRAFT', 'RETURNED_FOR_REVISION']:
+                return Response(
+                    {'detail': 'Редактирование позиции доступно только в статусах "Черновик" или "На доработке"'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        else:
+            return Response(
+                {'detail': 'У вас нет прав для редактирования этой позиции'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        """Частичное обновление позиции материала (PATCH)."""
+        return self.update(request, *args, **kwargs)
+
     @action(detail=True, methods=['patch'])
     def cancel_item(self, request, pk=None):
         """
@@ -500,6 +531,134 @@ class MaterialRequestItemViewSet(viewsets.ModelViewSet):
             item.available_quantity = None
 
         item.save()
+
+        # Возвращаем обновленную позицию
+        serializer = self.get_serializer(item)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['patch'])
+    def change_item_status(self, request, pk=None):
+        """
+        Изменение статуса отдельной позиции материала в процессе согласования.
+        Endpoint: PATCH /api/material-request-items/{id}/change_item_status/
+
+        Body: {
+            "new_status": "UNDER_REVIEW" | "WAREHOUSE_CHECK" | "BACK_TO_SUPPLY" | ...,
+            "comment": "Комментарий (опционально)"
+        }
+        """
+        from apps.material_requests.models import MaterialRequestHistory
+
+        item = self.get_object()
+        material_request = item.request
+
+        # Получаем новый статус
+        new_status = request.data.get('new_status')
+        if not new_status:
+            return Response(
+                {'detail': 'Необходимо указать новый статус'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Проверяем, что новый статус валиден
+        valid_statuses = [choice[0] for choice in MaterialRequestItem.ProcessStatus.choices]
+        if new_status not in valid_statuses:
+            return Response(
+                {'detail': f'Некорректный статус. Допустимые значения: {", ".join(valid_statuses)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Проверяем права доступа в зависимости от текущего и нового статуса
+        user_role = request.user.role
+        current_status = item.item_status
+
+        # Логика проверки прав по новой схеме: Автор → Снабжение → Завсклад → Снабжение → Инженер ПТО → Снабжение → Рук.проекта → Снабжение → Директор → Снабжение
+        allowed = False
+
+        # 1. Прораб/мастер/начальник участка может отправлять из DRAFT, REWORK или RETURNED_FOR_REVISION
+        if user_role in ['FOREMAN', 'MASTER', 'SITE_MANAGER', 'SUPERADMIN']:
+            if current_status in ['DRAFT', 'REWORK', 'RETURNED_FOR_REVISION'] and new_status == 'UNDER_REVIEW':
+                allowed = True
+            elif current_status in ['DELIVERY', 'WAREHOUSE_SHIPPING'] and new_status == 'COMPLETED':
+                allowed = True
+
+        # 2. Снабженец может переводить через множество статусов (новая логика)
+        if user_role in ['SUPPLY_MANAGER', 'SUPERADMIN']:
+            # Снабжение → Завсклад
+            if current_status == 'UNDER_REVIEW' and new_status == 'WAREHOUSE_CHECK':
+                allowed = True
+            # Снабжение (после склада) → Инженер ПТО
+            elif current_status == 'BACK_TO_SUPPLY' and new_status == 'ENGINEER_APPROVAL':
+                allowed = True
+            # Снабжение (после инженера) → Руководитель проекта
+            elif current_status == 'BACK_TO_SUPPLY_AFTER_ENGINEER' and new_status == 'PROJECT_MANAGER_APPROVAL':
+                allowed = True
+            # Снабжение (после рук.проекта) → Директор
+            elif current_status == 'BACK_TO_SUPPLY_AFTER_PM' and new_status == 'DIRECTOR_APPROVAL':
+                allowed = True
+            # Снабжение (после директора) → Отправка на объект / Оплата
+            elif current_status == 'BACK_TO_SUPPLY_AFTER_DIRECTOR' and new_status in ['PAYMENT', 'SENT_TO_SITE']:
+                allowed = True
+            # Оплата → Оплачено
+            elif current_status == 'PAYMENT' and new_status == 'PAID':
+                allowed = True
+            # Оплачено → Доставлено
+            elif current_status == 'PAID' and new_status == 'DELIVERY':
+                allowed = True
+
+        # 3. Зав.склада возвращает снабженцу (после склада)
+        if user_role in ['WAREHOUSE_HEAD', 'SUPERADMIN']:
+            if current_status == 'WAREHOUSE_CHECK' and new_status == 'BACK_TO_SUPPLY':
+                allowed = True
+            elif current_status == 'SENT_TO_SITE' and new_status == 'WAREHOUSE_SHIPPING':
+                allowed = True
+
+        # 4. Инженер ПТО возвращает снабженцу (после инженера) или отправляет на доработку автору
+        if user_role in ['ENGINEER', 'SUPERADMIN']:
+            if current_status == 'ENGINEER_APPROVAL' and new_status == 'BACK_TO_SUPPLY_AFTER_ENGINEER':
+                allowed = True
+            # Инженер ПТО может отправить на доработку автору
+            elif current_status == 'ENGINEER_APPROVAL' and new_status == 'RETURNED_FOR_REVISION':
+                allowed = True
+
+        # 5. Руководитель проекта возвращает снабженцу (после рук.проекта) или отправляет на доработку автору
+        if user_role in ['PROJECT_MANAGER', 'SUPERADMIN']:
+            if current_status == 'PROJECT_MANAGER_APPROVAL' and new_status == 'BACK_TO_SUPPLY_AFTER_PM':
+                allowed = True
+            # Руководитель проекта может отправить на доработку автору
+            elif current_status == 'PROJECT_MANAGER_APPROVAL' and new_status == 'RETURNED_FOR_REVISION':
+                allowed = True
+
+        # 6. Директор и Главный инженер возвращают снабженцу (после директора) или отправляют на доработку автору
+        if user_role in ['DIRECTOR', 'CHIEF_ENGINEER', 'SUPERADMIN']:
+            if current_status == 'DIRECTOR_APPROVAL' and new_status == 'BACK_TO_SUPPLY_AFTER_DIRECTOR':
+                allowed = True
+            # Директор и Главный инженер могут отправить на доработку автору
+            elif current_status == 'DIRECTOR_APPROVAL' and new_status == 'RETURNED_FOR_REVISION':
+                allowed = True
+
+        if not allowed:
+            return Response(
+                {'detail': 'У вас нет прав для изменения статуса этой позиции'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Сохраняем старый статус для истории
+        old_status = item.item_status
+
+        # Обновляем статус позиции
+        item.item_status = new_status
+        item.save()
+
+        # Создаем запись в истории (можно добавить comment из request.data)
+        comment = request.data.get('comment', f'Статус позиции изменен: {old_status} → {new_status}')
+        MaterialRequestHistory.objects.create(
+            request=material_request,
+            user=request.user,
+            old_status=old_status,
+            new_status=new_status,
+            comment=f'Позиция "{item.material_name}": {comment}'
+        )
 
         # Возвращаем обновленную позицию
         serializer = self.get_serializer(item)

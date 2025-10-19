@@ -33,6 +33,7 @@ class MaterialRequestItemSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     approval_status_display = serializers.CharField(source='get_approval_status_display', read_only=True)
     availability_status_display = serializers.CharField(source='get_availability_status_display', read_only=True)
+    item_status_display = serializers.CharField(source='get_item_status_display', read_only=True)
 
     class Meta:
         model = MaterialRequestItem
@@ -49,6 +50,8 @@ class MaterialRequestItemSerializer(serializers.ModelSerializer):
             'approval_status_display',
             'availability_status',
             'availability_status_display',
+            'item_status',
+            'item_status_display',
             'available_quantity',
             'cancellation_reason',
             'cancelled_by',
@@ -56,7 +59,7 @@ class MaterialRequestItemSerializer(serializers.ModelSerializer):
             'cancelled_at',
             'created_at'
         ]
-        read_only_fields = ['id', 'created_at', 'status', 'cancelled_by', 'cancelled_at', 'approval_status', 'availability_status']
+        read_only_fields = ['id', 'created_at', 'status', 'cancelled_by', 'cancelled_at', 'approval_status', 'availability_status', 'item_status']
 
 
 class MaterialRequestDocumentSerializer(serializers.ModelSerializer):
