@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Form, Input, Button, Card, Typography, Row, Col, message } from 'antd'
-import { UserOutlined, MailOutlined, PhoneOutlined, EnvironmentOutlined, LockOutlined } from '@ant-design/icons'
+import { Form, Input, Button, Card, Typography, Row, Col, message, Modal } from 'antd'
+import { UserOutlined, MailOutlined, PhoneOutlined, EnvironmentOutlined, LockOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import { useNavigate, Link } from 'react-router-dom'
 import { publicTendersAPI, RegistrationData } from '../../api/publicTenders'
 import './PublicTenders.css'
@@ -16,11 +16,29 @@ const Register = () => {
   const handleSubmit = async (values: RegistrationData) => {
     setLoading(true)
     try {
-      const response = await publicTendersAPI.register(values)
-      message.success('Заявка успешно отправлена! Ожидайте одобрения администратором.')
+      await publicTendersAPI.register(values)
 
-      // Переходим на страницу статуса заявки
-      navigate('/public-tenders/status')
+      // Показываем информативное модальное окно
+      Modal.success({
+        title: 'Заявка успешно отправлена',
+        icon: <ClockCircleOutlined style={{ color: '#1890ff' }} />,
+        content: (
+          <div style={{ marginTop: 16, fontSize: 15, lineHeight: 1.8 }}>
+            <p style={{ marginBottom: 12, fontWeight: 500 }}>
+              Ваш запрос в обработке.
+            </p>
+            <p style={{ marginBottom: 0, color: '#595959' }}>
+              Время обработки заявки: <strong>3 часа</strong> в рабочее время с <strong>09:00 до 23:00</strong>
+            </p>
+          </div>
+        ),
+        okText: 'ОК',
+        centered: true,
+        onOk: () => {
+          // После нажатия ОК переходим на главную страницу
+          navigate('/')
+        }
+      })
     } catch (error: any) {
       console.error('Registration error:', error)
 

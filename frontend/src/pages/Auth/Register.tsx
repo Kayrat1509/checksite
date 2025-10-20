@@ -1,5 +1,5 @@
-import { Form, Input, Button, Card, message, Divider } from 'antd'
-import { UserOutlined, MailOutlined, LockOutlined, BankOutlined, PhoneOutlined, HomeOutlined, GlobalOutlined } from '@ant-design/icons'
+import { Form, Input, Button, Card, message, Divider, Modal } from 'antd'
+import { UserOutlined, MailOutlined, LockOutlined, BankOutlined, PhoneOutlined, HomeOutlined, GlobalOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import { Link, useNavigate } from 'react-router-dom'
 import { authAPI } from '../../api/auth'
 
@@ -10,10 +10,28 @@ const Register = () => {
   const onFinish = async (values: any) => {
     try {
       await authAPI.register(values)
-      message.success('Регистрация успешна! Войдите используя указанные email и пароль', 5)
-      setTimeout(() => {
-        navigate('/login')
-      }, 1000)
+
+      // Показываем информативное модальное окно
+      Modal.success({
+        title: 'Регистрация успешна',
+        icon: <ClockCircleOutlined style={{ color: '#1890ff' }} />,
+        content: (
+          <div style={{ marginTop: 16, fontSize: 15, lineHeight: 1.8 }}>
+            <p style={{ marginBottom: 12, fontWeight: 500 }}>
+              Ваш запрос в обработке.
+            </p>
+            <p style={{ marginBottom: 0, color: '#595959' }}>
+              Время обработки заявки: <strong>3 часа</strong> в рабочее время с <strong>09:00 до 23:00</strong>
+            </p>
+          </div>
+        ),
+        okText: 'ОК',
+        centered: true,
+        onOk: () => {
+          // После нажатия ОК переходим на главную страницу
+          navigate('/')
+        }
+      })
     } catch (error: any) {
       message.error(error.response?.data?.detail || 'Ошибка регистрации')
     }

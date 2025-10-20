@@ -103,14 +103,6 @@ const LandingPage = () => {
     }
   ]
 
-  // Статистика для впечатления
-  const stats = [
-    { value: '< 60', label: 'секунд на создание замечания', color: '#52c41a' },
-    { value: '13', label: 'ролей с гибкими правами доступа', color: '#1890ff' },
-    { value: '17', label: 'статусов согласования материалов', color: '#faad14' },
-    { value: '100%', label: 'прозрачность процесса', color: '#722ed1' }
-  ]
-
   return (
     <Layout className="landing-layout">
       {/* Хедер с градиентом */}
@@ -166,7 +158,7 @@ const LandingPage = () => {
               </Badge.Ribbon>
 
               <Title level={1} className="hero-title">
-                Стройка под контролем <br />
+                <span className="hero-title-line1">Стройка под контролем</span>
                 <span className="gradient-text">с Check Site</span>
               </Title>
 
@@ -174,38 +166,6 @@ const LandingPage = () => {
                 Фиксируйте замечания с фото за 60 секунд, контролируйте устранение дефектов
                 и генерируйте отчеты автоматически. Всё в одной системе.
               </Paragraph>
-
-              <Space size="large" className="hero-actions">
-                <Button
-                  type="primary"
-                  size="large"
-                  icon={<RocketOutlined />}
-                  onClick={() => navigate('/register')}
-                  className="hero-btn-primary"
-                >
-                  Попробовать бесплатно
-                </Button>
-                <Button
-                  size="large"
-                  icon={<ArrowRightOutlined />}
-                  onClick={() => navigate('/login')}
-                  className="hero-btn-secondary"
-                >
-                  Смотреть демо
-                </Button>
-              </Space>
-
-              {/* Быстрая статистика */}
-              <div className="hero-stats">
-                {stats.map((stat, index) => (
-                  <div key={index} className="stat-item">
-                    <Text className="stat-value" style={{ color: stat.color }}>
-                      {stat.value}
-                    </Text>
-                    <Text className="stat-label">{stat.label}</Text>
-                  </div>
-                ))}
-              </div>
             </Col>
           </Row>
         </div>
@@ -220,29 +180,46 @@ const LandingPage = () => {
                 </div>
                 <div className="preview-placeholder">
                   <Row gutter={[16, 16]}>
-                    {/* Мини-карточки с иконками модулей как превью */}
-                    <Col xs={24} md={8}>
+                    {/* Первый ряд - Основные модули */}
+                    <Col xs={12} md={8}>
                       <div className="mini-preview" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
                         <DashboardOutlined style={{ fontSize: 48, color: '#fff' }} />
                         <Text style={{ color: '#fff', fontWeight: 600 }}>Дашборд</Text>
                       </div>
                     </Col>
-                    <Col xs={24} md={8}>
+                    <Col xs={12} md={8}>
                       <div className="mini-preview" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
                         <BugOutlined style={{ fontSize: 48, color: '#fff' }} />
                         <Text style={{ color: '#fff', fontWeight: 600 }}>Замечания</Text>
                       </div>
                     </Col>
-                    <Col xs={24} md={8}>
+                    <Col xs={12} md={8}>
                       <div className="mini-preview" style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
                         <ProjectOutlined style={{ fontSize: 48, color: '#fff' }} />
                         <Text style={{ color: '#fff', fontWeight: 600 }}>Проекты</Text>
                       </div>
                     </Col>
+
+                    {/* Второй ряд - Дополнительные модули */}
+                    <Col xs={12} md={8}>
+                      <div className="mini-preview" style={{ background: 'linear-gradient(135deg, #fa8c16 0%, #faad14 100%)' }}>
+                        <ShoppingCartOutlined style={{ fontSize: 48, color: '#fff' }} />
+                        <Text style={{ color: '#fff', fontWeight: 600 }}>Заявки</Text>
+                      </div>
+                    </Col>
+                    <Col xs={12} md={8}>
+                      <div className="mini-preview" style={{ background: 'linear-gradient(135deg, #52c41a 0%, #389e0d 100%)' }}>
+                        <TeamOutlined style={{ fontSize: 48, color: '#fff' }} />
+                        <Text style={{ color: '#fff', fontWeight: 600 }}>Команда</Text>
+                      </div>
+                    </Col>
+                    <Col xs={12} md={8}>
+                      <div className="mini-preview" style={{ background: 'linear-gradient(135deg, #13c2c2 0%, #08979c 100%)' }}>
+                        <BarChartOutlined style={{ fontSize: 48, color: '#fff' }} />
+                        <Text style={{ color: '#fff', fontWeight: 600 }}>Аналитика</Text>
+                      </div>
+                    </Col>
                   </Row>
-                  <Paragraph className="preview-note">
-                    💡 Современный интерфейс на React + TypeScript с адаптацией под все устройства
-                  </Paragraph>
                 </div>
               </div>
             </Col>
@@ -405,42 +382,322 @@ const LandingPage = () => {
           </Row>
         </div>
 
-        {/* Технологии */}
-        <div className="tech-section">
+        {/* Преимущества для бизнеса */}
+        <div className="benefits-section">
           <div className="section-header">
-            <Title level={2}>Современные технологии</Title>
+            <Title level={2}>Реальная экономия для вашего бизнеса</Title>
             <Paragraph className="section-subtitle">
-              Быстро, надежно и безопасно
+              Check Site окупается в первый месяц использования
+            </Paragraph>
+          </div>
+
+          <Row gutter={[32, 32]} align="middle">
+            <Col xs={24} lg={12}>
+              <Card className="benefit-card" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', border: 'none', color: '#fff' }}>
+                <Title level={3} style={{ color: '#fff', marginTop: 0 }}>💰 Сокращение затрат</Title>
+                <div style={{ fontSize: 16, lineHeight: 1.8 }}>
+                  <Paragraph style={{ color: '#fff', marginBottom: 12 }}>
+                    ✓ <strong>Минус 40% времени</strong> на оформление замечаний
+                  </Paragraph>
+                  <Paragraph style={{ color: '#fff', marginBottom: 12 }}>
+                    ✓ <strong>В 3 раза быстрее</strong> устранение дефектов благодаря уведомлениям
+                  </Paragraph>
+                  <Paragraph style={{ color: '#fff', marginBottom: 12 }}>
+                    ✓ <strong>Нет бумажной волокиты</strong> — всё в одной системе
+                  </Paragraph>
+                  <Paragraph style={{ color: '#fff', marginBottom: 0 }}>
+                    ✓ <strong>Автоматические отчеты</strong> для заказчика и руководства
+                  </Paragraph>
+                </div>
+              </Card>
+            </Col>
+
+            <Col xs={24} lg={12}>
+              <Card className="benefit-card" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', border: 'none', color: '#fff' }}>
+                <Title level={3} style={{ color: '#fff', marginTop: 0 }}>📊 Прозрачность и контроль</Title>
+                <div style={{ fontSize: 16, lineHeight: 1.8 }}>
+                  <Paragraph style={{ color: '#fff', marginBottom: 12 }}>
+                    ✓ <strong>Онлайн-мониторинг</strong> всех объектов в реальном времени
+                  </Paragraph>
+                  <Paragraph style={{ color: '#fff', marginBottom: 12 }}>
+                    ✓ <strong>История изменений</strong> каждого замечания с фото
+                  </Paragraph>
+                  <Paragraph style={{ color: '#fff', marginBottom: 12 }}>
+                    ✓ <strong>Статистика по подрядчикам</strong> — кто работает эффективно
+                  </Paragraph>
+                  <Paragraph style={{ color: '#fff', marginBottom: 0 }}>
+                    ✓ <strong>Доказательная база</strong> для претензий и актов
+                  </Paragraph>
+                </div>
+              </Card>
+            </Col>
+          </Row>
+        </div>
+
+        {/* Кейсы использования */}
+        <div className="use-cases-section">
+          <div className="section-header">
+            <Title level={2}>Кто использует Check Site?</Title>
+            <Paragraph className="section-subtitle">
+              От небольших ремонтных бригад до крупных застройщиков
             </Paragraph>
           </div>
 
           <Row gutter={[24, 24]}>
             <Col xs={24} md={8}>
-              <Card className="tech-card">
-                <CloudUploadOutlined className="tech-icon" style={{ color: '#1890ff' }} />
-                <Title level={4}>Backend</Title>
-                <Text>Django 4.2 + DRF</Text><br />
-                <Text>PostgreSQL + Redis</Text><br />
-                <Text>Celery + Channels</Text>
+              <Card className="use-case-card" hoverable>
+                <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                  <ProjectOutlined style={{ fontSize: 48, color: '#1890ff' }} />
+                </div>
+                <Title level={4} style={{ textAlign: 'center' }}>Генподрядчики</Title>
+                <Paragraph style={{ color: '#666' }}>
+                  Управление всеми субподрядчиками на объекте. Контроль сроков, качества и бюджета в одном окне.
+                </Paragraph>
+                <div style={{ marginTop: 16, padding: 12, background: '#f0f5ff', borderRadius: 8 }}>
+                  <Text strong style={{ color: '#1890ff' }}>5-20 объектов одновременно</Text>
+                </div>
               </Card>
             </Col>
+
             <Col xs={24} md={8}>
-              <Card className="tech-card">
-                <MobileOutlined className="tech-icon" style={{ color: '#52c41a' }} />
-                <Title level={4}>Frontend</Title>
-                <Text>React 18 + TypeScript</Text><br />
-                <Text>Ant Design + Zustand</Text><br />
-                <Text>PWA (офлайн-режим)</Text>
+              <Card className="use-case-card" hoverable>
+                <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                  <TeamOutlined style={{ fontSize: 48, color: '#52c41a' }} />
+                </div>
+                <Title level={4} style={{ textAlign: 'center' }}>Технический надзор</Title>
+                <Paragraph style={{ color: '#666' }}>
+                  Фиксация всех нарушений с фотодоказательствами. Формирование актов и предписаний в один клик.
+                </Paragraph>
+                <div style={{ marginTop: 16, padding: 12, background: '#f6ffed', borderRadius: 8 }}>
+                  <Text strong style={{ color: '#52c41a' }}>Документы всегда под рукой</Text>
+                </div>
               </Card>
             </Col>
+
             <Col xs={24} md={8}>
-              <Card className="tech-card">
-                <LockFilled className="tech-icon" style={{ color: '#faad14' }} />
-                <Title level={4}>Безопасность</Title>
-                <Text>JWT аутентификация</Text><br />
-                <Text>HTTPS + CORS</Text><br />
-                <Text>Резервное копирование</Text>
+              <Card className="use-case-card" hoverable>
+                <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                  <SafetyOutlined style={{ fontSize: 48, color: '#faad14' }} />
+                </div>
+                <Title level={4} style={{ textAlign: 'center' }}>Заказчики</Title>
+                <Paragraph style={{ color: '#666' }}>
+                  Полный контроль над ходом строительства. Понятные отчеты и фотоотчеты в любой момент времени.
+                </Paragraph>
+                <div style={{ marginTop: 16, padding: 12, background: '#fffbe6', borderRadius: 8 }}>
+                  <Text strong style={{ color: '#faad14' }}>Прозрачность на 100%</Text>
+                </div>
               </Card>
+            </Col>
+          </Row>
+        </div>
+
+        {/* Дополнительные возможности */}
+        <div className="extra-features-section">
+          <div className="section-header">
+            <Title level={2}>Больше, чем просто учет замечаний</Title>
+            <Paragraph className="section-subtitle">
+              Комплексная система управления строительством
+            </Paragraph>
+          </div>
+
+          <Row gutter={[32, 32]}>
+            <Col xs={24} md={12}>
+              <div className="extra-feature-item">
+                <ShoppingCartOutlined style={{ fontSize: 40, color: '#1890ff', marginRight: 16 }} />
+                <div>
+                  <Title level={4} style={{ marginBottom: 8 }}>Заявки на материалы</Title>
+                  <Paragraph style={{ color: '#666', marginBottom: 0 }}>
+                    Полный цикл согласования: от заявки мастера до утверждения директором. 17 статусов для максимального контроля.
+                  </Paragraph>
+                </div>
+              </div>
+            </Col>
+
+            <Col xs={24} md={12}>
+              <div className="extra-feature-item">
+                <DollarOutlined style={{ fontSize: 40, color: '#52c41a', marginRight: 16 }} />
+                <div>
+                  <Title level={4} style={{ marginBottom: 8 }}>База тендеров</Title>
+                  <Paragraph style={{ color: '#666', marginBottom: 0 }}>
+                    Публикуйте тендеры для подрядчиков и поставщиков. Получайте предложения от проверенных компаний.
+                  </Paragraph>
+                </div>
+              </div>
+            </Col>
+
+            <Col xs={24} md={12}>
+              <div className="extra-feature-item">
+                <FileTextOutlined style={{ fontSize: 40, color: '#722ed1', marginRight: 16 }} />
+                <div>
+                  <Title level={4} style={{ marginBottom: 8 }}>Техусловия и документация</Title>
+                  <Paragraph style={{ color: '#666', marginBottom: 0 }}>
+                    Централизованное хранилище всех технических условий, СНиПов и регламентов проекта.
+                  </Paragraph>
+                </div>
+              </div>
+            </Col>
+
+            <Col xs={24} md={12}>
+              <div className="extra-feature-item">
+                <BarChartOutlined style={{ fontSize: 40, color: '#fa8c16', marginRight: 16 }} />
+                <div>
+                  <Title level={4} style={{ marginBottom: 8 }}>Аналитика и отчеты</Title>
+                  <Paragraph style={{ color: '#666', marginBottom: 0 }}>
+                    Графики, диаграммы, экспорт в Excel и PDF. Вся статистика по объектам для принятия решений.
+                  </Paragraph>
+                </div>
+              </div>
+            </Col>
+          </Row>
+        </div>
+
+        {/* Секция про тендеры */}
+        <div className="tenders-section">
+          <Row gutter={[48, 48]} align="middle">
+            <Col xs={24} lg={12}>
+              <div className="tenders-content">
+                <Badge count="НОВОЕ" style={{ backgroundColor: '#faad14', marginBottom: 24 }} />
+                <Title level={2} style={{ marginTop: 0 }}>
+                  База тендеров для строителей
+                </Title>
+                <Paragraph style={{ fontSize: 18, color: '#595959', lineHeight: 1.8, marginBottom: 32 }}>
+                  Публикуйте тендеры на материалы, работы, оборудование и услуги. Получайте коммерческие предложения от проверенных подрядчиков и поставщиков из Казахстана, России, Узбекистана, Киргизии, Таджикистана и Беларуси.
+                </Paragraph>
+
+                <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                  <div className="tender-feature">
+                    <CheckCircleOutlined style={{ fontSize: 24, color: '#52c41a', marginRight: 16 }} />
+                    <div>
+                      <Text strong style={{ fontSize: 16, display: 'block' }}>Публикация за 2 минуты</Text>
+                      <Text style={{ color: '#8c8c8c' }}>Создайте тендер с описанием, бюджетом и сроками</Text>
+                    </div>
+                  </div>
+
+                  <div className="tender-feature">
+                    <CheckCircleOutlined style={{ fontSize: 24, color: '#1890ff', marginRight: 16 }} />
+                    <div>
+                      <Text strong style={{ fontSize: 16, display: 'block' }}>Доступ к базе подрядчиков</Text>
+                      <Text style={{ color: '#8c8c8c' }}>Ваш тендер увидят сотни проверенных компаний</Text>
+                    </div>
+                  </div>
+
+                  <div className="tender-feature">
+                    <CheckCircleOutlined style={{ fontSize: 24, color: '#722ed1', marginRight: 16 }} />
+                    <div>
+                      <Text strong style={{ fontSize: 16, display: 'block' }}>Прямые контакты</Text>
+                      <Text style={{ color: '#8c8c8c' }}>Получайте предложения напрямую от исполнителей</Text>
+                    </div>
+                  </div>
+
+                  <div className="tender-feature">
+                    <CheckCircleOutlined style={{ fontSize: 24, color: '#fa8c16', marginRight: 16 }} />
+                    <div>
+                      <Text strong style={{ fontSize: 16, display: 'block' }}>Управление заявками</Text>
+                      <Text style={{ color: '#8c8c8c' }}>Отслеживайте статус и сравнивайте предложения</Text>
+                    </div>
+                  </div>
+                </Space>
+
+                <Space size="middle" style={{ marginTop: 40 }}>
+                  <Button
+                    type="primary"
+                    size="large"
+                    icon={<DollarOutlined />}
+                    onClick={() => navigate('/public-tenders/login')}
+                    style={{
+                      height: 54,
+                      padding: '0 40px',
+                      fontSize: 17,
+                      fontWeight: 600,
+                      background: 'linear-gradient(135deg, #faad14 0%, #fa8c16 100%)',
+                      border: 'none',
+                      boxShadow: '0 8px 20px rgba(250, 173, 20, 0.3)'
+                    }}
+                  >
+                    Перейти к тендерам
+                  </Button>
+                  <Button
+                    size="large"
+                    icon={<RocketOutlined />}
+                    onClick={() => navigate('/register')}
+                    style={{
+                      height: 54,
+                      padding: '0 40px',
+                      fontSize: 17,
+                      fontWeight: 600
+                    }}
+                  >
+                    Зарегистрироваться
+                  </Button>
+                </Space>
+              </div>
+            </Col>
+
+            <Col xs={24} lg={12}>
+              <div className="tenders-preview">
+                <Card
+                  className="tender-card-demo"
+                  style={{
+                    border: '2px solid #f0f0f0',
+                    borderRadius: 16,
+                    overflow: 'hidden',
+                    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08)'
+                  }}
+                >
+                  <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Badge status="processing" text={<Text strong>Активный тендер</Text>} />
+                      <Text type="secondary" style={{ fontSize: 13 }}>Опубликовано 2 дня назад</Text>
+                    </div>
+
+                    <Title level={4} style={{ marginBottom: 0 }}>
+                      Поставка строительных материалов
+                    </Title>
+
+                    <Paragraph style={{ color: '#595959', marginBottom: 16 }}>
+                      Требуется поставка цемента М500, кирпича облицовочного и утеплителя для жилого комплекса в Астане.
+                    </Paragraph>
+
+                    <Row gutter={[16, 16]}>
+                      <Col span={12}>
+                        <div style={{ padding: 16, background: '#f0f5ff', borderRadius: 8 }}>
+                          <Text type="secondary" style={{ fontSize: 13, display: 'block' }}>Бюджет</Text>
+                          <Text strong style={{ fontSize: 18, color: '#1890ff' }}>15 000 000 ₸</Text>
+                        </div>
+                      </Col>
+                      <Col span={12}>
+                        <div style={{ padding: 16, background: '#fff7e6', borderRadius: 8 }}>
+                          <Text type="secondary" style={{ fontSize: 13, display: 'block' }}>Срок</Text>
+                          <Text strong style={{ fontSize: 18, color: '#fa8c16' }}>30 дней</Text>
+                        </div>
+                      </Col>
+                    </Row>
+
+                    <div style={{ padding: 16, background: '#f6ffed', borderRadius: 8, border: '1px solid #b7eb8f' }}>
+                      <Space>
+                        <TeamOutlined style={{ fontSize: 20, color: '#52c41a' }} />
+                        <Text style={{ color: '#52c41a', fontWeight: 600 }}>
+                          12 компаний уже подали предложения
+                        </Text>
+                      </Space>
+                    </div>
+
+                    <Button
+                      type="primary"
+                      block
+                      size="large"
+                      style={{
+                        marginTop: 8,
+                        height: 48,
+                        fontSize: 16,
+                        fontWeight: 600
+                      }}
+                    >
+                      Подать предложение
+                    </Button>
+                  </Space>
+                </Card>
+              </div>
             </Col>
           </Row>
         </div>
