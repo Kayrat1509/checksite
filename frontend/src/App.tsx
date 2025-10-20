@@ -14,9 +14,16 @@ import Contractors from './pages/Contractors'
 import Supervisions from './pages/Supervisions'
 import TechnicalConditions from './pages/TechnicalConditions'
 import MaterialRequests from './pages/MaterialRequests'
+import Tenders from './pages/Tenders'
 import Reports from './pages/Reports'
 import Profile from './pages/Profile'
 import NotFound from './pages/NotFound'
+
+// Публичные тендеры (для внешних пользователей)
+import PublicTendersRegister from './pages/PublicTenders/Register'
+import PublicTendersLogin from './pages/PublicTenders/Login'
+import PublicTendersStatus from './pages/PublicTenders/Status'
+import PublicTendersList from './pages/PublicTenders/TendersList'
 
 // Компонент редиректа для дашборда в зависимости от роли
 function DashboardRedirect() {
@@ -58,6 +65,12 @@ function App() {
         <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />} />
         <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Register />} />
 
+        {/* Публичные тендеры (для внешних пользователей) */}
+        <Route path="/public-tenders/register" element={<PublicTendersRegister />} />
+        <Route path="/public-tenders/login" element={<PublicTendersLogin />} />
+        <Route path="/public-tenders/status" element={<PublicTendersStatus />} />
+        <Route path="/public-tenders/list" element={<PublicTendersList />} />
+
         {/* Защищенные страницы */}
         <Route
           path="/dashboard"
@@ -71,6 +84,7 @@ function App() {
           <Route path="supervisions" element={<Supervisions />} />
           <Route path="technical-conditions" element={<TechnicalConditions />} />
           <Route path="material-requests" element={<MaterialRequests />} />
+          <Route path="tenders" element={<Tenders />} />
           <Route path="reports" element={<Reports />} />
           <Route path="profile" element={<Profile />} />
         </Route>

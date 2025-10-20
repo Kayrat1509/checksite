@@ -11,6 +11,7 @@ interface User {
   avatar?: string
   is_superuser?: boolean
   approved?: boolean
+  company_name?: string  // Название компании заказчика (для сотрудников ИТР и Руководства)
 }
 
 interface AuthState {

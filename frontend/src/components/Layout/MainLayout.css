@@ -1,0 +1,192 @@
+/* ========================================
+   MAINLAYOUT АДАПТИВНЫЕ СТИЛИ
+   ======================================== */
+
+/* Базовые стили для header */
+.main-layout-header {
+  padding: 0 24px;
+  background: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.main-layout-user-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.main-layout-user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.main-layout-user-name {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ========================================
+   АДАПТАЦИЯ ДЛЯ ПЛАНШЕТОВ (768px - 992px)
+   ======================================== */
+
+@media (max-width: 992px) {
+  .main-layout-header {
+    padding: 0 16px;
+  }
+
+  .main-layout-user-section {
+    gap: 12px;
+  }
+
+  .main-layout-user-name {
+    max-width: 150px;
+  }
+}
+
+/* ========================================
+   АДАПТАЦИЯ ДЛЯ СМАРТФОНОВ (< 768px)
+   ======================================== */
+
+@media (max-width: 768px) {
+  .main-layout-header {
+    padding: 0 12px !important;
+    height: 56px !important;
+  }
+
+  .main-layout-user-section {
+    gap: 8px;
+  }
+
+  /* Скрываем имя пользователя, оставляем только аватар */
+  .main-layout-user-name {
+    display: none;
+  }
+
+  /* Иконка уведомлений меньше */
+  .main-layout-notification-btn svg {
+    font-size: 18px !important;
+  }
+
+  /* Кнопка меню */
+  .main-layout-menu-btn {
+    width: 48px !important;
+    height: 56px !important;
+  }
+
+  /* Уменьшаем аватар */
+  .ant-avatar {
+    width: 32px !important;
+    height: 32px !important;
+  }
+}
+
+/* ========================================
+   АДАПТАЦИЯ ДЛЯ МАЛЕНЬКИХ СМАРТФОНОВ (< 576px)
+   ======================================== */
+
+@media (max-width: 576px) {
+  .main-layout-header {
+    padding: 0 8px !important;
+  }
+
+  .main-layout-user-section {
+    gap: 4px;
+  }
+
+  .main-layout-menu-btn {
+    width: 40px !important;
+    height: 56px !important;
+    font-size: 14px !important;
+  }
+
+  .main-layout-notification-btn {
+    padding: 0 !important;
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  .main-layout-notification-btn svg {
+    font-size: 16px !important;
+  }
+
+  .ant-avatar {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 12px !important;
+  }
+
+  /* Badge меньше */
+  .ant-badge-count {
+    min-width: 16px !important;
+    height: 16px !important;
+    line-height: 16px !important;
+    font-size: 10px !important;
+    padding: 0 4px !important;
+  }
+}
+
+/* ========================================
+   АДАПТАЦИЯ CONTENT
+   ======================================== */
+
+@media (max-width: 768px) {
+  .main-layout-content {
+    margin: 12px 8px !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .main-layout-content {
+    margin: 8px 4px !important;
+  }
+}
+
+/* ========================================
+   АДАПТАЦИЯ SIDER
+   ======================================== */
+
+@media (max-width: 992px) {
+  /* Sider выезжает поверх content на мобильных */
+  .ant-layout-sider {
+    position: fixed !important;
+    z-index: 1000;
+    height: 100vh;
+  }
+
+  /* Overlay при открытом меню */
+  .ant-layout-sider:not(.ant-layout-sider-collapsed)::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 200px;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: -1;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Лого в Sider */
+  .ant-layout-sider .sider-logo {
+    height: 56px;
+    font-size: 18px;
+  }
+
+  /* Menu items */
+  .ant-layout-sider .ant-menu-item {
+    font-size: 14px;
+    padding-left: 16px !important;
+  }
+
+  .ant-layout-sider .ant-menu-item-icon {
+    font-size: 16px;
+  }
+}

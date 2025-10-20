@@ -1,0 +1,266 @@
+/* ========================================
+   DASHBOARD - АДАПТИВНЫЕ СТИЛИ
+   ======================================== */
+
+/* Базовые стили для контейнера */
+.dashboard-container {
+  padding: 24px;
+}
+
+.dashboard-title {
+  margin-bottom: 24px;
+}
+
+.dashboard-divider {
+  font-size: 18px;
+  font-weight: bold;
+  margin-top: 32px;
+  margin-bottom: 24px;
+}
+
+/* Стили для карточек статистики */
+.dashboard-stat-card {
+  cursor: pointer;
+  border: 2px solid #d9d9d9;
+  transition: all 0.3s ease;
+  border-radius: 8px;
+}
+
+.dashboard-stat-card:hover {
+  border-color: #1890ff;
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
+}
+
+.dashboard-stat-card .ant-statistic-title {
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.dashboard-stat-card .ant-statistic-content {
+  font-size: 32px;
+}
+
+/* ========================================
+   АДАПТАЦИЯ ДЛЯ ПЛАНШЕТОВ (768px - 992px)
+   ======================================== */
+
+@media (max-width: 992px) {
+  .dashboard-container {
+    padding: 20px;
+  }
+
+  .dashboard-divider {
+    font-size: 16px;
+    margin-top: 24px;
+    margin-bottom: 16px;
+  }
+
+  .dashboard-stat-card .ant-statistic-content {
+    font-size: 28px;
+  }
+}
+
+/* ========================================
+   АДАПТАЦИЯ ДЛЯ СМАРТФОНОВ (< 768px)
+   ======================================== */
+
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 16px;
+  }
+
+  .dashboard-title {
+    font-size: 24px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .dashboard-divider {
+    font-size: 15px;
+    margin-top: 20px;
+    margin-bottom: 12px;
+  }
+
+  /* Карточки статистики */
+  .dashboard-stat-card {
+    margin-bottom: 12px;
+  }
+
+  .dashboard-stat-card:hover {
+    transform: translateY(-2px);
+  }
+
+  .dashboard-stat-card .ant-card-body {
+    padding: 16px !important;
+  }
+
+  .dashboard-stat-card .ant-statistic-title {
+    font-size: 13px !important;
+    margin-bottom: 4px;
+  }
+
+  .dashboard-stat-card .ant-statistic-content {
+    font-size: 24px !important;
+  }
+
+  .dashboard-stat-card .ant-statistic-content-prefix {
+    font-size: 20px !important;
+    margin-right: 6px !important;
+  }
+
+  /* Сетка - все карточки в одну колонку на очень маленьких экранах */
+  .dashboard-row {
+    margin-left: -8px !important;
+    margin-right: -8px !important;
+  }
+
+  .dashboard-row > .ant-col {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    margin-bottom: 8px;
+  }
+}
+
+/* ========================================
+   АДАПТАЦИЯ ДЛЯ МАЛЕНЬКИХ СМАРТФОНОВ (< 576px)
+   ======================================== */
+
+@media (max-width: 576px) {
+  .dashboard-container {
+    padding: 12px;
+  }
+
+  .dashboard-title {
+    font-size: 20px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .dashboard-divider {
+    font-size: 14px;
+    margin-top: 16px;
+    margin-bottom: 10px;
+  }
+
+  /* Еще более компактные карточки */
+  .dashboard-stat-card {
+    margin-bottom: 8px;
+    border-radius: 6px;
+  }
+
+  .dashboard-stat-card .ant-card-body {
+    padding: 12px !important;
+  }
+
+  .dashboard-stat-card .ant-statistic-title {
+    font-size: 12px !important;
+    margin-bottom: 2px;
+  }
+
+  .dashboard-stat-card .ant-statistic-content {
+    font-size: 20px !important;
+  }
+
+  .dashboard-stat-card .ant-statistic-content-prefix {
+    font-size: 18px !important;
+    margin-right: 4px !important;
+  }
+
+  /* Минимальные отступы в сетке */
+  .dashboard-row {
+    margin-left: -4px !important;
+    margin-right: -4px !important;
+  }
+
+  .dashboard-row > .ant-col {
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+    margin-bottom: 6px;
+  }
+}
+
+/* ========================================
+   АДАПТАЦИЯ ДЛЯ ЭКСТРА МАЛЕНЬКИХ ЭКРАНОВ (< 375px)
+   ======================================== */
+
+@media (max-width: 374px) {
+  .dashboard-container {
+    padding: 8px;
+  }
+
+  .dashboard-title {
+    font-size: 18px !important;
+  }
+
+  .dashboard-divider {
+    font-size: 13px;
+  }
+
+  .dashboard-stat-card .ant-statistic-content {
+    font-size: 18px !important;
+  }
+
+  .dashboard-stat-card .ant-statistic-content-prefix {
+    font-size: 16px !important;
+  }
+}
+
+/* ========================================
+   УЛУЧШЕНИЯ UX
+   ======================================== */
+
+/* Плавные переходы */
+.dashboard-stat-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Активное состояние при нажатии (для touch устройств) */
+.dashboard-stat-card:active {
+  transform: scale(0.98);
+}
+
+/* Hover эффект только на устройствах с мышью */
+@media (hover: hover) and (pointer: fine) {
+  .dashboard-stat-card:hover {
+    border-color: #1890ff;
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
+  }
+}
+
+/* Отключаем hover на touch устройствах */
+@media (hover: none) and (pointer: coarse) {
+  .dashboard-stat-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+/* Загрузочное состояние */
+.dashboard-stat-card .ant-skeleton {
+  padding: 20px 0;
+}
+
+@media (max-width: 768px) {
+  .dashboard-stat-card .ant-skeleton {
+    padding: 12px 0;
+  }
+}
+
+/* ========================================
+   ACCESSIBILITY (доступность)
+   ======================================== */
+
+/* Focus стили для клавиатурной навигации */
+.dashboard-stat-card:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
+
+/* Увеличенная область клика на мобильных */
+@media (max-width: 768px) {
+  .dashboard-stat-card {
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+  }
+}

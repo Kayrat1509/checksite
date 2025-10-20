@@ -8,6 +8,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { issuesAPI } from '../api/issues'
+import './Dashboard.css'
 
 const { Title } = Typography
 
@@ -28,40 +29,40 @@ const Dashboard = () => {
   }
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Title level={2}>Дашборд</Title>
+    <div className="dashboard-container">
+      <Title level={2} className="dashboard-title">Дашборд</Title>
 
       {/* Всего замечаний */}
-      <Row gutter={[16, 16]}>
+      <Row gutter={[16, 16]} className="dashboard-row">
         <Col span={24}>
           <Card
             loading={isLoading}
             hoverable
             onClick={() => navigateToIssues()}
-            style={{ cursor: 'pointer', border: '2px solid #d9d9d9' }}
+            className="dashboard-stat-card"
           >
             <Statistic
               title="Всего замечаний"
               value={stats?.total || 0}
               prefix={<FileTextOutlined />}
-              valueStyle={{ color: '#1890ff', fontSize: '32px' }}
+              valueStyle={{ color: '#1890ff' }}
             />
           </Card>
         </Col>
       </Row>
 
-      <Divider orientation="left" style={{ fontSize: '18px', fontWeight: 'bold', marginTop: '32px', marginBottom: '24px' }}>
+      <Divider orientation="left" className="dashboard-divider">
         Статус
       </Divider>
 
       {/* Статусы */}
-      <Row gutter={[16, 16]}>
+      <Row gutter={[16, 16]} className="dashboard-row">
         <Col xs={24} sm={12} lg={6}>
           <Card
             loading={isLoading}
             hoverable
             onClick={() => navigateToIssues('NEW')}
-            style={{ cursor: 'pointer', border: '2px solid #d9d9d9' }}
+            className="dashboard-stat-card"
           >
             <Statistic
               title="Новые"
@@ -77,7 +78,7 @@ const Dashboard = () => {
             loading={isLoading}
             hoverable
             onClick={() => navigateToIssues('IN_PROGRESS')}
-            style={{ cursor: 'pointer', border: '2px solid #d9d9d9' }}
+            className="dashboard-stat-card"
           >
             <Statistic
               title="В процессе"
@@ -93,7 +94,7 @@ const Dashboard = () => {
             loading={isLoading}
             hoverable
             onClick={() => navigateToIssues('COMPLETED')}
-            style={{ cursor: 'pointer', border: '2px solid #d9d9d9' }}
+            className="dashboard-stat-card"
           >
             <Statistic
               title="Выполнено"
@@ -109,7 +110,7 @@ const Dashboard = () => {
             loading={isLoading}
             hoverable
             onClick={() => navigateToIssues('OVERDUE')}
-            style={{ cursor: 'pointer', border: '2px solid #d9d9d9' }}
+            className="dashboard-stat-card"
           >
             <Statistic
               title="Просрочено"
@@ -121,18 +122,18 @@ const Dashboard = () => {
         </Col>
       </Row>
 
-      <Divider orientation="left" style={{ fontSize: '18px', fontWeight: 'bold', marginTop: '32px', marginBottom: '24px' }}>
+      <Divider orientation="left" className="dashboard-divider">
         На проверке
       </Divider>
 
       {/* На проверке */}
-      <Row gutter={[16, 16]}>
+      <Row gutter={[16, 16]} className="dashboard-row">
         <Col xs={24} sm={12} lg={8}>
           <Card
             loading={isLoading}
             hoverable
             onClick={() => navigateToIssues('PENDING_REVIEW')}
-            style={{ cursor: 'pointer', border: '2px solid #d9d9d9' }}
+            className="dashboard-stat-card"
           >
             <Statistic
               title="На проверке"
@@ -144,18 +145,18 @@ const Dashboard = () => {
         </Col>
       </Row>
 
-      <Divider orientation="left" style={{ fontSize: '18px', fontWeight: 'bold', marginTop: '32px', marginBottom: '24px' }}>
+      <Divider orientation="left" className="dashboard-divider">
         Приоритет
       </Divider>
 
       {/* Приоритеты */}
-      <Row gutter={[16, 16]}>
+      <Row gutter={[16, 16]} className="dashboard-row">
         <Col xs={24} sm={12} lg={8}>
           <Card
             loading={isLoading}
             hoverable
             onClick={() => navigateToIssues(undefined, 'CRITICAL')}
-            style={{ cursor: 'pointer', border: '2px solid #d9d9d9' }}
+            className="dashboard-stat-card"
           >
             <Statistic
               title="Критичные"
@@ -171,7 +172,7 @@ const Dashboard = () => {
             loading={isLoading}
             hoverable
             onClick={() => navigateToIssues(undefined, 'HIGH')}
-            style={{ cursor: 'pointer', border: '2px solid #d9d9d9' }}
+            className="dashboard-stat-card"
           >
             <Statistic
               title="Важные"

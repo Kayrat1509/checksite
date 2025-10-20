@@ -24,6 +24,8 @@ urlpatterns = [
     path('api/reports/', include('apps.reports.urls')),
     path('api/', include('apps.technical_conditions.urls')),
     path('api/', include('apps.material_requests.urls')),  # Заявки на материалы
+    path('api/', include('apps.tenders.urls')),  # Тендеры
+    path('api/public-tenders/', include('apps.tenders.public_urls')),  # Публичные тендеры
 ]
 
 # Serve media files in development

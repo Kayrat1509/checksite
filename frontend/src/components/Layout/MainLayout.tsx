@@ -15,9 +15,11 @@ import {
   SafetyOutlined,
   FileProtectOutlined,
   ShoppingCartOutlined,
+  DollarOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../../stores/authStore'
 import { useNotificationStore } from '../../stores/notificationStore'
+import './MainLayout.css'
 
 const { Header, Sider, Content } = Layout
 
@@ -95,6 +97,26 @@ const MainLayout = () => {
     return supplyRoles.includes(user.role)
   }
 
+  // Проверка доступа к странице тендеров (ИТР и Руководство)
+  const canAccessTenders = () => {
+    if (!user) return false
+    // Суперадмин всегда имеет доступ
+    if (user.is_superuser) return true
+
+    // Разрешенные роли: ИТР и Руководство
+    const allowedRoles = [
+      'ENGINEER',          // Инженер ПТО (ИТР)
+      'SITE_MANAGER',      // Начальник участка (ИТР)
+      'FOREMAN',           // Прораб (ИТР)
+      'MASTER',            // Мастер (ИТР)
+      'PROJECT_MANAGER',   // Руководитель проекта (Руководство)
+      'CHIEF_ENGINEER',    // Главный инженер (Руководство)
+      'DIRECTOR'           // Директор (Руководство)
+    ]
+
+    return allowedRoles.includes(user.role)
+  }
+
   // Фильтруем меню в зависимости от прав доступа пользователя
   const allMenuItems = [
     {
@@ -152,6 +174,13 @@ const MainLayout = () => {
       // Роли снабжения имеют доступ к заявкам
     },
     {
+      key: '/dashboard/tenders',
+      icon: <DollarOutlined />,
+      label: <Link to="/dashboard/tenders">Тендеры</Link>,
+      // Показываем пункт меню только для ИТР и Руководства
+      visible: canAccessTenders(),
+    },
+    {
       key: '/dashboard/reports',
       icon: <BarChartOutlined />,
       label: <Link to="/dashboard/reports">Отчеты</Link>,
@@ -160,8 +189,10 @@ const MainLayout = () => {
     },
   ]
 
-  // Фильтруем меню по полю visible
-  const menuItems = allMenuItems.filter(item => item.visible !== false)
+  // Фильтруем меню по полю visible и удаляем поле visible из результата
+  const menuItems = allMenuItems
+    .filter(item => item.visible !== false)
+    .map(({ visible, ...item }) => item)
 
   const userMenuItems = [
     {

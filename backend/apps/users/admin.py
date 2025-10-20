@@ -43,19 +43,19 @@ class CompanyAdmin(admin.ModelAdmin):
 class UserAdmin(BaseUserAdmin):
     """Admin interface for User model."""
 
-    list_display = ['email', 'get_full_name', 'role', 'get_company_display', 'external_company_name', 'position', 'temp_password', 'approved', 'is_active', 'created_at']
+    list_display = ['email', 'get_full_name', 'role', 'get_company_display', 'temp_password', 'position', 'external_company_name', 'approved', 'is_active', 'created_at']
     list_filter = ['role', 'company', 'approved', 'is_active', 'is_staff', 'created_at']
     search_fields = ['email', 'first_name', 'last_name', 'phone', 'external_company_name', 'supervision_company']
     ordering = ['-created_at']
     list_editable = ['approved']
 
     fieldsets = (
-        (None, {'fields': ('email', 'password', 'temp_password')}),
+        (None, {'fields': ('email', 'password', 'external_company_name')}),
         (_('Персональная информация'), {
             'fields': ('first_name', 'last_name', 'middle_name', 'phone', 'avatar')
         }),
         (_('Роль и должность'), {
-            'fields': ('role', 'position', 'company', 'external_company_name', 'supervision_company', 'secondary_email', 'telegram_id'),
+            'fields': ('role', 'position', 'company', 'temp_password', 'supervision_company', 'secondary_email', 'telegram_id'),
             'description': 'Для сотрудников заказчика используйте поле "Компания". Для подрядчиков и надзоров используйте поле "Название сторонней компании".'
         }),
         (_('Права доступа'), {

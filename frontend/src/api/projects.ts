@@ -6,6 +6,12 @@ export const projectsAPI = {
     return response.data
   },
 
+  // Алиас для getProjects
+  getList: async (params?: any) => {
+    const response = await axios.get('/projects/projects/', { params })
+    return response.data
+  },
+
   getProject: async (id: number) => {
     const response = await axios.get(`/projects/projects/${id}/`)
     return response.data
