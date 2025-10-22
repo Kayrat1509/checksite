@@ -18,6 +18,7 @@ import Supervisions from './pages/Supervisions'
 import TechnicalConditions from './pages/TechnicalConditions'
 import MaterialRequests from './pages/MaterialRequests'
 import Tenders from './pages/Tenders'
+import Warehouse from './pages/Warehouse'
 import Reports from './pages/Reports'
 import Profile from './pages/Profile'
 import NotFound from './pages/NotFound'
@@ -91,6 +92,7 @@ function App() {
           <Route path="technical-conditions" element={<TechnicalConditions />} />
           <Route path="material-requests" element={<MaterialRequests />} />
           <Route path="tenders" element={<Tenders />} />
+          <Route path="warehouse" element={<Warehouse />} />
           <Route path="reports" element={<Reports />} />
           <Route path="profile" element={<Profile />} />
         </Route>

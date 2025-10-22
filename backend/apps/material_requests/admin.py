@@ -13,7 +13,7 @@ class MaterialRequestItemInline(admin.TabularInline):
     """Inline для позиций материалов в заявке."""
     model = MaterialRequestItem
     extra = 1
-    fields = ['material_name', 'quantity', 'unit', 'specifications', 'order']
+    fields = ['material_name', 'quantity', 'actual_quantity', 'unit', 'specifications', 'order']
     ordering = ['order']
 
     def has_delete_permission(self, request, obj=None):

@@ -30,17 +30,45 @@ class ProjectBasicSerializer(serializers.ModelSerializer):
 class MaterialRequestItemSerializer(serializers.ModelSerializer):
     """Сериализатор для позиций материалов в заявке."""
     cancelled_by_data = UserBasicSerializer(source='cancelled_by', read_only=True)
+    issued_by_data = UserBasicSerializer(source='issued_by', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     approval_status_display = serializers.CharField(source='get_approval_status_display', read_only=True)
     availability_status_display = serializers.CharField(source='get_availability_status_display', read_only=True)
     item_status_display = serializers.CharField(source='get_item_status_display', read_only=True)
 
+    # Дополнительные поля для страницы Склад
+    request_number = serializers.CharField(source='request.request_number', read_only=True)
+    project_id = serializers.IntegerField(source='request.project.id', read_only=True)
+    project_name = serializers.CharField(source='request.project.name', read_only=True)
+    warehouse_receipt_date = serializers.SerializerMethodField()
+    warehouse_receipt_id = serializers.SerializerMethodField()
+
+    def get_warehouse_receipt_date(self, obj):
+        """Получить дату последнего поступления на склад для этого материала."""
+        from apps.warehouse.models import WarehouseReceipt
+        latest_receipt = WarehouseReceipt.objects.filter(material_item=obj).order_by('-receipt_date').first()
+        return latest_receipt.receipt_date if latest_receipt else None
+
+    def get_warehouse_receipt_id(self, obj):
+        """Получить ID последнего поступления на склад."""
+        from apps.warehouse.models import WarehouseReceipt
+        latest_receipt = WarehouseReceipt.objects.filter(material_item=obj).order_by('-receipt_date').first()
+        return latest_receipt.id if latest_receipt else None
+
     class Meta:
         model = MaterialRequestItem
         fields = [
             'id',
+            'request',  # Добавляем поле request (ForeignKey)
+            'request_number',  # Номер заявки (для Склада)
+            'project_id',  # ID проекта (для Склада)
+            'project_name',  # Название проекта (для Склада)
             'material_name',
             'quantity',
+            'actual_quantity',  # Добавляем новое поле "Кол-во по факту"
+            'issued_quantity',  # Количество выданное со склада
+            'issued_by',  # Кто изменил issued_quantity
+            'issued_by_data',  # Полные данные пользователя, изменившего issued_quantity
             'unit',
             'specifications',
             'order',
@@ -57,9 +85,21 @@ class MaterialRequestItemSerializer(serializers.ModelSerializer):
             'cancelled_by',
             'cancelled_by_data',
             'cancelled_at',
-            'created_at'
+            'previous_item_status',  # Для восстановления позиции
+            'created_at',
+            'warehouse_receipt_date',  # Дата поступления на склад (для Склада)
+            'warehouse_receipt_id',  # ID записи склада (для Склада)
         ]
-        read_only_fields = ['id', 'created_at', 'status', 'cancelled_by', 'cancelled_at', 'approval_status', 'availability_status', 'item_status']
+        # Поля issued_quantity и issued_by НЕ в read_only, чтобы завсклад мог их редактировать
+        # issued_by будет автоматически заполняться в viewset при обновлении issued_quantity
+        read_only_fields = ['id', 'request', 'created_at', 'status', 'cancelled_by', 'cancelled_at', 'approval_status', 'availability_status', 'item_status', 'previous_item_status']
+        # Делаем поля не обязательными при частичном обновлении (PATCH)
+        extra_kwargs = {
+            'material_name': {'required': False},
+            'quantity': {'required': False},
+            'unit': {'required': False},
+            'order': {'required': False},
+        }
 
 
 class MaterialRequestDocumentSerializer(serializers.ModelSerializer):

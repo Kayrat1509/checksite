@@ -121,6 +121,7 @@ const Users = () => {
     MATERIAL_REQUESTS: [
       { value: 'SUPPLY_MANAGER', label: 'Снабженец' },
       { value: 'WAREHOUSE_HEAD', label: 'Зав.Центрсклада' },
+      { value: 'SITE_WAREHOUSE_MANAGER', label: 'Завсклад объекта' },
       { value: 'ACCOUNTANT', label: 'Бухгалтер' }
     ]
   }

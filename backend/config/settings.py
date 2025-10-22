@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'apps.technical_conditions',
     'apps.material_requests',  # Заявки на строительные материалы
     'apps.tenders',  # Тендеры
+    'apps.warehouse',  # Складской учет
 ]
 
 MIDDLEWARE = [

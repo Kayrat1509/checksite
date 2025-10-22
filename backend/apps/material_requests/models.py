@@ -217,11 +217,43 @@ class MaterialRequestItem(models.Model):
         help_text=_('Наименование материала (например: Арматура Ø12)')
     )
 
-    # Количество
+    # Количество по заявке
     quantity = models.DecimalField(
-        _('Количество'),
+        _('Количество по заявке'),
         max_digits=10,
         decimal_places=2
+    )
+
+    # Количество по факту (фактически получено/поставлено)
+    actual_quantity = models.DecimalField(
+        _('Количество по факту'),
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=_('Фактическое количество, полученное на объекте (заполняется автором после доставки)')
+    )
+
+    # Количество выданное со склада
+    issued_quantity = models.DecimalField(
+        _('Выдано'),
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        default=0,
+        help_text=_('Количество материала, выданное со склада (заполняется завскладом)')
+    )
+
+    # Кто последний изменил issued_quantity
+    issued_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='issued_materials',
+        verbose_name=_('Изменил'),
+        help_text=_('Пользователь, который последний изменил количество выдано')
     )
 
     # Единица измерения
@@ -311,6 +343,16 @@ class MaterialRequestItem(models.Model):
         _('Дата отмены'),
         null=True,
         blank=True
+    )
+
+    # Статус позиции до отмены (для восстановления)
+    previous_item_status = models.CharField(
+        _('Предыдущий статус позиции'),
+        max_length=30,
+        choices=ProcessStatus.choices,
+        null=True,
+        blank=True,
+        help_text=_('Сохраняется при отмене для возможности восстановления позиции на том же этапе согласования')
     )
 
     created_at = models.DateTimeField(_('Добавлено'), auto_now_add=True)

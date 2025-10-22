@@ -3,8 +3,20 @@ import axios from './axios'
 // Интерфейсы
 export interface MaterialRequestItem {
   id?: number
+  request?: number  // ID заявки
+  request_number?: string  // Номер заявки (для Склада)
+  project_id?: number  // ID проекта (для Склада)
+  project_name?: string  // Название проекта (для Склада)
   material_name: string
-  quantity: number
+  quantity: number  // Количество по заявке
+  actual_quantity?: number | null  // Количество по факту (фактически получено)
+  issued_quantity?: number | null  // Количество выданное со склада
+  issued_by?: number | null  // ID пользователя, который изменил issued_quantity
+  issued_by_data?: {
+    id: number
+    full_name: string
+    role: string
+  }
   unit: string
   specifications?: string
   order: number
@@ -24,6 +36,10 @@ export interface MaterialRequestItem {
     full_name: string
   }
   cancelled_at?: string
+  previous_item_status?: string  // Статус позиции до отмены (для восстановления)
+  created_at?: string
+  warehouse_receipt_date?: string  // Дата поступления на склад (для Склада)
+  warehouse_receipt_id?: number  // ID записи склада (для Склада)
 }
 
 export interface MaterialRequest {
@@ -130,6 +146,12 @@ export const materialRequestsAPI = {
     return response.data
   },
 
+  // Восстановить отмененную позицию материала
+  restoreItem: async (itemId: number) => {
+    const response = await axios.patch(`/material-request-items/${itemId}/restore_item/`)
+    return response.data
+  },
+
   // Экспортировать заявку в Excel
   exportExcel: async (id: number) => {
     const response = await axios.get(`/material-requests/${id}/export_excel/`, {
@@ -164,6 +186,28 @@ export const materialRequestsAPI = {
   // Обновить позицию материала (название, количество, единицу измерения, примечания)
   updateItem: async (itemId: number, data: Partial<MaterialRequestItem>) => {
     const response = await axios.patch(`/material-request-items/${itemId}/`, data)
+    return response.data
+  },
+
+  // Зафиксировать фактическое количество (создает запись на складе и обновляет actual_quantity)
+  recordActualQuantity: async (itemId: number, data: {
+    actual_quantity: number
+    receipt_date?: string
+    waybill_number?: string
+    supplier?: string
+    quality_status?: 'GOOD' | 'DAMAGED' | 'DEFECTIVE' | 'PARTIAL'
+    notes?: string
+  }) => {
+    const response = await axios.patch(`/material-request-items/${itemId}/record_actual_quantity/`, data)
+    return response.data
+  },
+
+  // Получить материалы с заполненным actual_quantity (для страницы Склад)
+  getMaterialItemsWithActualQuantity: async (params?: {
+    request__project?: number  // Фильтр по проекту
+    has_actual_quantity?: boolean  // Фильтр по наличию actual_quantity
+  }) => {
+    const response = await axios.get('/material-request-items/', { params })
     return response.data
   },
 }

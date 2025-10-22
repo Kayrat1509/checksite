@@ -138,6 +138,7 @@ class User(AbstractUser):
         # Роли для работы с заявками на материалы
         SUPPLY_MANAGER = 'SUPPLY_MANAGER', _('Снабженец')
         WAREHOUSE_HEAD = 'WAREHOUSE_HEAD', _('Зав.Центрсклада')
+        SITE_WAREHOUSE_MANAGER = 'SITE_WAREHOUSE_MANAGER', _('Завсклад объекта')
 
     username = None
     email = models.EmailField(_('Email'), unique=True)

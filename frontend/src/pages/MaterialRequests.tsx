@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Table, Button, Tag, Space, Modal, Form, Input, Select, InputNumber, message, Card, Typography, Tooltip, Popconfirm } from 'antd';
-import { PlusOutlined, DownloadOutlined, EditOutlined, CloseCircleOutlined, SendOutlined, CheckOutlined, RollbackOutlined } from '@ant-design/icons';
+import { PlusOutlined, DownloadOutlined, EditOutlined, CloseCircleOutlined, SendOutlined, CheckOutlined, RollbackOutlined, UndoOutlined } from '@ant-design/icons';
 import { materialRequestsAPI, MaterialRequest, CreateMaterialRequestData } from '../api/materialRequests';
 import { projectsAPI } from '../api/projects';
 import { useAuthStore } from '../stores/authStore';
+import { useQueryClient } from '@tanstack/react-query';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -43,6 +44,7 @@ const getStatusColor = (status: string): string => {
 
 const MaterialRequests = () => {
   const { user } = useAuthStore();
+  const queryClient = useQueryClient(); // Для инвалидации кеша страницы Склад
   const [requests, setRequests] = useState<MaterialRequest[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
@@ -260,7 +262,12 @@ const MaterialRequests = () => {
       await materialRequestsAPI.cancelItem(material.id, 'Отменено прорабом');
 
       message.success({ content: 'Позиция отменена', key: 'cancel' });
-      fetchRequests(); // Обновляем список заявок
+
+      // Обновляем список заявок
+      fetchRequests();
+
+      // Инвалидируем кеш страницы Склад, чтобы отмененная позиция исчезла
+      queryClient.invalidateQueries({ queryKey: ['warehouse-materials'] });
     } catch (error: any) {
       // Выводим более подробное сообщение об ошибке
       const errorMessage = error?.response?.data?.detail ||
@@ -268,6 +275,43 @@ const MaterialRequests = () => {
                           'Ошибка при отмене позиции';
       message.error({ content: errorMessage, key: 'cancel' });
       console.error('Cancel error:', error?.response?.data);
+    }
+  };
+
+  // Восстановление отмененной позиции материала
+  const handleRestoreItem = async (material: any) => {
+    // Проверяем, есть ли у материала id
+    if (!material || !material.id) {
+      message.error('Невозможно восстановить позицию: отсутствует идентификатор');
+      return;
+    }
+
+    // Проверяем, что позиция отменена
+    if (material.status !== 'CANCELLED') {
+      message.warning('Позиция не отменена, восстановление невозможно');
+      return;
+    }
+
+    try {
+      message.loading({ content: 'Восстановление позиции...', key: 'restore' });
+
+      // Восстанавливаем позицию материала
+      await materialRequestsAPI.restoreItem(material.id);
+
+      message.success({ content: 'Позиция восстановлена и продолжит согласование', key: 'restore' });
+
+      // Обновляем список заявок
+      fetchRequests();
+
+      // Инвалидируем кеш страницы Склад
+      queryClient.invalidateQueries({ queryKey: ['warehouse-materials'] });
+    } catch (error: any) {
+      // Выводим более подробное сообщение об ошибке
+      const errorMessage = error?.response?.data?.detail ||
+                          error?.response?.data?.error ||
+                          'Ошибка при восстановлении позиции';
+      message.error({ content: errorMessage, key: 'restore' });
+      console.error('Restore error:', error?.response?.data);
     }
   };
 
@@ -741,9 +785,9 @@ const MaterialRequests = () => {
         record.material ? record.material.unit : '-',
     },
     {
-      title: 'Кол-во',
+      title: 'Кол-во по заявке',
       key: 'quantity',
-      width: 100,
+      width: 120,
       align: 'center' as const,
       render: (record: FlatMaterialRow) => {
         if (!record.material) return '-';
@@ -758,6 +802,68 @@ const MaterialRequests = () => {
         }
 
         return record.material.quantity;
+      },
+    },
+    {
+      title: 'Кол-во по факту',
+      key: 'actual_quantity',
+      width: 120,
+      align: 'center' as const,
+      render: (record: FlatMaterialRow) => {
+        if (!record.material) return '-';
+
+        const material = record.material;
+        const userRole = user?.role;
+        const isAuthor = record.request.author_data?.id === user?.id;
+
+        // Проверяем, может ли пользователь редактировать это поле
+        // Разрешаем редактировать автору (прораб, мастер, начальник участка)
+        const canEdit = isAuthor && ['FOREMAN', 'MASTER', 'SITE_MANAGER', 'SUPERADMIN'].includes(userRole || '');
+
+        // Если позиция отменена, отображаем прочерк
+        if (material.status === 'CANCELLED') {
+          return <span style={{ color: '#999' }}>-</span>;
+        }
+
+        return (
+          <div>
+            {canEdit ? (
+              <InputNumber
+                min={0}
+                step={0.01}
+                placeholder="Не указано"
+                value={material.actual_quantity || undefined}
+                onChange={async (value) => {
+                  if (!value) return;
+
+                  try {
+                    // Используем новый endpoint, который создает запись на складе и обновляет actual_quantity атомарно
+                    await materialRequestsAPI.recordActualQuantity(material.id!, {
+                      actual_quantity: value,
+                      receipt_date: new Date().toISOString(),
+                      quality_status: 'GOOD',
+                    });
+
+                    message.success('Поступление зафиксировано на складе');
+
+                    // Обновляем таблицу материальных заявок
+                    fetchRequests();
+
+                    // Инвалидируем кеш страницы Склад, чтобы данные обновились автоматически
+                    queryClient.invalidateQueries({ queryKey: ['warehouse-materials'] });
+                  } catch (error: any) {
+                    message.error('Ошибка при фиксации поступления');
+                    console.error(error);
+                  }
+                }}
+                style={{ width: '100%' }}
+                size="small"
+              />
+            ) : (
+              <span>{material.actual_quantity || '-'}</span>
+            )}
+          </div>
+        );
       },
     },
     {
@@ -1126,23 +1232,43 @@ const MaterialRequests = () => {
                 />
               </Tooltip>
             )}
-            <Tooltip title="Отменить позицию">
-              <Popconfirm
-                title="Отменить позицию?"
-                description="Позиция будет отменена (видна снабжению для отмены закупа)"
-                onConfirm={() => handleCancelItem(record.material)}
-                okText="Да"
-                cancelText="Нет"
-                disabled={!record.material || record.material.status === 'CANCELLED'}
-              >
-                <Button
-                  danger
-                  icon={<CloseCircleOutlined />}
-                  size="small"
-                  disabled={!record.material || record.material.status === 'CANCELLED'}
-                />
-              </Popconfirm>
-            </Tooltip>
+            {/* Кнопка "Отменить" - показывается только для активных позиций */}
+            {record.material && record.material.status !== 'CANCELLED' && (
+              <Tooltip title="Отменить позицию">
+                <Popconfirm
+                  title="Отменить позицию?"
+                  description="Позиция будет отменена (видна снабжению для отмены закупа)"
+                  onConfirm={() => handleCancelItem(record.material)}
+                  okText="Да"
+                  cancelText="Нет"
+                >
+                  <Button
+                    danger
+                    icon={<CloseCircleOutlined />}
+                    size="small"
+                  />
+                </Popconfirm>
+              </Tooltip>
+            )}
+
+            {/* Кнопка "Восстановить" - показывается только для отмененных позиций */}
+            {record.material && record.material.status === 'CANCELLED' && (
+              <Tooltip title="Восстановить позицию (продолжит согласование)">
+                <Popconfirm
+                  title="Восстановить позицию?"
+                  description="Позиция вернется к предыдущему статусу согласования"
+                  onConfirm={() => handleRestoreItem(record.material)}
+                  okText="Да"
+                  cancelText="Нет"
+                >
+                  <Button
+                    type="primary"
+                    icon={<UndoOutlined />}
+                    size="small"
+                  />
+                </Popconfirm>
+              </Tooltip>
+            )}
           </Space>
         );
       },

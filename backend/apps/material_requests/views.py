@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from django.db.models import Q
@@ -369,28 +370,70 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
 class MaterialRequestItemViewSet(viewsets.ModelViewSet):
     """ViewSet для работы с позициями материалов."""
 
-    queryset = MaterialRequestItem.objects.all().select_related('request', 'cancelled_by')
+    queryset = MaterialRequestItem.objects.all().select_related('request', 'cancelled_by', 'issued_by', 'request__project')
     serializer_class = MaterialRequestItemSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['request', 'unit', 'status']
+    filterset_fields = ['request', 'request__project', 'unit', 'status']
     search_fields = ['material_name', 'specifications']
+
+    def get_queryset(self):
+        """Кастомный queryset с возможностью фильтрации по actual_quantity."""
+        queryset = super().get_queryset()
+
+        # Фильтр: только материалы с заполненным actual_quantity
+        has_actual_quantity = self.request.query_params.get('has_actual_quantity')
+        if has_actual_quantity and has_actual_quantity.lower() == 'true':
+            queryset = queryset.filter(actual_quantity__isnull=False)
+            # Исключаем отмененные позиции для страницы Склад
+            queryset = queryset.exclude(status='CANCELLED')
+
+        return queryset
 
     def update(self, request, *args, **kwargs):
         """
         Обновление позиции материала.
         Разрешено только автору при статусе RETURNED_FOR_REVISION или DRAFT.
+        Исключение: поле actual_quantity может обновлять автор в любом статусе.
+        Исключение: поле issued_quantity могут обновлять Завсклад объекта и Начальник участка.
         """
         item = self.get_object()
         material_request = item.request
         user = request.user
 
+        # Логируем данные запроса для отладки
+        print(f"DEBUG: Updating item {item.id}, request.data = {request.data}, user.role = {user.role}")
+
+        # Если обновляется только actual_quantity, разрешаем автору в любом статусе
+        is_only_actual_quantity = (
+            len(request.data) == 1 and 'actual_quantity' in request.data
+        )
+
+        # Если обновляется только issued_quantity, разрешаем Завскладу объекта и Начальнику участка
+        is_only_issued_quantity = (
+            len(request.data) == 1 and 'issued_quantity' in request.data
+        )
+
+        # Проверка прав для issued_quantity
+        if is_only_issued_quantity:
+            # Только Завсклад объекта и Начальник участка могут редактировать issued_quantity
+            if user.role not in ['SITE_WAREHOUSE_MANAGER', 'FOREMAN']:
+                print(f"DEBUG: User role {user.role} not allowed to edit issued_quantity")
+                return Response(
+                    {'detail': 'Редактирование количества выдано доступно только для Завсклада объекта и Начальника участка'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            # Пропускаем проверку - разрешаем обновление
+
         # Проверка прав: автор может редактировать при RETURNED_FOR_REVISION или DRAFT
-        if user.role == 'SUPERADMIN':
+        elif user.role == 'SUPERADMIN':
             pass  # Суперадмин может всё
         elif material_request.author == user:
-            # Автор может редактировать только при определенных статусах
-            if item.item_status not in ['DRAFT', 'RETURNED_FOR_REVISION']:
+            # Если обновляется только actual_quantity, разрешаем в любом статусе
+            if is_only_actual_quantity:
+                pass  # Разрешаем обновление actual_quantity
+            # Остальные поля только при определенных статусах
+            elif item.item_status not in ['DRAFT', 'RETURNED_FOR_REVISION']:
                 return Response(
                     {'detail': 'Редактирование позиции доступно только в статусах "Черновик" или "На доработке"'},
                     status=status.HTTP_403_FORBIDDEN
@@ -401,10 +444,31 @@ class MaterialRequestItemViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        return super().update(request, *args, **kwargs)
+        # Вызываем родительский метод и логируем результат
+        try:
+            response = super().update(request, *args, **kwargs)
+            print(f"DEBUG: Update successful for item {item.id}")
+            return response
+        except ValidationError as e:
+            print(f"DEBUG: Validation error for item {item.id}: {e.detail}")
+            raise
+        except Exception as e:
+            print(f"DEBUG: Update failed for item {item.id}, error: {type(e).__name__}: {str(e)}")
+            raise
+
+    def perform_update(self, serializer):
+        """
+        Переопределяем perform_update для автоматического заполнения issued_by.
+        """
+        # Если обновляется issued_quantity, автоматически заполняем issued_by
+        if 'issued_quantity' in self.request.data:
+            serializer.save(issued_by=self.request.user)
+        else:
+            serializer.save()
 
     def partial_update(self, request, *args, **kwargs):
         """Частичное обновление позиции материала (PATCH)."""
+        kwargs['partial'] = True
         return self.update(request, *args, **kwargs)
 
     @action(detail=True, methods=['patch'])
@@ -441,12 +505,76 @@ class MaterialRequestItemViewSet(viewsets.ModelViewSet):
         # Получаем причину отмены из запроса
         cancellation_reason = request.data.get('cancellation_reason', 'Отменено без указания причины')
 
+        # Сохраняем текущий статус позиции для возможности восстановления
+        item.previous_item_status = item.item_status
+
         # Обновляем статус позиции
         item.status = 'CANCELLED'
         item.cancellation_reason = cancellation_reason
         item.cancelled_by = request.user
         item.cancelled_at = timezone.now()
         item.save()
+
+        # Возвращаем обновленную позицию
+        serializer = self.get_serializer(item)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['patch'])
+    def restore_item(self, request, pk=None):
+        """
+        Восстановление отмененной позиции материала.
+        Позиция возвращается к статусу, который был до отмены (продолжает согласование).
+
+        Endpoint: PATCH /api/material-request-items/{id}/restore_item/
+        """
+        from django.utils import timezone
+
+        item = self.get_object()
+        material_request = item.request
+
+        # Проверка прав - только автор или ответственный или суперадмин
+        if (request.user != material_request.author and
+            request.user != material_request.responsible and
+            request.user.role not in ['SUPERADMIN', 'DIRECTOR', 'CHIEF_ENGINEER']):
+            return Response(
+                {'detail': 'У вас нет прав для восстановления этой позиции'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Проверка, что позиция была отменена
+        if item.status != 'CANCELLED':
+            return Response(
+                {'detail': 'Позицию можно восстановить только если она отменена'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Восстанавливаем статус позиции
+        item.status = 'ACTIVE'
+
+        # Восстанавливаем предыдущий статус в процессе согласования
+        if item.previous_item_status:
+            item.item_status = item.previous_item_status
+        else:
+            # Если предыдущий статус не сохранен, ставим DRAFT
+            item.item_status = 'DRAFT'
+
+        # Очищаем данные об отмене
+        item.cancellation_reason = ''
+        item.cancelled_by = None
+        item.cancelled_at = None
+        item.previous_item_status = None
+
+        item.save()
+
+        # Добавляем запись в историю
+        from apps.material_requests.models import MaterialRequestHistory
+        MaterialRequestHistory.objects.create(
+            request=material_request,
+            user=request.user,
+            old_status=material_request.status,
+            new_status=material_request.status,
+            comment=f'Позиция "{item.material_name}" восстановлена'
+        )
 
         # Возвращаем обновленную позицию
         serializer = self.get_serializer(item)
@@ -663,6 +791,109 @@ class MaterialRequestItemViewSet(viewsets.ModelViewSet):
         # Возвращаем обновленную позицию
         serializer = self.get_serializer(item)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['patch'])
+    def record_actual_quantity(self, request, pk=None):
+        """
+        Фиксация фактического количества поступившего материала.
+        Создает запись на складе и обновляет actual_quantity.
+
+        Endpoint: PATCH /api/material-request-items/{id}/record_actual_quantity/
+
+        Body: {
+            "actual_quantity": 100.50,
+            "receipt_date": "2025-10-22T10:30:00Z" (опционально, по умолчанию текущее время),
+            "waybill_number": "ТТН-12345" (опционально),
+            "supplier": "ООО Поставщик" (опционально),
+            "quality_status": "GOOD" | "DAMAGED" | "DEFECTIVE" | "PARTIAL" (опционально, по умолчанию GOOD),
+            "notes": "Примечание" (опционально)
+        }
+        """
+        from apps.warehouse.models import WarehouseReceipt
+        from datetime import datetime
+
+        item = self.get_object()
+        material_request = item.request
+        user = request.user
+
+        # Проверяем права: только автор может фиксировать фактическое количество
+        if user.role != 'SUPERADMIN' and material_request.author != user:
+            return Response(
+                {'detail': 'Только автор заявки может фиксировать фактическое количество'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Получаем actual_quantity из запроса
+        actual_quantity = request.data.get('actual_quantity')
+        if actual_quantity is None:
+            return Response(
+                {'detail': 'Необходимо указать фактическое количество (actual_quantity)'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            actual_quantity = float(actual_quantity)
+            if actual_quantity < 0:
+                return Response(
+                    {'detail': 'Количество должно быть положительным числом'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except (ValueError, TypeError):
+            return Response(
+                {'detail': 'Некорректное значение для actual_quantity'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Получаем дополнительные параметры
+        receipt_date = request.data.get('receipt_date')
+        if receipt_date:
+            try:
+                receipt_date = datetime.fromisoformat(receipt_date.replace('Z', '+00:00'))
+            except ValueError:
+                return Response(
+                    {'detail': 'Некорректный формат даты'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            receipt_date = datetime.now()
+
+        waybill_number = request.data.get('waybill_number', '')
+        supplier = request.data.get('supplier', '')
+        quality_status = request.data.get('quality_status', 'GOOD')
+        notes = request.data.get('notes', '')
+
+        # Создаем запись на складе
+        try:
+            warehouse_receipt = WarehouseReceipt.objects.create(
+                material_request=material_request,
+                material_item=item,
+                project=material_request.project,
+                receipt_date=receipt_date,
+                received_quantity=actual_quantity,
+                unit=item.unit,
+                waybill_number=waybill_number,
+                supplier=supplier,
+                received_by=user,
+                quality_status=quality_status,
+                notes=notes
+            )
+        except Exception as e:
+            return Response(
+                {'detail': f'Ошибка при создании записи на складе: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # Обновляем actual_quantity в позиции материала
+        item.actual_quantity = actual_quantity
+        item.save(update_fields=['actual_quantity'])
+
+        # Возвращаем обновленную позицию
+        serializer = self.get_serializer(item)
+        return Response({
+            'item': serializer.data,
+            'warehouse_receipt_id': warehouse_receipt.id,
+            'message': 'Поступление зафиксировано на складе'
+        })
 
 
 class MaterialRequestDocumentViewSet(viewsets.ModelViewSet):

@@ -16,6 +16,7 @@ import {
   FileProtectOutlined,
   ShoppingCartOutlined,
   DollarOutlined,
+  InboxOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../../stores/authStore'
 import { useNotificationStore } from '../../stores/notificationStore'
@@ -93,7 +94,7 @@ const MainLayout = () => {
   // Проверка, является ли пользователь ролью снабжения/склада/бухгалтерии
   const isSupplyRole = () => {
     if (!user) return false
-    const supplyRoles = ['SUPPLY_MANAGER', 'WAREHOUSE_HEAD', 'ACCOUNTANT']
+    const supplyRoles = ['SUPPLY_MANAGER', 'WAREHOUSE_HEAD', 'SITE_WAREHOUSE_MANAGER', 'ACCOUNTANT']
     return supplyRoles.includes(user.role)
   }
 
@@ -172,6 +173,12 @@ const MainLayout = () => {
       icon: <ShoppingCartOutlined />,
       label: <Link to="/dashboard/material-requests">Заявки</Link>,
       // Роли снабжения имеют доступ к заявкам
+    },
+    {
+      key: '/dashboard/warehouse',
+      icon: <InboxOutlined />,
+      label: <Link to="/dashboard/warehouse">Склад</Link>,
+      // Все пользователи имеют доступ к складу
     },
     {
       key: '/dashboard/tenders',
