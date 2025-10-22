@@ -10,6 +10,9 @@ class TechnicalConditionSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
     created_by_data = UserSerializer(source='created_by', read_only=True)
 
+    # Информация о проекте
+    project_name = serializers.CharField(source='project.name', read_only=True)
+
     # URL файла для скачивания
     file_url = serializers.SerializerMethodField()
 
@@ -19,6 +22,8 @@ class TechnicalConditionSerializer(serializers.ModelSerializer):
             'id',
             'file',
             'file_url',
+            'project',
+            'project_name',
             'received_from',
             'description',
             'created_by',
@@ -53,7 +58,7 @@ class TechnicalConditionCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TechnicalCondition
-        fields = ['file', 'received_from', 'description']
+        fields = ['file', 'project', 'received_from', 'description']
 
     def validate_file(self, value):
         """Валидация файла - должен быть PDF."""
@@ -77,7 +82,7 @@ class TechnicalConditionUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TechnicalCondition
-        fields = ['file', 'received_from', 'description']
+        fields = ['file', 'project', 'received_from', 'description']
 
     def validate_file(self, value):
         """Валидация файла - должен быть PDF."""

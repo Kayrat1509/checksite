@@ -1,36 +1,125 @@
-import { Row, Col, Card, Statistic, Typography, Divider } from 'antd'
+import { useState } from 'react'
+import { Row, Col, Card, Statistic, Typography, Divider, Select, Space } from 'antd'
 import {
   FileTextOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
+  ProjectOutlined,
 } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { issuesAPI } from '../api/issues'
+import { projectsAPI } from '../api/projects'
 import './Dashboard.css'
 
 const { Title } = Typography
 
 const Dashboard = () => {
   const navigate = useNavigate()
-  const { data: stats, isLoading } = useQuery({
-    queryKey: ['issueStats'],
-    queryFn: () => issuesAPI.getStatistics(),
+  const [selectedProject, setSelectedProject] = useState<number | undefined>(undefined)
+
+  // Загрузка списка проектов
+  const { data: projectsData } = useQuery({
+    queryKey: ['projects'],
+    queryFn: () => projectsAPI.getProjects(),
   })
+
+  // Загрузка статистики (будет фильтроваться на клиенте по выбранному проекту)
+  const { data: allIssues, isLoading } = useQuery({
+    queryKey: ['issues'],
+    queryFn: () => issuesAPI.getIssues(),
+  })
+
+  // Фильтрация замечаний по выбранному проекту
+  const filteredIssues = selectedProject
+    ? (allIssues?.results || []).filter((issue: any) => issue.project === selectedProject)
+    : (allIssues?.results || [])
+
+
+  // Вычисление статистики на основе отфильтрованных данных
+  const calculateStats = () => {
+    const total = filteredIssues.length
+    let new_count = 0
+    let in_progress_count = 0
+    let pending_review_count = 0
+    let completed_count = 0
+    let overdue_count = 0
+    let critical_count = 0
+    let high_count = 0
+
+    filteredIssues.forEach((issue: any) => {
+      // Подсчет по статусам
+      if (issue.status === 'NEW') new_count++
+      else if (issue.status === 'IN_PROGRESS') in_progress_count++
+      else if (issue.status === 'PENDING_REVIEW') pending_review_count++
+      else if (issue.status === 'COMPLETED') completed_count++
+      else if (issue.status === 'OVERDUE') overdue_count++
+
+      // Подсчет по приоритетам
+      if (issue.priority === 'CRITICAL') critical_count++
+      else if (issue.priority === 'HIGH') high_count++
+    })
+
+    return {
+      total,
+      new: new_count,
+      in_progress: in_progress_count,
+      pending_review: pending_review_count,
+      completed: completed_count,
+      overdue: overdue_count,
+      by_priority: {
+        critical: critical_count,
+        high: high_count,
+      }
+    }
+  }
+
+  const stats = calculateStats()
 
   // Функция для навигации на страницу замечаний с фильтрами
   const navigateToIssues = (status?: string, priority?: string) => {
     const params = new URLSearchParams()
+    if (selectedProject) params.set('project', selectedProject.toString())
     if (status) params.set('status', status)
     if (priority) params.set('priority', priority)
     const queryString = params.toString()
     navigate(`/dashboard/issues${queryString ? `?${queryString}` : ''}`)
   }
 
+  // Получение названия выбранного проекта
+  const selectedProjectName = selectedProject
+    ? projectsData?.results?.find((p: any) => p.id === selectedProject)?.name
+    : null
+
   return (
     <div className="dashboard-container">
-      <Title level={2} className="dashboard-title">Дашборд</Title>
+      <div style={{ marginBottom: 24 }}>
+        <Title level={2} className="dashboard-title">Дашборд</Title>
+
+        {/* Фильтр по проектам */}
+        <div className="dashboard-filter-container">
+          <Space className="dashboard-filter-space" wrap>
+            <ProjectOutlined style={{ fontSize: 18, color: '#1890ff' }} />
+            <Select
+              className="dashboard-project-select"
+              placeholder="Все объекты"
+              allowClear
+              value={selectedProject}
+              onChange={(value: number | undefined) => setSelectedProject(value)}
+              options={projectsData?.results?.map((project: any) => ({
+                label: project.name,
+                value: project.id
+              })) || []}
+            />
+          </Space>
+          {selectedProjectName && (
+            <div className="dashboard-selected-project">
+              Объект: <span style={{ color: '#1890ff', fontWeight: 600 }}>{selectedProjectName}</span>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Всего замечаний */}
       <Row gutter={[16, 16]} className="dashboard-row">

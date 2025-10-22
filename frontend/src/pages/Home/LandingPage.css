@@ -122,6 +122,25 @@
   box-shadow: 0 6px 18px rgba(82, 196, 26, 0.4);
 }
 
+/* Навигационное меню */
+.landing-nav-menu {
+  display: flex;
+  justify-content: center;
+}
+
+.landing-nav-menu .ant-menu-item {
+  color: #262626;
+  transition: all 0.3s ease;
+}
+
+.landing-nav-menu .ant-menu-item:hover {
+  color: #1890ff !important;
+}
+
+.landing-nav-menu .ant-menu-item-selected {
+  color: #1890ff !important;
+}
+
 /* ========== CONTENT ========== */
 .landing-content {
   max-width: 1400px;
@@ -192,10 +211,11 @@
   color: #434343 !important;
   line-height: 1.7 !important;
   margin-bottom: 48px !important;
-  max-width: 850px;
+  max-width: 100%;
   margin-left: auto;
   margin-right: auto;
   font-weight: 400;
+  text-align: center;
 }
 
 /* ========== INTERFACE PREVIEW ========== */
@@ -708,6 +728,13 @@
 
   .tenders-section {
     padding: 70px 0;
+  }
+}
+
+@media (max-width: 1024px) {
+  /* Скрываем навигационное меню на планшетах и мобильных */
+  .landing-nav-menu {
+    display: none !important;
   }
 }
 

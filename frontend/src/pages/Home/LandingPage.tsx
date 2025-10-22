@@ -1,4 +1,4 @@
-import { Button, Layout, Typography, Row, Col, Card, Space, Badge, Divider } from 'antd'
+import { Button, Layout, Typography, Row, Col, Card, Space, Badge, Divider, Menu } from 'antd'
 import {
   CheckCircleOutlined,
   RocketOutlined,
@@ -114,6 +114,26 @@ const LandingPage = () => {
             <Badge count="PRO" style={{ backgroundColor: '#52c41a' }} />
           </div>
 
+          {/* Навигационное меню */}
+          <Menu
+            mode="horizontal"
+            className="landing-nav-menu"
+            style={{
+              flex: 1,
+              border: 'none',
+              background: 'transparent',
+              marginLeft: 50,
+              fontSize: 16,
+              fontWeight: 500
+            }}
+            items={[
+              { key: 'service', label: 'Наша история', onClick: () => navigate('/about-service') },
+              { key: 'pricing', label: 'Тариф', onClick: () => navigate('/pricing') },
+              { key: 'features', label: 'Функции', onClick: () => navigate('/features') },
+              { key: 'contacts', label: 'Контакты' }
+            ]}
+          />
+
           <Space size="middle" className="header-buttons">
             <Button
               type="default"
@@ -163,8 +183,10 @@ const LandingPage = () => {
               </Title>
 
               <Paragraph className="hero-description">
-                Фиксируйте замечания с фото за 60 секунд, контролируйте устранение дефектов
-                и генерируйте отчеты автоматически. Всё в одной системе.
+                Управляйте проектами, фиксируйте замечания с фото за 60 секунд, координируйте работу подрядчиков через Push-уведомления,
+                контролируйте заявки на материалы со статусами согласования, ведите базу тендеров для поставщиков из стран СНГ,
+                храните техусловия и документацию, получайте аналитику в реальном времени и генерируйте отчеты автоматически.
+                Всё в одной системе.
               </Paragraph>
             </Col>
           </Row>
@@ -507,7 +529,7 @@ const LandingPage = () => {
                 <div>
                   <Title level={4} style={{ marginBottom: 8 }}>Заявки на материалы</Title>
                   <Paragraph style={{ color: '#666', marginBottom: 0 }}>
-                    Полный цикл согласования: от заявки мастера до утверждения директором. 17 статусов для максимального контроля.
+                    Полный цикл согласования: от заявки мастера до утверждения директором для максимального контроля.
                   </Paragraph>
                 </div>
               </div>
@@ -519,7 +541,7 @@ const LandingPage = () => {
                 <div>
                   <Title level={4} style={{ marginBottom: 8 }}>База тендеров</Title>
                   <Paragraph style={{ color: '#666', marginBottom: 0 }}>
-                    Публикуйте тендеры для подрядчиков и поставщиков. Получайте предложения от проверенных компаний.
+                    Публикуйте тендеры для подрядчиков и поставщиков. Получайте предложения от компаний по всему СНГ от дилеров до производителей. Собирайте больше предложений для сравнения.
                   </Paragraph>
                 </div>
               </div>
@@ -557,11 +579,11 @@ const LandingPage = () => {
             <Col xs={24} lg={12}>
               <div className="tenders-content">
                 <Badge count="НОВОЕ" style={{ backgroundColor: '#faad14', marginBottom: 24 }} />
-                <Title level={2} style={{ marginTop: 0 }}>
+                <Title level={2} style={{ marginTop: 0, fontSize: 48 }}>
                   База тендеров для строителей
                 </Title>
                 <Paragraph style={{ fontSize: 18, color: '#595959', lineHeight: 1.8, marginBottom: 32 }}>
-                  Публикуйте тендеры на материалы, работы, оборудование и услуги. Получайте коммерческие предложения от проверенных подрядчиков и поставщиков из Казахстана, России, Узбекистана, Киргизии, Таджикистана и Беларуси.
+                  Публикуйте тендеры на материалы, работы, оборудование и услуги. Получайте коммерческие предложения от подрядчиков и поставщиков из Казахстана, России, Узбекистана, Киргизии, Таджикистана и Беларуси.
                 </Paragraph>
 
                 <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -577,7 +599,7 @@ const LandingPage = () => {
                     <CheckCircleOutlined style={{ fontSize: 24, color: '#1890ff', marginRight: 16 }} />
                     <div>
                       <Text strong style={{ fontSize: 16, display: 'block' }}>Доступ к базе подрядчиков</Text>
-                      <Text style={{ color: '#8c8c8c' }}>Ваш тендер увидят сотни проверенных компаний</Text>
+                      <Text style={{ color: '#8c8c8c' }}>Ваш тендер увидят сотни компаний по всей стране и не только</Text>
                     </div>
                   </div>
 
@@ -593,7 +615,7 @@ const LandingPage = () => {
                     <CheckCircleOutlined style={{ fontSize: 24, color: '#fa8c16', marginRight: 16 }} />
                     <div>
                       <Text strong style={{ fontSize: 16, display: 'block' }}>Управление заявками</Text>
-                      <Text style={{ color: '#8c8c8c' }}>Отслеживайте статус и сравнивайте предложения</Text>
+                      <Text style={{ color: '#8c8c8c' }}>Отслеживайте статус и сравнивайте предложения. Вы никогда не потеряете заявку где-то у кого-то в отделе или на столе.</Text>
                     </div>
                   </div>
                 </Space>

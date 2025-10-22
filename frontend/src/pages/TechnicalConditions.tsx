@@ -10,6 +10,7 @@ import {
   message,
   Popconfirm,
   Space,
+  Select,
 } from 'antd'
 import {
   PlusOutlined,
@@ -18,11 +19,14 @@ import {
   FilePdfOutlined,
   UploadOutlined,
   DownloadOutlined,
+  ProjectOutlined,
+  FilterOutlined,
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../stores/authStore'
 import type { UploadFile } from 'antd'
 import { technicalConditionsAPI, type TechnicalCondition } from '../api/technicalConditions'
+import { projectsAPI } from '../api/projects'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -32,6 +36,7 @@ const TechnicalConditions = () => {
   const [editingRecord, setEditingRecord] = useState<TechnicalCondition | null>(null)
   const [form] = Form.useForm()
   const [fileList, setFileList] = useState<UploadFile[]>([])
+  const [projectFilter, setProjectFilter] = useState<number | undefined>(undefined)
   const queryClient = useQueryClient()
   const currentUser = useAuthStore(state => state.user)
 
@@ -43,14 +48,26 @@ const TechnicalConditions = () => {
     return allowedRoles.includes(currentUser.role)
   }
 
-  // Получение данных
+  // Загрузка списка проектов для фильтра и формы
+  const { data: projectsData } = useQuery({
+    queryKey: ['projects'],
+    queryFn: () => projectsAPI.getProjects(),
+    enabled: !!currentUser
+  })
+
+  // Получение данных технических условий
   const { data, isLoading, error } = useQuery({
     queryKey: ['technical-conditions'],
     queryFn: technicalConditionsAPI.getTechnicalConditions,
   })
 
   // Преобразуем данные в массив (API может вернуть массив или объект с results)
-  const technicalConditions = Array.isArray(data) ? data : (data?.results || [])
+  const allTechnicalConditions = Array.isArray(data) ? data : (data?.results || [])
+
+  // Фильтрация по проекту
+  const technicalConditions = projectFilter
+    ? allTechnicalConditions.filter((tc: TechnicalCondition) => tc.project === projectFilter)
+    : allTechnicalConditions
 
   // Мутации
   const createMutation = useMutation({
@@ -100,6 +117,7 @@ const TechnicalConditions = () => {
   const handleOpenEditModal = (record: TechnicalCondition) => {
     setEditingRecord(record)
     form.setFieldsValue({
+      project: record.project,
       received_from: record.received_from,
       description: record.description,
     })
@@ -142,6 +160,7 @@ const TechnicalConditions = () => {
     if (editingRecord) {
       // Обновление существующего техусловия
       const updateData: any = {
+        project: values.project,
         received_from: values.received_from,
         description: values.description || '',
       }
@@ -156,6 +175,7 @@ const TechnicalConditions = () => {
       // Создание нового техусловия
       const createData = {
         file: fileList[0].originFileObj as File,
+        project: values.project,
         received_from: values.received_from,
         description: values.description || '',
       }
@@ -190,6 +210,12 @@ const TechnicalConditions = () => {
           Открыть PDF
         </Button>
       ),
+    },
+    {
+      title: 'Объект',
+      dataIndex: 'project_name',
+      key: 'project_name',
+      render: (text: string | null) => text || <Text type="secondary">Не указан</Text>,
     },
     {
       title: 'От кого получено',
@@ -276,6 +302,25 @@ const TechnicalConditions = () => {
         )}
       </div>
 
+      {/* Фильтр по проектам */}
+      <div style={{ marginBottom: 16 }}>
+        <Space>
+          <FilterOutlined />
+          <Text strong>Фильтр по объекту:</Text>
+          <Select
+            style={{ width: 300 }}
+            placeholder="Все объекты"
+            allowClear
+            value={projectFilter}
+            onChange={(value: number | undefined) => setProjectFilter(value)}
+            options={projectsData?.results?.map((project: any) => ({
+              label: project.name,
+              value: project.id
+            }))}
+          />
+        </Space>
+      </div>
+
       <Table
         columns={columns}
         dataSource={technicalConditions}
@@ -352,6 +397,23 @@ const TechnicalConditions = () => {
                 Если не выбран новый файл, текущий файл останется без изменений
               </Text>
             )}
+          </Form.Item>
+
+          <Form.Item
+            name="project"
+            label="Объект (проект)"
+            rules={[{ required: true, message: 'Пожалуйста, выберите объект' }]}
+          >
+            <Select
+              placeholder="Выберите объект"
+              allowClear
+              showSearch
+              optionFilterProp="children"
+              options={projectsData?.results?.map((project: any) => ({
+                label: project.name,
+                value: project.id
+              }))}
+            />
           </Form.Item>
 
           <Form.Item

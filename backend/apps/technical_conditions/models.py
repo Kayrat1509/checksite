@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from apps.users.models import User
+from apps.projects.models import Project
 
 
 class TechnicalCondition(models.Model):
@@ -13,6 +14,17 @@ class TechnicalCondition(models.Model):
         _('PDF файл'),
         upload_to='technical_conditions/%Y/%m/',
         help_text=_('Файл технического условия в формате PDF')
+    )
+
+    # Проект, к которому относится техусловие
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='technical_conditions',
+        verbose_name=_('Проект'),
+        null=True,
+        blank=True,
+        help_text=_('Проект, к которому относится техническое условие')
     )
 
     # От кого получено техусловие (организация)

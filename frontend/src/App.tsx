@@ -4,6 +4,9 @@ import { App as AntApp } from 'antd'
 import { useAuthStore } from './stores/authStore'
 import MainLayout from './components/Layout/MainLayout'
 import LandingPage from './pages/Home/LandingPage'
+import PricingPage from './pages/Home/PricingPage'
+import AboutServicePage from './pages/Home/AboutServicePage'
+import FeaturesPage from './pages/Home/FeaturesPage'
 import Login from './pages/Auth/Login'
 import Register from './pages/Auth/Register'
 import Dashboard from './pages/Dashboard'
@@ -62,6 +65,9 @@ function App() {
       <Routes>
         {/* Публичные страницы */}
         <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/about-service" element={<AboutServicePage />} />
+        <Route path="/features" element={<FeaturesPage />} />
         <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />} />
         <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Register />} />
 

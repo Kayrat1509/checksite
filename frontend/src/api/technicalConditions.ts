@@ -4,6 +4,8 @@ export interface TechnicalCondition {
   id: number
   file: string
   file_url: string
+  project: number | null
+  project_name: string | null
   received_from: string
   description: string
   created_by: number
@@ -20,12 +22,14 @@ export interface TechnicalCondition {
 
 export interface CreateTechnicalConditionData {
   file: File
+  project?: number
   received_from: string
   description?: string
 }
 
 export interface UpdateTechnicalConditionData {
   file?: File
+  project?: number
   received_from?: string
   description?: string
 }
@@ -47,6 +51,9 @@ export const technicalConditionsAPI = {
   createTechnicalCondition: async (data: CreateTechnicalConditionData): Promise<TechnicalCondition> => {
     const formData = new FormData()
     formData.append('file', data.file)
+    if (data.project) {
+      formData.append('project', data.project.toString())
+    }
     formData.append('received_from', data.received_from)
     if (data.description) {
       formData.append('description', data.description)
@@ -66,6 +73,9 @@ export const technicalConditionsAPI = {
 
     if (data.file) {
       formData.append('file', data.file)
+    }
+    if (data.project !== undefined) {
+      formData.append('project', data.project.toString())
     }
     if (data.received_from) {
       formData.append('received_from', data.received_from)
