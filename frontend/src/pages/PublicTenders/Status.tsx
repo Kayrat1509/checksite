@@ -17,25 +17,29 @@ const Status = () => {
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
 
-  // Загрузка статуса заявки
-  useEffect(() => {
-    const fetchStatus = async () => {
-      try {
-        const data = await publicTendersAPI.getStatus()
-        setStatus(data)
-      } catch (err: any) {
-        console.error('Status fetch error:', err)
-        if (err.message.includes('Access ID not found')) {
-          setError('ID доступа не найден. Пожалуйста, зарегистрируйтесь или войдите.')
-        } else {
-          setError('Ошибка при загрузке статуса заявки')
-        }
-      } finally {
-        setLoading(false)
+  // FIXED infinite reload: Функция для обновления статуса
+  const refreshStatus = async () => {
+    setLoading(true)
+    try {
+      const data = await publicTendersAPI.getStatus()
+      setStatus(data)
+      setError(null)
+    } catch (err: any) {
+      console.error('Status fetch error:', err)
+      if (err.message.includes('Access ID not found')) {
+        setError('ID доступа не найден. Пожалуйста, зарегистрируйтесь или войдите.')
+      } else {
+        setError('Ошибка при загрузке статуса заявки')
       }
+    } finally {
+      setLoading(false)
     }
+  }
 
-    fetchStatus()
+  // Загрузка статуса заявки при монтировании
+  useEffect(() => {
+    refreshStatus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Отображение статуса
@@ -84,7 +88,7 @@ const Status = () => {
             </div>
           }
           extra={[
-            <Button key="refresh" onClick={() => window.location.reload()}>
+            <Button key="refresh" onClick={refreshStatus} loading={loading}>
               Обновить статус
             </Button>
           ]}

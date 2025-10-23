@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   Typography,
   Button,
@@ -152,9 +152,7 @@ const Projects = () => {
   // Safely extract users from data
   const users: User[] = Array.isArray(usersData) ? usersData : (usersData?.results || [])
 
-  useEffect(() => {
-    console.log('Projects state:', { projects, isLoading, isError, error })
-  }, [projects, isLoading, isError, error])
+  // FIXED infinite reload: Удален debug useEffect, который мог вызывать лишние рендеры
 
   // Create project mutation
   const createProjectMutation = useMutation({

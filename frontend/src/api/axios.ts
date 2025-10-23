@@ -2,8 +2,8 @@ import axios from 'axios'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001/api'
 
-// Флаг для предотвращения множественных редиректов
-let isRedirecting = false
+// FIXED infinite reload: Используем sessionStorage для надежного флага между перезагрузками
+const REDIRECT_FLAG_KEY = 'is_redirecting_to_login'
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -52,17 +52,21 @@ axiosInstance.interceptors.response.use(
           return axiosInstance(originalRequest)
         }
       } catch (refreshError) {
-        // Refresh токен невалиден - разлогиниваем пользователя
-        // Защита от множественных редиректов
-        if (!isRedirecting) {
-          isRedirecting = true
+        // FIXED infinite reload: Refresh токен невалиден - разлогиниваем пользователя
+        // Защита от множественных редиректов с использованием sessionStorage
+        const isAlreadyRedirecting = sessionStorage.getItem(REDIRECT_FLAG_KEY)
+
+        if (!isAlreadyRedirecting) {
+          sessionStorage.setItem(REDIRECT_FLAG_KEY, 'true')
           localStorage.removeItem('access_token')
           localStorage.removeItem('refresh_token')
 
-          // Используем setTimeout чтобы избежать гонки условий
+          // FIXED infinite reload: Используем отложенный редирект через таймаут
+          // для завершения всех pending запросов
           setTimeout(() => {
+            sessionStorage.removeItem(REDIRECT_FLAG_KEY)
             window.location.href = '/login'
-          }, 100)
+          }, 200)
         }
         return Promise.reject(refreshError)
       }

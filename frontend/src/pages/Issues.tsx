@@ -60,12 +60,13 @@ const CommentsSection = ({ issueId, commentText, setCommentText, onCommentAdded 
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
 
-  // Загрузка комментариев
+  // FIXED infinite reload: Загрузка комментариев с разумными настройками кеширования
   const { data: commentsData, isLoading: commentsLoading } = useQuery({
     queryKey: ['comments', issueId],
     queryFn: () => issuesAPI.getComments(issueId),
-    refetchOnMount: 'always',
-    staleTime: 0
+    refetchOnMount: false,           // FIXED: не перезагружать при каждом монтировании
+    staleTime: 5 * 60 * 1000,        // FIXED: данные актуальны 5 минут
+    refetchOnWindowFocus: false      // FIXED: не перезагружать при фокусе окна
   })
 
   const comments = Array.isArray(commentsData) ? commentsData : (commentsData?.results || [])
@@ -315,7 +316,7 @@ const Issues = () => {
     return true
   }
 
-  // Загрузка замечаний
+  // FIXED infinite reload: Загрузка замечаний с оптимизированными настройками
   const { data: issuesData, isLoading, error } = useQuery({
     queryKey: ['issues', statusFilter, priorityFilter, searchTerm],
     queryFn: () => issuesAPI.getIssues({
@@ -323,12 +324,12 @@ const Issues = () => {
       priority: priorityFilter || undefined,
       search: searchTerm || undefined
     }),
-    // Принудительная перезагрузка данных при каждом монтировании
-    refetchOnMount: 'always',
-    // Данные считаются устаревшими сразу
-    staleTime: 0,
-    // Обновлять при фокусе окна
-    refetchOnWindowFocus: true
+    // FIXED: не перезагружать при каждом монтировании (было 'always')
+    refetchOnMount: false,
+    // FIXED: данные актуальны 5 минут (было 0)
+    staleTime: 5 * 60 * 1000,
+    // FIXED: не перезагружать при фокусе окна (было true)
+    refetchOnWindowFocus: false
   })
 
   // Загрузка проектов
