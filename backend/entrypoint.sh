@@ -9,11 +9,17 @@ while ! nc -z $DB_HOST $DB_PORT; do
 done
 echo "PostgreSQL started"
 
-echo "Creating migrations..."
-python manage.py makemigrations --noinput
+echo "Checking for unapplied migrations..."
+# Проверяем, есть ли несозданные миграции (только предупреждение)
+python manage.py makemigrations --check --dry-run || echo "Warning: You have model changes without migrations"
 
 echo "Running migrations..."
-python manage.py migrate --noinput
+# Безопасное применение миграций с обработкой ошибок
+python manage.py migrate --noinput || {
+    echo "Migration failed. Trying to fix..."
+    # Если миграция не удалась из-за существующих таблиц, пробуем fake
+    python manage.py migrate --fake-initial --noinput
+}
 
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
