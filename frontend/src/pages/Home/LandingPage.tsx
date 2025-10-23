@@ -284,7 +284,7 @@ const LandingPage = () => {
           <Row gutter={[16, 16]}>
             {modules.map((module, index) => (
               <Col xs={24} sm={12} md={8} key={index}>
-                <Card className="module-card" bordered={false}>
+                <Card className="module-card" variant="borderless">
                   <div className="module-header">
                     <div className="module-icon" style={{ background: module.color }}>
                       {module.icon}
