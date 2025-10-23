@@ -46,9 +46,11 @@ function DashboardRedirect() {
 function App() {
   const { isAuthenticated, isLoading, checkAuth } = useAuthStore()
 
+  // Проверка аутентификации только при первом монтировании
   useEffect(() => {
     checkAuth()
-  }, [checkAuth])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Показываем загрузку, пока идет проверка авторизации
   if (isLoading) {

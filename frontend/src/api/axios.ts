@@ -2,6 +2,9 @@ import axios from 'axios'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001/api'
 
+// Флаг для предотвращения множественных редиректов
+let isRedirecting = false
+
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -29,12 +32,14 @@ axiosInstance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
 
+    // Обработка 401 ошибки (неавторизован)
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
 
       try {
         const refreshToken = localStorage.getItem('refresh_token')
         if (refreshToken) {
+          // Попытка обновить токен
           const response = await axios.post(`${API_BASE_URL}/auth/token/refresh/`, {
             refresh: refreshToken,
           })
@@ -42,14 +47,23 @@ axiosInstance.interceptors.response.use(
           const { access } = response.data
           localStorage.setItem('access_token', access)
 
+          // Повторяем оригинальный запрос с новым токеном
           originalRequest.headers.Authorization = `Bearer ${access}`
           return axiosInstance(originalRequest)
         }
       } catch (refreshError) {
-        // Refresh failed, logout user
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        window.location.href = '/login'
+        // Refresh токен невалиден - разлогиниваем пользователя
+        // Защита от множественных редиректов
+        if (!isRedirecting) {
+          isRedirecting = true
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('refresh_token')
+
+          // Используем setTimeout чтобы избежать гонки условий
+          setTimeout(() => {
+            window.location.href = '/login'
+          }, 100)
+        }
         return Promise.reject(refreshError)
       }
     }
