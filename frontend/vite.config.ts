@@ -110,7 +110,7 @@ export default defineConfig({
       interval: 1000     // Проверка каждую секунду
     },
     hmr: {
-      host: 'localhost', // Адрес для WebSocket соединения HMR
+      host: '194.34.232.112', // Адрес для WebSocket соединения HMR
       port: 5174,        // Порт хоста (mapped port)
       protocol: 'ws'     // Использовать WebSocket
     },
