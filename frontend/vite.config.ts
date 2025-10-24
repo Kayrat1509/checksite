@@ -100,6 +100,7 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    allowedHosts: ['stroyka.asia', 'localhost'],
     // Отключаем кеширование в режиме разработки
     headers: {
       'Cache-Control': 'no-store',
@@ -110,7 +111,7 @@ export default defineConfig({
       interval: 1000     // Проверка каждую секунду
     },
     hmr: {
-      host: '194.34.232.112', // Адрес для WebSocket соединения HMR
+      host: 'stroyka.asia', // Адрес для WebSocket соединения HMR
       port: 5174,        // Порт хоста (mapped port)
       protocol: 'ws'     // Использовать WebSocket
     },
