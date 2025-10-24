@@ -1,6 +1,7 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001/api'
+// Используем относительный путь для автоматического использования протокола страницы (http/https)
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 // FIXED infinite reload: Используем sessionStorage для надежного флага между перезагрузками
 const REDIRECT_FLAG_KEY = 'is_redirecting_to_login'

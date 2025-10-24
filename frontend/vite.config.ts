@@ -113,7 +113,7 @@ export default defineConfig({
     hmr: {
       host: 'stroyka.asia', // Адрес для WebSocket соединения HMR
       port: 5174,        // Порт хоста (mapped port)
-      protocol: 'ws'     // Использовать WebSocket
+      protocol: 'wss'    // Использовать WebSocket Secure для HTTPS
     },
     proxy: {
       '/api': {

@@ -22,7 +22,22 @@ interface NotificationState {
   markAllAsRead: () => void
 }
 
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8001'
+// Автоматическое определение протокола WebSocket на основе протокола страницы
+const getWebSocketUrl = () => {
+  const envUrl = import.meta.env.VITE_WS_URL
+  if (envUrl) {
+    // Если страница загружена по HTTPS, используем WSS вместо WS
+    if (window.location.protocol === 'https:' && envUrl.startsWith('ws://')) {
+      return envUrl.replace('ws://', 'wss://')
+    }
+    return envUrl
+  }
+  // Fallback: автоматически определяем протокол и хост
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${protocol}//${window.location.hostname}:8001`
+}
+
+const WS_URL = getWebSocketUrl()
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
   notifications: [],
