@@ -180,7 +180,11 @@ CORS_ALLOW_CREDENTIALS = True
 # CSRF Settings - exempt API endpoints (using JWT auth)
 CSRF_TRUSTED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5174').split(',')
 CSRF_COOKIE_HTTPONLY = False
-CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
+# Проверяем, используется ли HTTPS хотя бы в одном из доверенных источников
+_uses_https = any(origin.startswith('https://') for origin in CSRF_TRUSTED_ORIGINS)
+CSRF_COOKIE_SECURE = _uses_https  # True если есть HTTPS origins
+# Для поддержки поддоменов (если не localhost)
+CSRF_COOKIE_DOMAIN = '.stroyka.asia' if 'stroyka.asia' in str(CSRF_TRUSTED_ORIGINS) else None
 
 # Channels
 CHANNEL_LAYERS = {
