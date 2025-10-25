@@ -60,7 +60,13 @@ class UserViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Filter users by company and check role-based access."""
+        """
+        Фильтрация пользователей по компании и проектам.
+
+        ЛОГИКА ДЛЯ ПОДРЯДЧИКОВ:
+        - Директор/Гл.инженер видят всех подрядчиков своей компании
+        - Начальник участка видит только подрядчиков проектов, к которым у него есть доступ
+        """
         user = self.request.user
 
         # Запрещенные роли для доступа к списку пользователей
@@ -78,9 +84,33 @@ class UserViewSet(viewsets.ModelViewSet):
         if self.action != 'me' and not user.approved:
             return User.objects.none()
 
-        # Users see all colleagues from their company
+        # Фильтрация пользователей компании
         if user.company:
-            return User.objects.filter(company=user.company)
+            # Базовый queryset - пользователи компании
+            queryset = User.objects.filter(company=user.company)
+
+            # Руководство видит всех пользователей компании (включая всех подрядчиков)
+            management_roles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER']
+            if user.role in management_roles:
+                return queryset
+
+            # Для остальных ролей: фильтруем подрядчиков по проектам пользователя
+            from apps.projects.models import Project
+
+            # Получаем проекты, к которым у пользователя есть доступ
+            user_projects = Project.objects.filter(team_members=user)
+
+            # Получаем ID подрядчиков из проектов пользователя
+            contractor_ids_in_user_projects = User.objects.filter(
+                role='CONTRACTOR',
+                projects__in=user_projects
+            ).values_list('id', flat=True)
+
+            # Возвращаем: всех НЕподрядчиков компании + подрядчиков из проектов пользователя
+            return queryset.filter(
+                models.Q(~models.Q(role='CONTRACTOR')) |  # Все НЕподрядчики
+                models.Q(id__in=contractor_ids_in_user_projects)  # Подрядчики из проектов пользователя
+            ).distinct()
 
         # Users without company see no one (except themselves in 'me' action)
         return User.objects.filter(id=user.id)
