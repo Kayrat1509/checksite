@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { authAPI } from '../api/auth'
+import { settingsAPI } from '../api/settings'
 
 interface User {
   id: number
@@ -18,16 +19,20 @@ interface AuthState {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
+  allowedPages: string[]  // Список страниц, доступных пользователю
   login: (email: string, password: string) => Promise<void>
   logout: () => void
   checkAuth: () => Promise<void>
   updateUser: (user: User) => void
+  loadAllowedPages: () => Promise<void>  // Загрузка разрешенных страниц
+  hasPageAccess: (page: string) => boolean  // Проверка доступа к странице
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
   isLoading: true,
+  allowedPages: [],
 
   login: async (email, password) => {
     set({ isLoading: true })
@@ -38,6 +43,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       const user = await authAPI.getCurrentUser()
       set({ user, isAuthenticated: true, isLoading: false })
+
+      // Загружаем разрешенные страницы после логина
+      await get().loadAllowedPages()
     } catch (error) {
       set({ isLoading: false })
       throw error
@@ -47,24 +55,49 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
-    set({ user: null, isAuthenticated: false })
+    set({ user: null, isAuthenticated: false, allowedPages: [] })
   },
 
   checkAuth: async () => {
     const token = localStorage.getItem('access_token')
     if (!token) {
-      set({ isAuthenticated: false, user: null, isLoading: false })
+      set({ isAuthenticated: false, user: null, isLoading: false, allowedPages: [] })
       return
     }
 
     try {
       const user = await authAPI.getCurrentUser()
       set({ user, isAuthenticated: true, isLoading: false })
+
+      // Загружаем разрешенные страницы после проверки auth
+      await get().loadAllowedPages()
     } catch (error) {
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
-      set({ user: null, isAuthenticated: false, isLoading: false })
+      set({ user: null, isAuthenticated: false, isLoading: false, allowedPages: [] })
     }
+  },
+
+  loadAllowedPages: async () => {
+    try {
+      const response = await settingsAPI.getMyPages()
+      set({ allowedPages: response.pages })
+    } catch (error) {
+      console.error('Ошибка при загрузке разрешенных страниц:', error)
+      set({ allowedPages: [] })
+    }
+  },
+
+  hasPageAccess: (page: string) => {
+    const state = get()
+
+    // SUPERADMIN имеет доступ ко всему
+    if (state.user?.is_superuser || state.user?.role === 'SUPERADMIN') {
+      return true
+    }
+
+    // Проверяем наличие страницы в списке разрешенных
+    return state.allowedPages.includes(page)
   },
 
   updateUser: (user) => {

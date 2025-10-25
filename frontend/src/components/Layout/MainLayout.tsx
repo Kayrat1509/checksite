@@ -28,178 +28,99 @@ const { Header, Sider, Content } = Layout
 const MainLayout = () => {
   const [collapsed, setCollapsed] = useState(false)
   const location = useLocation()
-  const { user, logout } = useAuthStore()
+  const { user, logout, hasPageAccess } = useAuthStore()
   const { unreadCount } = useNotificationStore()
 
-  // Запрещенные роли для доступа к странице пользователей
-  const FORBIDDEN_ROLES = ['CONTRACTOR', 'MASTER', 'SUPERVISOR', 'OBSERVER']
+  // ===== НОВАЯ ЛОГИКА: Проверка доступа через матрицу в БД =====
+  // Все проверки доступа теперь идут через hasPageAccess(page)
+  // Этот метод проверяет наличие страницы в authStore.allowedPages
+  // Список allowedPages загружается из БД при логине через API /settings/page-access/my-pages/
 
-  // Проверка доступа к странице пользователей
-  const canAccessUsers = () => {
-    if (!user) return false
-    // Суперадмин всегда имеет доступ
-    if (user.is_superuser) return true
-    // Запрещенные роли не имеют доступа
-    if (FORBIDDEN_ROLES.includes(user.role)) return false
-    // Остальные пользователи должны иметь approved=true
-    return user.approved === true
-  }
-
-  // Проверка доступа к странице подрядчиков
-  const canAccessContractors = () => {
-    if (!user) return false
-    // Суперадмин всегда имеет доступ
-    if (user.is_superuser) return true
-
-    // Разрешенные роли для доступа к подрядчикам
-    const allowedRoles = [
-      'DIRECTOR',           // Директор
-      'CHIEF_ENGINEER',     // Главный инженер
-      'PROJECT_MANAGER',    // Руководитель проекта
-      'SITE_MANAGER',       // Начальник участка
-      'ENGINEER'            // Инженер ПТО
-    ]
-
-    return allowedRoles.includes(user.role)
-  }
-
-  // Проверка доступа к странице надзоров
-  const canAccessSupervisions = () => {
-    if (!user) return false
-    // Суперадмин всегда имеет доступ
-    if (user.is_superuser) return true
-
-    // Разрешенные роли для доступа к надзорам
-    const allowedRoles = [
-      'DIRECTOR',           // Директор
-      'CHIEF_ENGINEER',     // Главный инженер
-      'PROJECT_MANAGER',    // Руководитель проекта
-      'SITE_MANAGER',       // Начальник участка
-      'ENGINEER',           // Инженер ПТО
-      'FOREMAN'             // Прораб
-    ]
-
-    return allowedRoles.includes(user.role)
-  }
-
-  // Проверка доступа к странице отчетов (подрядчики не имеют доступа)
-  const canAccessReports = () => {
-    if (!user) return false
-    // Суперадмин всегда имеет доступ
-    if (user.is_superuser) return true
-    // Подрядчики не имеют доступа к отчетам
-    if (user.role === 'CONTRACTOR') return false
-    return true
-  }
-
-  // Проверка, является ли пользователь ролью снабжения/склада/бухгалтерии
-  const isSupplyRole = () => {
-    if (!user) return false
-    const supplyRoles = ['SUPPLY_MANAGER', 'WAREHOUSE_HEAD', 'SITE_WAREHOUSE_MANAGER', 'ACCOUNTANT']
-    return supplyRoles.includes(user.role)
-  }
-
-  // Проверка доступа к странице тендеров (ИТР и Руководство)
-  const canAccessTenders = () => {
-    if (!user) return false
-    // Суперадмин всегда имеет доступ
-    if (user.is_superuser) return true
-
-    // Разрешенные роли: ИТР и Руководство
-    const allowedRoles = [
-      'ENGINEER',          // Инженер ПТО (ИТР)
-      'SITE_MANAGER',      // Начальник участка (ИТР)
-      'FOREMAN',           // Прораб (ИТР)
-      'MASTER',            // Мастер (ИТР)
-      'PROJECT_MANAGER',   // Руководитель проекта (Руководство)
-      'CHIEF_ENGINEER',    // Главный инженер (Руководство)
-      'DIRECTOR'           // Директор (Руководство)
-    ]
-
-    return allowedRoles.includes(user.role)
-  }
-
-  // Фильтруем меню в зависимости от прав доступа пользователя
+  // ===== НОВАЯ ЛОГИКА: Фильтруем меню через матрицу доступа из БД =====
   const allMenuItems = [
     {
       key: '/dashboard',
       icon: <DashboardOutlined />,
       label: <Link to="/dashboard">Дашборд</Link>,
-      // Роли снабжения не имеют доступа к дашборду
-      visible: !isSupplyRole(),
+      page: 'dashboard',  // slug страницы в БД
+      visible: hasPageAccess('dashboard'),
     },
     {
       key: '/dashboard/projects',
       icon: <ProjectOutlined />,
       label: <Link to="/dashboard/projects">Проекты</Link>,
-      // Роли снабжения имеют доступ к проектам
+      page: 'projects',
+      visible: hasPageAccess('projects'),
     },
     {
       key: '/dashboard/issues',
       icon: <FileTextOutlined />,
       label: <Link to="/dashboard/issues">Замечания</Link>,
-      // Роли снабжения не имеют доступа к замечаниям
-      visible: !isSupplyRole(),
+      page: 'issues',
+      visible: hasPageAccess('issues'),
     },
     {
       key: '/dashboard/users',
       icon: <UserOutlined />,
       label: <Link to="/dashboard/users">Сотрудники</Link>,
-      // Показываем пункт меню только для разрешенных ролей
-      visible: canAccessUsers() && !isSupplyRole(),
+      page: 'users',
+      visible: hasPageAccess('users'),
     },
     {
       key: '/dashboard/contractors',
       icon: <TeamOutlined />,
       label: <Link to="/dashboard/contractors">Подрядчики</Link>,
-      // Показываем пункт меню только для разрешенных ролей
-      visible: canAccessContractors() && !isSupplyRole(),
+      page: 'contractors',
+      visible: hasPageAccess('contractors'),
     },
     {
       key: '/dashboard/supervisions',
       icon: <SafetyOutlined />,
       label: <Link to="/dashboard/supervisions">Надзоры</Link>,
-      // Показываем пункт меню только для разрешенных ролей
-      visible: canAccessSupervisions() && !isSupplyRole(),
+      page: 'supervisions',
+      visible: hasPageAccess('supervisions'),
     },
     {
       key: '/dashboard/technical-conditions',
       icon: <FileProtectOutlined />,
       label: <Link to="/dashboard/technical-conditions">Техусловия</Link>,
-      // Роли снабжения не имеют доступа к техусловиям
-      visible: !isSupplyRole(),
+      page: 'technical-conditions',
+      visible: hasPageAccess('technical-conditions'),
     },
     {
       key: '/dashboard/material-requests',
       icon: <ShoppingCartOutlined />,
       label: <Link to="/dashboard/material-requests">Заявки</Link>,
-      // Роли снабжения имеют доступ к заявкам
+      page: 'material-requests',
+      visible: hasPageAccess('material-requests'),
     },
     {
       key: '/dashboard/warehouse',
       icon: <InboxOutlined />,
       label: <Link to="/dashboard/warehouse">Склад</Link>,
-      // Все пользователи имеют доступ к складу
+      page: 'warehouse',
+      visible: hasPageAccess('warehouse'),
     },
     {
       key: '/dashboard/tenders',
       icon: <DollarOutlined />,
       label: <Link to="/dashboard/tenders">Тендеры</Link>,
-      // Показываем пункт меню только для ИТР и Руководства
-      visible: canAccessTenders(),
+      page: 'tenders',
+      visible: hasPageAccess('tenders'),
     },
     {
       key: '/dashboard/reports',
       icon: <BarChartOutlined />,
       label: <Link to="/dashboard/reports">Отчеты</Link>,
-      // Подрядчики и роли снабжения не имеют доступа к отчетам
-      visible: canAccessReports() && !isSupplyRole(),
+      page: 'reports',
+      visible: hasPageAccess('reports'),
     },
     {
       key: '/dashboard/settings',
       icon: <SettingOutlined />,
       label: <Link to="/dashboard/settings">Настройки</Link>,
-      // Все пользователи имеют доступ к настройкам
+      page: 'settings',
+      visible: hasPageAccess('settings'),
     },
   ]
 

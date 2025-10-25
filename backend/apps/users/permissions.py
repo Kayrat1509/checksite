@@ -156,6 +156,49 @@ class CanVerifyIssues(permissions.BasePermission):
         )
 
 
+class HasPageAccess(permissions.BasePermission):
+    """
+    Динамическая проверка доступа к странице на основе матрицы доступа в БД.
+    Проверяет, есть ли у пользователя доступ к конкретной странице в его компании.
+
+    Использование:
+        permission_classes = [HasPageAccess]
+        page_name = 'projects'  # указать в ViewSet
+    """
+
+    def has_permission(self, request, view):
+        user = request.user
+
+        # Проверяем аутентификацию
+        if not user or not user.is_authenticated:
+            return False
+
+        # SUPERADMIN имеет доступ ко всему
+        if user.is_superuser or (hasattr(user, 'role') and user.role == 'SUPERADMIN'):
+            return True
+
+        # Получаем название страницы из ViewSet
+        page_name = getattr(view, 'page_name', None)
+        if not page_name:
+            # Если page_name не указан, разрешаем доступ (backward compatibility)
+            return True
+
+        # Проверяем наличие компании
+        if not user.company:
+            return False
+
+        # Проверяем доступ в БД
+        from apps.settings.models import PageAccess
+        has_access = PageAccess.objects.filter(
+            company=user.company,
+            page=page_name,
+            role=user.role,
+            has_access=True
+        ).exists()
+
+        return has_access
+
+
 class IsSameCompany(permissions.BasePermission):
     """
     Проверка, что объект принадлежит той же компании, что и пользователь.
