@@ -39,6 +39,7 @@ interface Drawing {
   id: number
   file: string | null
   file_name: string
+  file_size: string | null
   uploaded_by_full_name: string
   uploaded_by_role: string
   created_at: string

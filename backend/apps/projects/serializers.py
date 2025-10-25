@@ -38,8 +38,8 @@ class SiteListSerializer(serializers.ModelSerializer):
 class DrawingListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for listing drawings."""
 
-    # Переопределяем поле file, чтобы возвращать относительный URL вместо полного
-    file = serializers.SerializerMethodField()
+    # Добавляем поле для размера файла (только для чтения)
+    file_size = serializers.SerializerMethodField(read_only=True)
 
     uploaded_by_full_name = serializers.CharField(
         source='uploaded_by.get_full_name',
@@ -50,15 +50,37 @@ class DrawingListSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
-    def get_file(self, obj):
-        """Возвращает относительный URL файла вместо полного URL."""
-        if obj.file:
-            return obj.file.url  # Возвращает относительный путь типа /media/drawings/...
+    def get_file_size(self, obj):
+        """Возвращает размер файла в удобочитаемом формате."""
+        if obj.file and hasattr(obj.file, 'size'):
+            size_bytes = obj.file.size
+            # Форматируем размер файла
+            if size_bytes < 1024:
+                return f"{size_bytes} B"
+            elif size_bytes < 1024 * 1024:
+                size_kb = size_bytes / 1024
+                return f"{size_kb:.2f} KB"
+            elif size_bytes < 1024 * 1024 * 1024:
+                size_mb = size_bytes / (1024 * 1024)
+                return f"{size_mb:.2f} MB"
+            else:
+                size_gb = size_bytes / (1024 * 1024 * 1024)
+                return f"{size_gb:.2f} GB"
         return None
+
+    def to_representation(self, instance):
+        """Переопределяем представление для возврата относительного URL файла."""
+        representation = super().to_representation(instance)
+        # Заменяем полный URL на относительный
+        if instance.file:
+            representation['file'] = instance.file.url
+        else:
+            representation['file'] = None
+        return representation
 
     class Meta:
         model = Drawing
-        fields = ['id', 'file', 'file_name', 'uploaded_by_full_name', 'uploaded_by_role', 'created_at']
+        fields = ['id', 'file', 'file_name', 'file_size', 'uploaded_by_full_name', 'uploaded_by_role', 'created_at']
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -124,8 +146,8 @@ class ProjectListSerializer(serializers.ModelSerializer):
 class DrawingSerializer(serializers.ModelSerializer):
     """Serializer for Drawing model."""
 
-    # Переопределяем поле file, чтобы возвращать относительный URL вместо полного
-    file = serializers.SerializerMethodField()
+    # Добавляем поле для размера файла (только для чтения)
+    file_size = serializers.SerializerMethodField(read_only=True)
 
     uploaded_by_details = UserSerializer(source='uploaded_by', read_only=True)
     uploaded_by_full_name = serializers.CharField(
@@ -137,16 +159,38 @@ class DrawingSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
-    def get_file(self, obj):
-        """Возвращает относительный URL файла вместо полного URL."""
-        if obj.file:
-            return obj.file.url  # Возвращает относительный путь типа /media/drawings/...
+    def get_file_size(self, obj):
+        """Возвращает размер файла в удобочитаемом формате."""
+        if obj.file and hasattr(obj.file, 'size'):
+            size_bytes = obj.file.size
+            # Форматируем размер файла
+            if size_bytes < 1024:
+                return f"{size_bytes} B"
+            elif size_bytes < 1024 * 1024:
+                size_kb = size_bytes / 1024
+                return f"{size_kb:.2f} KB"
+            elif size_bytes < 1024 * 1024 * 1024:
+                size_mb = size_bytes / (1024 * 1024)
+                return f"{size_mb:.2f} MB"
+            else:
+                size_gb = size_bytes / (1024 * 1024 * 1024)
+                return f"{size_gb:.2f} GB"
         return None
+
+    def to_representation(self, instance):
+        """Переопределяем представление для возврата относительного URL файла."""
+        representation = super().to_representation(instance)
+        # Заменяем полный URL на относительный
+        if instance.file:
+            representation['file'] = instance.file.url
+        else:
+            representation['file'] = None
+        return representation
 
     class Meta:
         model = Drawing
         fields = [
-            'id', 'project', 'file', 'file_name', 'uploaded_by',
+            'id', 'project', 'file', 'file_name', 'file_size', 'uploaded_by',
             'uploaded_by_details', 'uploaded_by_full_name', 'uploaded_by_role',
             'created_at', 'updated_at'
         ]
