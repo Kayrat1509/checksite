@@ -129,6 +129,11 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Использовать относительные URL для media файлов (не включать домен)
+# Это позволяет frontend самостоятельно определять правильный домен
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
+
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
