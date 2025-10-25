@@ -14,6 +14,34 @@ class IsManagementOrSuperAdmin(permissions.BasePermission):
         )
 
 
+class CanAccessSettings(permissions.BasePermission):
+    """
+    Permission для доступа к настройкам системы и матрице доступа.
+    Доступно только для: Суперадмин, Директор, Главный инженер, Руководитель проекта, Начальник участка.
+    """
+
+    def has_permission(self, request, view):
+        from apps.users.models import User
+
+        # Разрешенные роли для доступа к настройкам
+        allowed_roles = [
+            User.Role.SUPERADMIN,         # Суперадмин
+            User.Role.DIRECTOR,           # Директор
+            User.Role.CHIEF_ENGINEER,     # Главный инженер
+            User.Role.PROJECT_MANAGER,    # Руководитель проекта
+            User.Role.SITE_MANAGER,       # Начальник участка
+        ]
+
+        return (
+            request.user and
+            request.user.is_authenticated and
+            (
+                request.user.is_superuser or
+                request.user.role in allowed_roles
+            )
+        )
+
+
 class CanManageProjects(permissions.BasePermission):
     """
     Permission to check if user can manage projects.

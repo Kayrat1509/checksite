@@ -17,6 +17,7 @@ import {
   ShoppingCartOutlined,
   DollarOutlined,
   InboxOutlined,
+  SettingOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../../stores/authStore'
 import { useNotificationStore } from '../../stores/notificationStore'
@@ -193,6 +194,12 @@ const MainLayout = () => {
       label: <Link to="/dashboard/reports">Отчеты</Link>,
       // Подрядчики и роли снабжения не имеют доступа к отчетам
       visible: canAccessReports() && !isSupplyRole(),
+    },
+    {
+      key: '/dashboard/settings',
+      icon: <SettingOutlined />,
+      label: <Link to="/dashboard/settings">Настройки</Link>,
+      // Все пользователи имеют доступ к настройкам
     },
   ]
 
