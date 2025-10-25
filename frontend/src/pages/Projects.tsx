@@ -60,6 +60,7 @@ interface Project {
   is_active: boolean
   drawings?: Drawing[]
   contractors?: Contractor[]
+  team_members_details?: User[]  // Детальная информация об участниках проекта
 }
 
 const Projects = () => {
@@ -521,14 +522,14 @@ const Projects = () => {
       title: 'Сотрудники',
       key: 'personnel',
       render: (_: any, record: Project) => {
-        // Фильтруем пользователей: ИТР и Руководство, привязанные к этому проекту
+        // Используем team_members_details из API проекта вместо фильтрации общего списка users
+        // Фильтруем только роли: ИТР и Руководство
         const ITR_ROLES = ['ENGINEER', 'SITE_MANAGER', 'FOREMAN', 'MASTER']
         const MANAGEMENT_ROLES = ['PROJECT_MANAGER', 'CHIEF_ENGINEER', 'DIRECTOR']
         const allowedRoles = [...ITR_ROLES, ...MANAGEMENT_ROLES]
 
-        const projectUsers = users.filter(user =>
-          allowedRoles.includes(user.role) &&
-          user.user_projects?.some(project => project.id === record.id)
+        const projectUsers = (record.team_members_details || []).filter((user: any) =>
+          allowedRoles.includes(user.role)
         )
 
         const count = projectUsers.length
@@ -862,14 +863,14 @@ const Projects = () => {
         {(() => {
           if (!selectedProject) return null
 
-          // Фильтруем пользователей: ИТР и Руководство, привязанные к этому проекту
+          // Используем team_members_details из API проекта вместо фильтрации общего списка users
+          // Фильтруем только роли: ИТР и Руководство
           const ITR_ROLES = ['ENGINEER', 'SITE_MANAGER', 'FOREMAN', 'MASTER']
           const MANAGEMENT_ROLES = ['PROJECT_MANAGER', 'CHIEF_ENGINEER', 'DIRECTOR']
           const allowedRoles = [...ITR_ROLES, ...MANAGEMENT_ROLES]
 
-          const projectUsers = users.filter(user =>
-            allowedRoles.includes(user.role) &&
-            user.user_projects?.some(project => project.id === selectedProject.id)
+          const projectUsers = (selectedProject.team_members_details || []).filter((user: User) =>
+            allowedRoles.includes(user.role)
           )
 
           if (projectUsers.length === 0) {
@@ -899,7 +900,7 @@ const Projects = () => {
 
           return (
             <Space direction="vertical" style={{ width: '100%' }} size="small">
-              {projectUsers.map((user) => (
+              {projectUsers.map((user: User) => (
                 <Card
                   key={user.id}
                   size="small"
