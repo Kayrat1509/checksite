@@ -372,14 +372,43 @@ const Projects = () => {
 
   const handleViewDrawing = (fileUrl: string) => {
     // Открыть PDF в новой вкладке
-    const fullUrl = fileUrl.startsWith('http') ? fileUrl : `http://localhost:8001${fileUrl}`
+    // На production файлы находятся на admin.stroyka.asia, а фронтенд на stroyka.asia
+    // Поэтому для относительных URL подставляем полный путь к admin.stroyka.asia
+    let fullUrl = fileUrl
+
+    if (!fileUrl.startsWith('http')) {
+      // URL относительный (/media/...)
+      const isProduction = window.location.hostname === 'stroyka.asia'
+      if (isProduction) {
+        // На production используем домен admin.stroyka.asia для медиа файлов
+        fullUrl = `https://admin.stroyka.asia${fileUrl}`
+      } else {
+        // На localhost используем относительный URL
+        fullUrl = fileUrl
+      }
+    }
+
     window.open(fullUrl, '_blank')
   }
 
   const handleDownloadDrawing = async (fileUrl: string, fileName: string) => {
     try {
-      const fullUrl = fileUrl.startsWith('http') ? fileUrl : `http://localhost:8001${fileUrl}`
+      // На production файлы находятся на admin.stroyka.asia, а фронтенд на stroyka.asia
+      // Поэтому для относительных URL подставляем полный путь к admin.stroyka.asia
+      let fullUrl = fileUrl
 
+      if (!fileUrl.startsWith('http')) {
+        // URL относительный (/media/...)
+        const isProduction = window.location.hostname === 'stroyka.asia'
+        if (isProduction) {
+          // На production используем домен admin.stroyka.asia для медиа файлов
+          fullUrl = `https://admin.stroyka.asia${fileUrl}`
+        } else {
+          // На localhost используем относительный URL
+          fullUrl = fileUrl
+        }
+      }
+      
       // Скачать файл
       const response = await fetch(fullUrl)
       const blob = await response.blob()
