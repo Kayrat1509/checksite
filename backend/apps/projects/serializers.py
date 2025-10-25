@@ -38,6 +38,9 @@ class SiteListSerializer(serializers.ModelSerializer):
 class DrawingListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for listing drawings."""
 
+    # Переопределяем поле file, чтобы возвращать относительный URL вместо полного
+    file = serializers.SerializerMethodField()
+
     uploaded_by_full_name = serializers.CharField(
         source='uploaded_by.get_full_name',
         read_only=True
@@ -46,6 +49,12 @@ class DrawingListSerializer(serializers.ModelSerializer):
         source='uploaded_by.role',
         read_only=True
     )
+
+    def get_file(self, obj):
+        """Возвращает относительный URL файла вместо полного URL."""
+        if obj.file:
+            return obj.file.url  # Возвращает относительный путь типа /media/drawings/...
+        return None
 
     class Meta:
         model = Drawing
@@ -115,6 +124,9 @@ class ProjectListSerializer(serializers.ModelSerializer):
 class DrawingSerializer(serializers.ModelSerializer):
     """Serializer for Drawing model."""
 
+    # Переопределяем поле file, чтобы возвращать относительный URL вместо полного
+    file = serializers.SerializerMethodField()
+
     uploaded_by_details = UserSerializer(source='uploaded_by', read_only=True)
     uploaded_by_full_name = serializers.CharField(
         source='uploaded_by.get_full_name',
@@ -124,6 +136,12 @@ class DrawingSerializer(serializers.ModelSerializer):
         source='uploaded_by.role',
         read_only=True
     )
+
+    def get_file(self, obj):
+        """Возвращает относительный URL файла вместо полного URL."""
+        if obj.file:
+            return obj.file.url  # Возвращает относительный путь типа /media/drawings/...
+        return None
 
     class Meta:
         model = Drawing
