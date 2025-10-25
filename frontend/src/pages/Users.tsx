@@ -35,6 +35,7 @@ import { usersAPI, User, CreateUserData } from '../api/users'
 import { authAPI } from '../api/auth'
 import { projectsAPI } from '../api/projects'
 import { companiesAPI } from '../api/companies'
+import { useAuthStore } from '../stores/authStore'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -42,6 +43,7 @@ const { Option } = Select
 const Users = () => {
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
+  const { hasPageAccess } = useAuthStore()
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
@@ -547,35 +549,16 @@ const Users = () => {
     )
   }
 
-  // Запрещенные роли для доступа к странице пользователей
-  const FORBIDDEN_ROLES = ['CONTRACTOR', 'SUPERVISOR', 'OBSERVER', 'MASTER']
-
-  // Check access - запрещаем доступ для определенных ролей
-  if (currentUser) {
-    // Суперадмин всегда имеет доступ
-    if (currentUser.is_superuser) {
-      // Разрешаем доступ
-    }
-    // Пользователи с запрещенными ролями не имеют доступа
-    else if (FORBIDDEN_ROLES.includes(currentUser.role)) {
-      return (
-        <Result
-          status="403"
-          title="Доступ запрещен"
-          subTitle="У вас нет доступа к странице управления пользователями."
-        />
-      )
-    }
-    // Остальные пользователи должны иметь approved=true
-    else if (!currentUser.approved) {
-      return (
-        <Result
-          status="403"
-          title="Доступ запрещен"
-          subTitle="У вас нет доступа к странице управления пользователями. Обратитесь к администратору."
-        />
-      )
-    }
+  // ===== НОВАЯ ЛОГИКА: Проверка доступа через матрицу доступа из БД =====
+  // Проверяем доступ к странице через hasPageAccess('users')
+  if (currentUser && !hasPageAccess('users')) {
+    return (
+      <Result
+        status="403"
+        title="Доступ запрещен"
+        subTitle="У вас нет доступа к странице управления пользователями. Обратитесь к администратору."
+      />
+    )
   }
 
   // Show error state

@@ -32,12 +32,15 @@ import { authAPI } from '../api/auth'
 import { reportsAPI, ReportFilters } from '../api/reports'
 import { projectsAPI } from '../api/projects'
 import { usersAPI } from '../api/users'
+import { useAuthStore } from '../stores/authStore'
 import dayjs, { Dayjs } from 'dayjs'
 
 const { Title, Paragraph, Text } = Typography
 const { RangePicker } = DatePicker
 
 const Reports = () => {
+  const { hasPageAccess } = useAuthStore()
+
   // Состояние фильтров
   const [filters, setFilters] = useState<ReportFilters>({})
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([null, null])
@@ -67,17 +70,16 @@ const Reports = () => {
   // Фильтруем только подрядчиков из списка пользователей
   const contractors = usersData?.results?.filter((user: any) => user.role === 'CONTRACTOR') || []
 
-  // Проверка доступа - подрядчики не имеют доступа к отчетам
-  if (!isUserLoading && currentUser) {
-    if (currentUser.role === 'CONTRACTOR' && !currentUser.is_superuser) {
-      return (
-        <Result
-          status="403"
-          title="Доступ запрещен"
-          subTitle="У вас нет доступа к странице отчетов."
-        />
-      )
-    }
+  // ===== НОВАЯ ЛОГИКА: Проверка доступа через матрицу доступа из БД =====
+  // Проверяем доступ к странице через hasPageAccess('reports')
+  if (!isUserLoading && currentUser && !hasPageAccess('reports')) {
+    return (
+      <Result
+        status="403"
+        title="Доступ запрещен"
+        subTitle="У вас нет доступа к странице отчетов. Обратитесь к администратору."
+      />
+    )
   }
 
   // Обработчики изменения фильтров
