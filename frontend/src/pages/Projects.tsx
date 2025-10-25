@@ -37,7 +37,7 @@ const { TextArea } = Input
 
 interface Drawing {
   id: number
-  file: string
+  file: string | null
   file_name: string
   uploaded_by_full_name: string
   uploaded_by_role: string
@@ -370,7 +370,13 @@ const Projects = () => {
     setIsUploadModalOpen(false)
   }
 
-  const handleViewDrawing = (fileUrl: string) => {
+  const handleViewDrawing = (fileUrl: string | null) => {
+    // Проверка на null/undefined
+    if (!fileUrl) {
+      message.error('Файл чертежа не найден')
+      return
+    }
+
     // Открыть PDF в новой вкладке
     // На production файлы находятся на admin.stroyka.asia, а фронтенд на stroyka.asia
     // Поэтому для относительных URL подставляем полный путь к admin.stroyka.asia
@@ -391,8 +397,14 @@ const Projects = () => {
     window.open(fullUrl, '_blank')
   }
 
-  const handleDownloadDrawing = async (fileUrl: string, fileName: string) => {
+  const handleDownloadDrawing = async (fileUrl: string | null, fileName: string) => {
     try {
+      // Проверка на null/undefined
+      if (!fileUrl) {
+        message.error('Файл чертежа не найден')
+        return
+      }
+
       // На production файлы находятся на admin.stroyka.asia, а фронтенд на stroyka.asia
       // Поэтому для относительных URL подставляем полный путь к admin.stroyka.asia
       let fullUrl = fileUrl
