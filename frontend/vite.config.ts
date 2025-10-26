@@ -55,15 +55,38 @@ export default defineConfig({
           },
           {
             // Изображения - сначала сеть, потом кеш (для свежих изображений)
-            urlPattern: /^https?:\/\/.*\/media\/.*/i,
-            handler: 'NetworkFirst',
+            // ВАЖНО: Исключаем URL с backend:8000 (внутренние Docker URL)
+            urlPattern: ({ url }: { url: URL }) => {
+              // Кешируем только если:
+              // 1. Путь начинается с /media/
+              // 2. Hostname НЕ содержит 'backend' (исключаем backend:8000)
+              // 3. URL корректный (не пустой hostname)
+              return url.pathname.startsWith('/media/') &&
+                     !url.hostname.includes('backend') &&
+                     url.hostname.length > 0
+            },
+            handler: 'NetworkFirst' as const,
             options: {
               cacheName: 'images-cache',
               expiration: {
                 maxEntries: 100,
                 maxAgeSeconds: 60 * 60 // 1 час
               },
-              networkTimeoutSeconds: 10
+              networkTimeoutSeconds: 10,
+              // Добавляем плагин для отладки
+              plugins: [
+                {
+                  // Логируем что кешируется (для отладки)
+                  cacheWillUpdate: async ({ response }: { response: Response }) => {
+                    // Кешируем только успешные ответы
+                    if (response && response.status === 200) {
+                      return response
+                    }
+                    // Не кешируем ошибки
+                    return null
+                  }
+                }
+              ]
             }
           },
           {
