@@ -207,7 +207,15 @@ const getImageUrl = (photoUrl: string | undefined | null) => {
   // Если URL не передан, возвращаем пустую строку
   if (!photoUrl) return ''
 
-  // Если URL уже полный (начинается с http:// или https://), возвращаем как есть
+  // Если URL содержит внутреннее имя контейнера Docker (backend:8000),
+  // заменяем его на текущий origin браузера
+  if (photoUrl.includes('backend:8000')) {
+    // Убираем http://backend:8000 или https://backend:8000
+    const pathOnly = photoUrl.replace(/https?:\/\/backend:8000/, '')
+    return `${window.location.origin}${pathOnly}`
+  }
+
+  // Если URL уже полный и корректный (начинается с http:// или https://), возвращаем как есть
   if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) {
     return photoUrl
   }
