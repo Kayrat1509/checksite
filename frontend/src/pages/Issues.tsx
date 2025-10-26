@@ -212,13 +212,12 @@ const getImageUrl = (photoUrl: string | undefined | null) => {
     return photoUrl
   }
 
-  // Иначе добавляем базовый URL сервера для относительных путей
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001/api'
-  // Убираем /api из конца, так как путь медиа начинается с /media
-  const baseUrl = API_BASE_URL.replace('/api', '')
-  // Убираем начальный слэш из photoUrl если он есть, чтобы избежать двойного слэша
-  const cleanPhotoUrl = photoUrl.startsWith('/') ? photoUrl.slice(1) : photoUrl
-  return `${baseUrl}/${cleanPhotoUrl}`
+  // Для относительных путей используем текущий origin браузера
+  // Это работает и на localhost:5174, и на https://stroyka.asia
+  // photoUrl приходит из бэкенда в формате: "/media/issues/2025/10/16/photo.jpeg"
+  // window.location.origin даст: "http://localhost:5174" или "https://stroyka.asia"
+  // Итоговый URL: "http://localhost:5174/media/..." или "https://stroyka.asia/media/..."
+  return `${window.location.origin}${photoUrl}`
 }
 
 const Issues = () => {
