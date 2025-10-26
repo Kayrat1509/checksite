@@ -127,8 +127,12 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Используем поддомен для медиа файлов (обходит Cloudflare кеш)
+# В продакшене: https://media.stroyka.asia/media/
+# В разработке: http://localhost:8001/media/
+MEDIA_URL = os.getenv('MEDIA_URL', '/media/')
 
 # Использовать относительные URL для media файлов (не включать домен)
 # Это позволяет frontend самостоятельно определять правильный домен
