@@ -46,8 +46,8 @@ services:
              python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./backend:/app            # 🔥 Подключаем локальный код внутрь контейнера
-      - static_volume:/app/staticfiles
-      - media_volume:/app/media
+      - ./staticfiles:/app/staticfiles
+      - ./media:/app/media
     ports:
       - "8001:8000"
     env_file:
@@ -172,8 +172,8 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/conf.d:/etc/nginx/conf.d
-      - static_volume:/static
-      - media_volume:/media
+      - ./staticfiles:/app/staticfiles
+      - ./media:/app/media
     ports:
       - "80:80"  # Изменено с 8080 на 80 для Cloudflare
     depends_on:
