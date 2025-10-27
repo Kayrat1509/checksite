@@ -190,6 +190,31 @@ class User(AbstractUser):
     # Временный пароль для отображения администратору
     temp_password = models.CharField(_('Временный пароль'), max_length=255, blank=True, null=True, help_text=_('Пароль для передачи пользователю'))
 
+    # Управление временными паролями
+    password_change_required = models.BooleanField(
+        _('Требуется смена пароля'),
+        default=False,
+        help_text=_('Пользователь должен сменить пароль при следующем входе')
+    )
+    login_attempts_with_temp_password = models.IntegerField(
+        _('Попытки входа с временным паролем'),
+        default=0,
+        help_text=_('Количество входов с временным паролем (макс. 3)')
+    )
+    temp_password_created_at = models.DateTimeField(
+        _('Дата создания временного пароля'),
+        blank=True,
+        null=True
+    )
+
+    # История паролей (JSON поле для хранения в админке)
+    password_history = models.JSONField(
+        _('История паролей'),
+        default=list,
+        blank=True,
+        help_text=_('История изменений паролей с датами')
+    )
+
     created_at = models.DateTimeField(_('Создан'), auto_now_add=True)
     updated_at = models.DateTimeField(_('Обновлен'), auto_now=True)
 
@@ -250,3 +275,66 @@ class User(AbstractUser):
     def can_verify_issues(self):
         """Check if user can verify/inspect issues."""
         return self.is_itr or self.is_supervisor or self.is_management
+
+    def set_temporary_password(self, temp_password):
+        """
+        Устанавливает временный пароль для пользователя.
+
+        Args:
+            temp_password: Временный пароль в открытом виде
+        """
+        from django.utils import timezone
+
+        self.set_password(temp_password)
+        self.temp_password = temp_password
+        self.password_change_required = True
+        self.login_attempts_with_temp_password = 0
+        self.temp_password_created_at = timezone.now()
+        self.save()
+
+    def increment_temp_password_login(self):
+        """
+        Увеличивает счетчик входов с временным паролем.
+        Возвращает True если достигнут лимит (3 входа).
+        """
+        if self.password_change_required:
+            self.login_attempts_with_temp_password += 1
+            self.save(update_fields=['login_attempts_with_temp_password'])
+            return self.login_attempts_with_temp_password >= 3
+        return False
+
+    def add_to_password_history(self, action='changed', details=''):
+        """
+        Добавляет запись в историю паролей.
+
+        Args:
+            action: Действие (created, changed, reset)
+            details: Дополнительная информация
+        """
+        from django.utils import timezone
+
+        if not isinstance(self.password_history, list):
+            self.password_history = []
+
+        self.password_history.append({
+            'action': action,
+            'date': timezone.now().isoformat(),
+            'details': details,
+            'temp_password_used': self.temp_password if action == 'created' else None
+        })
+        self.save(update_fields=['password_history'])
+
+    def change_password_from_temp(self, new_password):
+        """
+        Меняет временный пароль на постоянный.
+
+        Args:
+            new_password: Новый постоянный пароль
+        """
+        self.set_password(new_password)
+        self.temp_password = None
+        self.password_change_required = False
+        self.login_attempts_with_temp_password = 0
+        self.temp_password_created_at = None
+        self.add_to_password_history(action='changed', details='Пароль изменен с временного на постоянный')
+        self.save()

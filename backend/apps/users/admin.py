@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
+from django.utils.html import format_html
+import json
 from .models import User, Company
 
 
@@ -43,8 +45,15 @@ class CompanyAdmin(admin.ModelAdmin):
 class UserAdmin(BaseUserAdmin):
     """Admin interface for User model."""
 
-    list_display = ['email', 'get_full_name', 'role', 'get_company_display', 'temp_password', 'position', 'external_company_name', 'approved', 'is_active', 'created_at']
-    list_filter = ['role', 'company', 'approved', 'is_active', 'is_staff', 'created_at']
+    list_display = [
+        'email', 'get_full_name', 'role', 'get_company_display',
+        'get_temp_password_status', 'position', 'external_company_name',
+        'approved', 'is_active', 'created_at'
+    ]
+    list_filter = [
+        'role', 'company', 'approved', 'is_active', 'is_staff',
+        'password_change_required', 'created_at'
+    ]
     search_fields = ['email', 'first_name', 'last_name', 'phone', 'external_company_name', 'supervision_company']
     ordering = ['-created_at']
     list_editable = ['approved']
@@ -55,8 +64,17 @@ class UserAdmin(BaseUserAdmin):
             'fields': ('first_name', 'last_name', 'middle_name', 'phone', 'avatar')
         }),
         (_('Роль и должность'), {
-            'fields': ('role', 'position', 'company', 'temp_password', 'supervision_company', 'secondary_email', 'telegram_id'),
+            'fields': ('role', 'position', 'company', 'supervision_company', 'secondary_email', 'telegram_id'),
             'description': 'Для сотрудников заказчика используйте поле "Компания". Для подрядчиков и надзоров используйте поле "Название сторонней компании".'
+        }),
+        (_('Временный пароль'), {
+            'fields': (
+                'temp_password', 'password_change_required',
+                'login_attempts_with_temp_password', 'temp_password_created_at',
+                'display_password_history'
+            ),
+            'classes': ('collapse',),
+            'description': 'Информация о временном пароле и истории изменений'
         }),
         (_('Права доступа'), {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'is_verified', 'approved', 'groups', 'user_permissions'),
@@ -74,7 +92,11 @@ class UserAdmin(BaseUserAdmin):
         }),
     )
 
-    readonly_fields = ['created_at', 'updated_at', 'last_login', 'temp_password']
+    readonly_fields = [
+        'created_at', 'updated_at', 'last_login', 'temp_password',
+        'login_attempts_with_temp_password', 'temp_password_created_at',
+        'display_password_history'
+    ]
 
     def get_company_display(self, obj):
         """Отображение компании: ForeignKey для сотрудников, текстовое поле для подрядчиков/надзоров."""
@@ -84,3 +106,79 @@ class UserAdmin(BaseUserAdmin):
             return obj.company.name
         return '-'
     get_company_display.short_description = 'Компания'
+
+    def get_temp_password_status(self, obj):
+        """
+        Отображение статуса временного пароля в списке пользователей.
+        """
+        if not obj.password_change_required:
+            return format_html('<span style="color: green;">✓ Постоянный</span>')
+
+        attempts_left = 3 - obj.login_attempts_with_temp_password
+
+        if attempts_left <= 0:
+            return format_html('<span style="color: red;">🔒 Заблокирован</span>')
+        elif attempts_left == 1:
+            return format_html(
+                '<span style="color: orange;">⚠️ Временный ({} попытка)</span>',
+                attempts_left
+            )
+        else:
+            return format_html(
+                '<span style="color: blue;">🔑 Временный ({} попытки)</span>',
+                attempts_left
+            )
+    get_temp_password_status.short_description = 'Статус пароля'
+
+    def display_password_history(self, obj):
+        """
+        Отображение истории паролей в удобном формате.
+        """
+        if not obj.password_history:
+            return format_html('<p>История пуста</p>')
+
+        html = '<table style="width: 100%; border-collapse: collapse;">'
+        html += '<tr style="background-color: #f0f0f0;"><th style="padding: 8px; text-align: left;">Дата</th><th style="padding: 8px; text-align: left;">Действие</th><th style="padding: 8px; text-align: left;">Детали</th><th style="padding: 8px; text-align: left;">Временный пароль</th></tr>'
+
+        for idx, entry in enumerate(reversed(obj.password_history)):
+            bg_color = '#ffffff' if idx % 2 == 0 else '#f9f9f9'
+
+            action_icons = {
+                'created': '➕',
+                'changed': '🔄',
+                'reset': '🔃'
+            }
+            icon = action_icons.get(entry.get('action', ''), '•')
+
+            html += f'<tr style="background-color: {bg_color};">'
+            html += f'<td style="padding: 8px;">{entry.get("date", "N/A")}</td>'
+            html += f'<td style="padding: 8px;">{icon} {entry.get("action", "N/A")}</td>'
+            html += f'<td style="padding: 8px;">{entry.get("details", "")}</td>'
+
+            temp_pass = entry.get('temp_password_used', '')
+            if temp_pass:
+                html += f'<td style="padding: 8px;"><code style="background-color: #fff3cd; padding: 2px 6px; border-radius: 3px;">{temp_pass}</code></td>'
+            else:
+                html += '<td style="padding: 8px;">-</td>'
+
+            html += '</tr>'
+
+        html += '</table>'
+
+        return format_html(html)
+    display_password_history.short_description = 'История паролей'
+
+    actions = ['reset_temp_password_attempts']
+
+    def reset_temp_password_attempts(self, request, queryset):
+        """
+        Сброс счетчика попыток входа с временным паролем.
+        """
+        updated = queryset.filter(password_change_required=True).update(
+            login_attempts_with_temp_password=0
+        )
+        self.message_user(
+            request,
+            f'Счетчик попыток сброшен для {updated} пользователей'
+        )
+    reset_temp_password_attempts.short_description = 'Сбросить счетчик попыток входа'

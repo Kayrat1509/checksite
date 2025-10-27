@@ -99,5 +99,34 @@ export const usersAPI = {
   unarchiveUser: async (id: number) => {
     const response = await axios.post(`/auth/users/${id}/unarchive/`)
     return response.data
+  },
+
+  // Export users template
+  exportTemplate: async () => {
+    const response = await axios.get('/auth/users/export-template/', {
+      responseType: 'blob'
+    })
+    return response.data
+  },
+
+  // Export all users
+  exportUsers: async () => {
+    const response = await axios.get('/auth/users/export/', {
+      responseType: 'blob'
+    })
+    return response.data
+  },
+
+  // Import users from file
+  importUsers: async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await axios.post('/auth/users/import/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    return response.data
   }
 }

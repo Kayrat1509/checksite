@@ -28,7 +28,10 @@ import {
   EyeOutlined,
   EyeInvisibleOutlined,
   UnlockOutlined,
-  LockOutlined
+  LockOutlined,
+  DownloadOutlined,
+  UploadOutlined,
+  FileExcelOutlined
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersAPI, User, CreateUserData } from '../api/users'
@@ -36,6 +39,7 @@ import { authAPI } from '../api/auth'
 import { projectsAPI } from '../api/projects'
 import { companiesAPI } from '../api/companies'
 import { useAuthStore } from '../stores/authStore'
+import { UserImportExport } from '../components/UserImportExport'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -578,17 +582,23 @@ const Users = () => {
       {/* Заголовок страницы */}
       <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Title level={2}>Сотрудники</Title>
-        {/* Кнопка "Добавить сотрудника" */}
-        {canAddUser() && (
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleCreateUser}
-            size="large"
-          >
-            Добавить сотрудника
-          </Button>
-        )}
+
+        <Space size="middle">
+          {/* Кнопки импорта/экспорта */}
+          {canAddUser() && <UserImportExport />}
+
+          {/* Кнопка "Добавить сотрудника" */}
+          {canAddUser() && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleCreateUser}
+              size="large"
+            >
+              Добавить сотрудника
+            </Button>
+          )}
+        </Space>
       </div>
 
       {/* Сетка карточек пользователей 5xN с адаптивной версткой */}

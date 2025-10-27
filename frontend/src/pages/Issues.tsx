@@ -211,7 +211,7 @@ const getImageUrl = (photoUrl: string | undefined | null) => {
   // заменяем его на текущий origin браузера
   if (photoUrl.includes('backend:8000')) {
     // Убираем http://backend:8000 или https://backend:8000
-    const pathOnly = photoUrl.replace(/https?:\/\/backend:8000/, '')
+    const pathOnly = photoUrl.replace(/https?:\/\/backend:8000\/?/g, '')
     return `${window.location.origin}${pathOnly}`
   }
 
