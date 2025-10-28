@@ -419,6 +419,431 @@ class UserViewSet(viewsets.ModelViewSet):
                 'details': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    # ===== НОВЫЕ МЕТОДЫ ДЛЯ PERSONNEL EXCEL V2 =====
+
+    @action(detail=False, methods=['get'], url_path='export-template-v2',
+            permission_classes=[permissions.IsAuthenticated])
+    def export_template_v2(self, request):
+        """
+        Экспорт шаблона Excel v2 для импорта персонала.
+
+        Шаблон включает:
+        - Лист "Инструкция" с подробным описанием процесса
+        - Лист "Данные" с заголовками и dropdown для ролей и проектов
+        - Пример заполнения данных
+
+        Permissions: CanManagePersonnelExcel
+        """
+        from .permissions import CanManagePersonnelExcel
+        from .utils.excel_handler import PersonnelExcelHandler
+        from datetime import datetime
+        import logging
+        import traceback
+
+        logger = logging.getLogger(__name__)
+
+        try:
+            user = request.user
+            logger.info(f"[export_template_v2] User: {user.email}, Company: {user.company}")
+
+            # ВАЖНО: Проверяем наличие компании ДО permission check
+            # Иначе для superadmin будет ошибка при попытке доступа к user.company
+            if not user.company:
+                logger.warning(f"[export_template_v2] User {user.email} has no company")
+                return Response({
+                    'error': 'У вас нет привязки к компании',
+                    'details': 'Для работы с Excel необходимо привязать пользователя к компании через админ-панель'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Проверяем права доступа
+            logger.info(f"[export_template_v2] Checking permissions for user {user.email}")
+            permission = CanManagePersonnelExcel()
+            if not permission.has_permission(request, self):
+                logger.warning(f"[export_template_v2] Permission denied for user {user.email}")
+                return Response({
+                    'error': 'У вас нет прав для экспорта шаблона персонала',
+                    'details': 'Требуется роль из категории MANAGEMENT или одобрение директора'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # Создаем handler и генерируем шаблон
+            logger.info(f"[export_template_v2] Creating PersonnelExcelHandler")
+            handler = PersonnelExcelHandler(company=user.company)
+            logger.info(f"[export_template_v2] Generating template")
+            workbook = handler.generate_template_v2()
+
+            # Создаем HTTP response с Excel файлом
+            logger.info(f"[export_template_v2] Creating HTTP response")
+            response = HttpResponse(
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = 'attachment; filename=users_import_template_v2.xlsx'
+
+            # Сохраняем workbook в response
+            logger.info(f"[export_template_v2] Saving workbook to response")
+            workbook.save(response)
+
+            logger.info(f"[export_template_v2] Success!")
+            return response
+
+        except Exception as e:
+            logger.error(f"[export_template_v2] Exception: {str(e)}")
+            logger.error(f"[export_template_v2] Traceback: {traceback.format_exc()}")
+            return Response({
+                'error': 'Ошибка при создании шаблона',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'], url_path='export-v2',
+            permission_classes=[permissions.IsAuthenticated])
+    def export_users_v2(self, request):
+        """
+        Экспорт текущих пользователей компании в Excel v2.
+
+        Включает данные:
+        - Email, ФИО, Роль, Должность, Телефон
+        - Проекты (через запятую)
+        - Dropdown валидация для редактирования
+
+        Используется для варианта 2: Export → Edit → Import
+
+        Permissions: CanManagePersonnelExcel
+        """
+        from .permissions import CanManagePersonnelExcel
+        from .utils.excel_handler import PersonnelExcelHandler
+        from datetime import datetime
+
+        try:
+            user = request.user
+
+            # ВАЖНО: Проверяем наличие компании ДО permission check
+            if not user.company:
+                return Response({
+                    'error': 'У вас нет привязки к компании',
+                    'details': 'Для работы с Excel необходимо привязать пользователя к компании через админ-панель'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Проверяем права доступа
+            permission = CanManagePersonnelExcel()
+            if not permission.has_permission(request, self):
+                return Response({
+                    'error': 'У вас нет прав для экспорта персонала',
+                    'details': 'Требуется роль из категории MANAGEMENT или одобрение директора'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # Создаем handler и генерируем экспорт
+            handler = PersonnelExcelHandler(company=user.company)
+            workbook = handler.generate_export_v2()
+
+            # Создаем HTTP response с Excel файлом
+            current_date = datetime.now().strftime('%Y-%m-%d')
+            filename = f'users_export_v2_{current_date}.xlsx'
+
+            response = HttpResponse(
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = f'attachment; filename={filename}'
+
+            # Сохраняем workbook в response
+            workbook.save(response)
+
+            return response
+
+        except Exception as e:
+            return Response({
+                'error': 'Ошибка при экспорте пользователей',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'], url_path='export-backup',
+            permission_classes=[permissions.IsAuthenticated])
+    def export_backup(self, request):
+        """
+        Создание backup всех пользователей компании.
+
+        Включает расширенные данные:
+        - ID, Email, ФИО, Роль, Должность, Телефон, Проекты
+        - Категория, статусы (активен, подтвержден, одобрен)
+        - Даты создания и обновления
+        - Лист "Информация" с метаданными backup
+
+        Используется для варианта 3: Backup с timestamp
+
+        Permissions: CanManagePersonnelExcel
+        """
+        from .permissions import CanManagePersonnelExcel
+        from .utils.excel_handler import PersonnelExcelHandler
+        from datetime import datetime
+
+        try:
+            user = request.user
+
+            # ВАЖНО: Проверяем наличие компании ДО permission check
+            # Иначе для superadmin будет ошибка при попытке доступа к user.company
+            if not user.company:
+                return Response({
+                    'error': 'У вас нет привязки к компании',
+                    'details': 'Для работы с Excel необходимо привязать пользователя к компании через админ-панель'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Проверяем права доступа (теперь ПОСЛЕ проверки компании)
+            permission = CanManagePersonnelExcel()
+            if not permission.has_permission(request, self):
+                return Response({
+                    'error': 'У вас нет прав для создания backup персонала',
+                    'details': 'Требуется роль из категории MANAGEMENT или одобрение директора'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # Создаем handler и генерируем backup
+            handler = PersonnelExcelHandler(company=user.company)
+            workbook = handler.generate_backup()
+
+            # Создаем HTTP response с Excel файлом
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f'users_backup_{timestamp}.xlsx'
+
+            response = HttpResponse(
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = f'attachment; filename={filename}'
+
+            # Сохраняем workbook в response
+            workbook.save(response)
+
+            return response
+
+        except Exception as e:
+            return Response({
+                'error': 'Ошибка при создании backup',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'], url_path='import-v2',
+            permission_classes=[permissions.IsAuthenticated])
+    def import_users_v2(self, request):
+        """
+        Импорт пользователей из Excel v2 с постоянными паролями.
+
+        Поддерживает два режима:
+        - mode=create: Массовое добавление новых пользователей (по умолчанию)
+        - mode=update: Обновление данных существующих пользователей
+
+        Процесс:
+        1. Парсинг и валидация Excel файла
+        2. Генерация постоянных паролей для новых пользователей
+        3. Создание/обновление записей в БД
+        4. Привязка к проектам
+        5. Асинхронная отправка credentials на email
+
+        Request:
+            - file: Excel файл (multipart/form-data)
+            - mode: 'create' | 'update' (optional, default: 'create')
+
+        Response:
+            {
+                'status': 'success',
+                'stats': {
+                    'total_rows': 50,
+                    'new_records': 30,
+                    'updated_records': 15,
+                    'skipped_records': 3,
+                    'errors': 2,
+                    'projects_assigned': 45,
+                    'emails_sent': 30
+                },
+                'details': {
+                    'errors': [{'row': 5, 'errors': ['...']}]
+                }
+            }
+
+        Permissions: CanManagePersonnelExcel
+        """
+        from .permissions import CanManagePersonnelExcel
+        from .utils.excel_handler import PersonnelExcelHandler
+        from .utils.password_generator import generate_and_hash_password
+        from .tasks import send_permanent_credentials_email
+        from apps.projects.models import Project
+
+        try:
+            user = request.user
+
+            # ВАЖНО: Проверяем наличие компании ДО permission check
+            # Иначе для superadmin будет ошибка при попытке доступа к user.company
+            if not user.company:
+                return Response({
+                    'error': 'У вас нет привязки к компании',
+                    'details': 'Для работы с Excel необходимо привязать пользователя к компании через админ-панель'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Проверяем права доступа (теперь ПОСЛЕ проверки компании)
+            permission = CanManagePersonnelExcel()
+            if not permission.has_permission(request, self):
+                return Response({
+                    'error': 'У вас нет прав для импорта персонала',
+                    'details': 'Требуется роль из категории MANAGEMENT или одобрение директора'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # Получаем файл из request
+            if 'file' not in request.FILES:
+                return Response({
+                    'error': 'Файл не предоставлен',
+                    'details': 'Требуется загрузить Excel файл'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            file = request.FILES['file']
+
+            # Получаем режим импорта
+            mode = request.data.get('mode', 'create')
+            if mode not in ['create', 'update']:
+                return Response({
+                    'error': 'Неверный режим импорта',
+                    'details': 'Допустимые значения: create, update'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Парсим и валидируем файл
+            handler = PersonnelExcelHandler(company=user.company)
+            parse_result = handler.parse_import_file(file, mode=mode)
+
+            valid_rows = parse_result['valid_rows']
+            errors = parse_result['errors']
+
+            # Если есть ошибки валидации, возвращаем их
+            if errors:
+                return Response({
+                    'status': 'validation_error',
+                    'message': 'Обнаружены ошибки валидации',
+                    'stats': {
+                        'total_rows': len(valid_rows) + len(errors),
+                        'valid_rows': len(valid_rows),
+                        'error_rows': len(errors)
+                    },
+                    'details': {'errors': errors}
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Обрабатываем валидные строки
+            new_records = 0
+            updated_records = 0
+            skipped_records = 0
+            projects_assigned = 0
+            emails_sent = 0
+
+            for row_data in valid_rows:
+                try:
+                    email = row_data['email']
+
+                    if mode == 'create':
+                        # Создание нового пользователя
+                        # Генерируем постоянный пароль
+                        plain_password, hashed_password = generate_and_hash_password(length=12)
+
+                        # Определяем категорию роли
+                        management_roles = [
+                            'DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER',
+                            'SITE_MANAGER', 'FOREMAN'
+                        ]
+                        role_category = 'MANAGEMENT' if row_data['role'] in management_roles else 'ITR_SUPPLY'
+
+                        # Создаем пользователя
+                        new_user = User.objects.create(
+                            email=email,
+                            first_name=row_data['first_name'],
+                            last_name=row_data['last_name'],
+                            middle_name=row_data['middle_name'],
+                            role=row_data['role'],
+                            position=row_data['position'],
+                            phone=row_data['phone'],
+                            company=user.company,
+                            role_category=role_category,
+                            password=hashed_password,
+                            is_active=True,
+                            approved=True,
+                            # Постоянный пароль - НЕ требует смены
+                            password_change_required=False
+                        )
+
+                        # Привязываем к проектам
+                        if row_data['project_ids']:
+                            projects = Project.objects.filter(
+                                id__in=row_data['project_ids'],
+                                company=user.company
+                            )
+                            new_user.projects.set(projects)
+                            projects_assigned += projects.count()
+
+                        # Отправляем credentials на email асинхронно
+                        send_permanent_credentials_email.delay(new_user.id, plain_password)
+                        emails_sent += 1
+
+                        new_records += 1
+
+                    elif mode == 'update':
+                        # Обновление существующего пользователя
+                        existing_user = User.objects.get(
+                            email__iexact=email,
+                            company=user.company
+                        )
+
+                        # Обновляем поля
+                        existing_user.first_name = row_data['first_name']
+                        existing_user.last_name = row_data['last_name']
+                        existing_user.middle_name = row_data['middle_name']
+                        existing_user.role = row_data['role']
+                        existing_user.position = row_data['position']
+                        existing_user.phone = row_data['phone']
+
+                        # Обновляем категорию роли
+                        management_roles = [
+                            'DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER',
+                            'SITE_MANAGER', 'FOREMAN'
+                        ]
+                        existing_user.role_category = (
+                            'MANAGEMENT' if row_data['role'] in management_roles else 'ITR_SUPPLY'
+                        )
+
+                        existing_user.save()
+
+                        # Обновляем проекты
+                        if row_data['project_ids']:
+                            projects = Project.objects.filter(
+                                id__in=row_data['project_ids'],
+                                company=user.company
+                            )
+                            existing_user.projects.set(projects)
+                            projects_assigned += projects.count()
+
+                        updated_records += 1
+
+                except Exception as row_error:
+                    # Если ошибка при обработке конкретной строки
+                    skipped_records += 1
+                    errors.append({
+                        'row': '?',
+                        'errors': [f'Ошибка обработки: {str(row_error)}']
+                    })
+
+            # Возвращаем результат
+            return Response({
+                'status': 'success',
+                'message': f'Импорт завершен успешно (режим: {mode})',
+                'stats': {
+                    'total_rows': len(valid_rows),
+                    'new_records': new_records,
+                    'updated_records': updated_records,
+                    'skipped_records': skipped_records,
+                    'errors': len(errors),
+                    'projects_assigned': projects_assigned,
+                    'emails_sent': emails_sent
+                },
+                'details': {
+                    'errors': errors if errors else []
+                }
+            }, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({
+                'error': 'Ошибка при импорте персонала',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class CompanyViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for viewing companies."""

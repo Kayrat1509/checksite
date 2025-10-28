@@ -13,12 +13,14 @@ import {
   MenuUnfoldOutlined,
   TeamOutlined,
   SafetyOutlined,
-  FileProtectOutlined,
   ShoppingCartOutlined,
   DollarOutlined,
   InboxOutlined,
   SettingOutlined,
+  SecurityScanOutlined,
+  UsergroupAddOutlined, // НОВАЯ ИКОНКА: для меню "Персонал"
 } from '@ant-design/icons'
+// УДАЛЕНО: FileProtectOutlined - использовалась для техусловий, больше не нужна
 import { useAuthStore } from '../../stores/authStore'
 import { useNotificationStore } from '../../stores/notificationStore'
 import './MainLayout.css'
@@ -36,15 +38,22 @@ const MainLayout = () => {
   // Этот метод проверяет наличие страницы в authStore.allowedPages
   // Список allowedPages загружается из БД при логине через API /settings/page-access/my-pages/
 
-  // ===== НОВАЯ ЛОГИКА: Фильтруем меню через матрицу доступа из БД =====
+  // ===== ОБНОВЛЕННАЯ СТРУКТУРА МЕНЮ =====
+  // Новая последовательность: Дашборд, Проекты, Персонал, Замечания, Заявки, Склад, Тендеры, Отчеты, Настройки
+  // "Персонал" объединяет: Сотрудники, Подрядчики, Надзоры
+  // "Настройки" объединяет: Управление доступом, Настройки системы
+  // УДАЛЕНО: Техусловия (technical-conditions)
   const allMenuItems = [
+    // 1. Дашборд
     {
       key: '/dashboard',
       icon: <DashboardOutlined />,
       label: <Link to="/dashboard">Дашборд</Link>,
-      page: 'dashboard',  // slug страницы в БД
+      page: 'dashboard',
       visible: hasPageAccess('dashboard'),
     },
+
+    // 2. Проекты
     {
       key: '/dashboard/projects',
       icon: <ProjectOutlined />,
@@ -52,6 +61,40 @@ const MainLayout = () => {
       page: 'projects',
       visible: hasPageAccess('projects'),
     },
+
+    // 3. Персонал (НОВОЕ МЕНЮ с подпунктами)
+    {
+      key: 'personnel',
+      icon: <UsergroupAddOutlined />,
+      label: 'Персонал',
+      // Показываем меню, если есть доступ хотя бы к одной странице
+      visible: hasPageAccess('users') || hasPageAccess('contractors') || hasPageAccess('supervisions'),
+      children: [
+        {
+          key: '/dashboard/users',
+          icon: <UserOutlined />,
+          label: <Link to="/dashboard/users">Сотрудники</Link>,
+          page: 'users',
+          visible: hasPageAccess('users'),
+        },
+        {
+          key: '/dashboard/contractors',
+          icon: <TeamOutlined />,
+          label: <Link to="/dashboard/contractors">Подрядчики</Link>,
+          page: 'contractors',
+          visible: hasPageAccess('contractors'),
+        },
+        {
+          key: '/dashboard/supervisions',
+          icon: <SafetyOutlined />,
+          label: <Link to="/dashboard/supervisions">Надзоры</Link>,
+          page: 'supervisions',
+          visible: hasPageAccess('supervisions'),
+        },
+      ],
+    },
+
+    // 4. Замечания
     {
       key: '/dashboard/issues',
       icon: <FileTextOutlined />,
@@ -59,34 +102,8 @@ const MainLayout = () => {
       page: 'issues',
       visible: hasPageAccess('issues'),
     },
-    {
-      key: '/dashboard/users',
-      icon: <UserOutlined />,
-      label: <Link to="/dashboard/users">Сотрудники</Link>,
-      page: 'users',
-      visible: hasPageAccess('users'),
-    },
-    {
-      key: '/dashboard/contractors',
-      icon: <TeamOutlined />,
-      label: <Link to="/dashboard/contractors">Подрядчики</Link>,
-      page: 'contractors',
-      visible: hasPageAccess('contractors'),
-    },
-    {
-      key: '/dashboard/supervisions',
-      icon: <SafetyOutlined />,
-      label: <Link to="/dashboard/supervisions">Надзоры</Link>,
-      page: 'supervisions',
-      visible: hasPageAccess('supervisions'),
-    },
-    {
-      key: '/dashboard/technical-conditions',
-      icon: <FileProtectOutlined />,
-      label: <Link to="/dashboard/technical-conditions">Техусловия</Link>,
-      page: 'technical-conditions',
-      visible: hasPageAccess('technical-conditions'),
-    },
+
+    // 5. Заявки
     {
       key: '/dashboard/material-requests',
       icon: <ShoppingCartOutlined />,
@@ -94,6 +111,8 @@ const MainLayout = () => {
       page: 'material-requests',
       visible: hasPageAccess('material-requests'),
     },
+
+    // 6. Склад
     {
       key: '/dashboard/warehouse',
       icon: <InboxOutlined />,
@@ -101,6 +120,8 @@ const MainLayout = () => {
       page: 'warehouse',
       visible: hasPageAccess('warehouse'),
     },
+
+    // 7. Тендеры
     {
       key: '/dashboard/tenders',
       icon: <DollarOutlined />,
@@ -108,6 +129,8 @@ const MainLayout = () => {
       page: 'tenders',
       visible: hasPageAccess('tenders'),
     },
+
+    // 8. Отчеты
     {
       key: '/dashboard/reports',
       icon: <BarChartOutlined />,
@@ -115,19 +138,55 @@ const MainLayout = () => {
       page: 'reports',
       visible: hasPageAccess('reports'),
     },
+
+    // 9. Настройки (с подпунктами)
     {
-      key: '/dashboard/settings',
+      key: 'settings',
       icon: <SettingOutlined />,
-      label: <Link to="/dashboard/settings">Настройки</Link>,
+      label: 'Настройки',
       page: 'settings',
       visible: hasPageAccess('settings'),
+      children: [
+        {
+          key: '/dashboard/access-management',
+          icon: <SecurityScanOutlined />,
+          label: <Link to="/dashboard/access-management">Управление доступом</Link>,
+          page: 'settings',
+          visible: hasPageAccess('settings'),
+        },
+        {
+          key: '/dashboard/settings',
+          icon: <SettingOutlined />,
+          label: <Link to="/dashboard/settings">Настройки системы</Link>,
+          page: 'settings',
+          visible: hasPageAccess('settings'),
+        },
+      ],
     },
   ]
 
-  // Фильтруем меню по полю visible и удаляем поле visible из результата
-  const menuItems = allMenuItems
-    .filter(item => item.visible !== false)
-    .map(({ visible, ...item }) => item)
+  // ===== РЕКУРСИВНАЯ ФИЛЬТРАЦИЯ МЕНЮ =====
+  // Фильтруем меню с учетом подменю (children)
+  // Если у родительского элемента нет доступных подпунктов, скрываем весь раздел
+  const filterMenuItems = (items: any[]): any[] => {
+    return items
+      .filter(item => item.visible !== false) // Фильтруем по visible
+      .map(({ visible, ...item }) => {
+        // Если есть подменю (children), фильтруем их рекурсивно
+        if (item.children) {
+          const filteredChildren = filterMenuItems(item.children)
+          // Если нет доступных подпунктов, возвращаем null (скрываем родителя)
+          if (filteredChildren.length === 0) {
+            return null
+          }
+          return { ...item, children: filteredChildren }
+        }
+        return item
+      })
+      .filter(Boolean) // Удаляем null значения
+  }
+
+  const menuItems = filterMenuItems(allMenuItems)
 
   const userMenuItems = [
     {

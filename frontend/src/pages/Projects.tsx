@@ -23,7 +23,10 @@ import {
   EyeOutlined,
   EditOutlined,
   DeleteOutlined,
-  UserOutlined
+  UserOutlined,
+  FileExcelOutlined,
+  ImportOutlined,
+  ExportOutlined
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { UploadFile } from 'antd/es/upload/interface'
@@ -222,6 +225,40 @@ const Projects = () => {
     },
     onError: (error: any) => {
       console.error('Failed to upload drawing:', error)
+    }
+  })
+
+  // Excel import mutation
+  const importExcelMutation = useMutation({
+    mutationFn: projectsAPI.importExcel,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      const { created, errors } = data
+
+      if (errors && errors.length > 0) {
+        Modal.warning({
+          title: 'Импорт завершен с предупреждениями',
+          content: (
+            <div>
+              <p>Импортировано проектов: {created}</p>
+              <p>Обнаружены ошибки:</p>
+              <ul>
+                {errors.map((err: string, idx: number) => (
+                  <li key={idx}>{err}</li>
+                ))}
+              </ul>
+            </div>
+          ),
+          width: 600
+        })
+      } else {
+        message.success(`Успешно импортировано проектов: ${created}`)
+      }
+    },
+    onError: (error: any) => {
+      console.error('Failed to import Excel:', error)
+      const errorMessage = error.response?.data?.errors?.join('\n') || 'Ошибка при импорте Excel файла'
+      message.error(errorMessage)
     }
   })
 
@@ -491,6 +528,71 @@ const Projects = () => {
     accept: '.pdf'
   }
 
+  // Обработчик скачивания шаблона Excel
+  const handleDownloadTemplate = async () => {
+    try {
+      message.loading({ content: 'Скачивание шаблона...', key: 'download-template' })
+      const blob = await projectsAPI.downloadTemplate()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'projects_template.xlsx'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      message.success({ content: 'Шаблон успешно скачан', key: 'download-template' })
+    } catch (error) {
+      console.error('Failed to download template:', error)
+      message.error({ content: 'Ошибка при скачивании шаблона', key: 'download-template' })
+    }
+  }
+
+  // Обработчик импорта Excel
+  const handleImportExcel = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.xlsx'
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+
+      if (!file.name.endsWith('.xlsx')) {
+        message.error('Пожалуйста, выберите файл Excel (.xlsx)')
+        return
+      }
+
+      try {
+        message.loading({ content: 'Импорт данных из Excel...', key: 'import-excel' })
+        await importExcelMutation.mutateAsync(file)
+        message.destroy('import-excel')
+      } catch (error) {
+        message.destroy('import-excel')
+      }
+    }
+    input.click()
+  }
+
+  // Обработчик экспорта Excel
+  const handleExportExcel = async () => {
+    try {
+      message.loading({ content: 'Экспорт данных в Excel...', key: 'export-excel' })
+      const blob = await projectsAPI.exportExcel()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `projects_export_${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      message.success({ content: 'Данные успешно экспортированы', key: 'export-excel' })
+    } catch (error) {
+      console.error('Failed to export Excel:', error)
+      message.error({ content: 'Ошибка при экспорте данных', key: 'export-excel' })
+    }
+  }
+
   const columns: ColumnsType<Project> = [
     {
       title: 'Название объекта',
@@ -655,30 +757,48 @@ const Projects = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ flex: 1 }}>
+      <div style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
           <Title level={2}>Проекты</Title>
-          <Alert
-            message="Чертежи в формате PDF"
-            description="В этом разделе можно добавлять чертежи в формате PDF. К каждому чертежу будет автоматически добавлена информация о том, кто его добавил (ФИО, Должность, Отдел) и дата добавления."
-            type="info"
-            icon={<FilePdfOutlined />}
-            showIcon
-            style={{ marginBottom: '16px' }}
-          />
+          <Space>
+            {/* Кнопки Excel доступны всем */}
+            <Button
+              icon={<FileExcelOutlined />}
+              onClick={handleDownloadTemplate}
+            >
+              Скачать шаблон
+            </Button>
+            <Button
+              icon={<ImportOutlined />}
+              onClick={handleImportExcel}
+            >
+              Импорт Excel
+            </Button>
+            <Button
+              icon={<ExportOutlined />}
+              onClick={handleExportExcel}
+            >
+              Экспорт Excel
+            </Button>
+            {/* Кнопка "Добавить объект": Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер, Прораб */}
+            {canAddProject() && (
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={handleAddProject}
+              >
+                Добавить объект
+              </Button>
+            )}
+          </Space>
         </div>
-        {/* Кнопка "Добавить объект": Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер, Прораб */}
-        {canAddProject() && (
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            size="large"
-            onClick={handleAddProject}
-            style={{ marginLeft: '16px' }}
-          >
-            Добавить объект
-          </Button>
-        )}
+        <Alert
+          message="Чертежи в формате PDF"
+          description="В этом разделе можно добавлять чертежи в формате PDF. К каждому чертежу будет автоматически добавлена информация о том, кто его добавил (ФИО, Должность, Отдел) и дата добавления."
+          type="info"
+          icon={<FilePdfOutlined />}
+          showIcon
+        />
       </div>
 
       <Table

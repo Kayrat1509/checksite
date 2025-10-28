@@ -128,5 +128,45 @@ export const usersAPI = {
       }
     })
     return response.data
+  },
+
+  // ===== НОВЫЕ МЕТОДЫ ДЛЯ PERSONNEL EXCEL V2 =====
+
+  // Экспорт шаблона v2 для импорта персонала
+  exportTemplateV2: async () => {
+    const response = await axios.get('/auth/users/export-template-v2/', {
+      responseType: 'blob'
+    })
+    return response.data
+  },
+
+  // Экспорт текущих пользователей в формате v2
+  exportUsersV2: async () => {
+    const response = await axios.get('/auth/users/export-v2/', {
+      responseType: 'blob'
+    })
+    return response.data
+  },
+
+  // Экспорт backup с timestamp
+  exportBackup: async () => {
+    const response = await axios.get('/auth/users/export-backup/', {
+      responseType: 'blob'
+    })
+    return response.data
+  },
+
+  // Импорт пользователей v2 с поддержкой режимов
+  importUsersV2: async (file: File, mode: 'create' | 'update' = 'create') => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('mode', mode)
+
+    const response = await axios.post('/auth/users/import-v2/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    return response.data
   }
 }

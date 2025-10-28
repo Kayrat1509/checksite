@@ -32,9 +32,10 @@ class UserSerializer(serializers.ModelSerializer):
             'middle_name', 'full_name', 'short_name', 'role', 'position',
             'phone', 'telegram_id', 'avatar', 'company', 'company_name', 'external_company_name', 'supervision_company',
             'is_active', 'is_verified', 'is_superuser', 'approved', 'archived', 'temp_password',
+            'is_company_owner', 'has_full_access', 'role_category',  # НОВЫЕ ПОЛЯ
             'user_projects', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'is_verified', 'is_superuser']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'is_verified', 'is_superuser', 'is_company_owner', 'has_full_access', 'role_category']
 
     def get_user_projects(self, obj):
         """Получить список проектов пользователя."""

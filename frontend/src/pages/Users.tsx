@@ -39,7 +39,7 @@ import { authAPI } from '../api/auth'
 import { projectsAPI } from '../api/projects'
 import { companiesAPI } from '../api/companies'
 import { useAuthStore } from '../stores/authStore'
-import { UserImportExport } from '../components/UserImportExport'
+import PersonnelImportExport from '../components/PersonnelImportExport'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -584,8 +584,8 @@ const Users = () => {
         <Title level={2}>Сотрудники</Title>
 
         <Space size="middle">
-          {/* Кнопки импорта/экспорта */}
-          {canAddUser() && <UserImportExport />}
+          {/* Кнопки импорта/экспорта v2 с расширенным функционалом */}
+          {canAddUser() && <PersonnelImportExport />}
 
           {/* Кнопка "Добавить сотрудника" */}
           {canAddUser() && (

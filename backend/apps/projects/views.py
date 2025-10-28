@@ -8,7 +8,8 @@ from django.db import models
 from .models import Project, Site, Category, Drawing
 from .serializers import (
     ProjectSerializer, ProjectListSerializer,
-    SiteSerializer, CategorySerializer, DrawingSerializer
+    SiteSerializer, CategorySerializer, DrawingSerializer,
+    ProjectImportSerializer
 )
 from apps.users.permissions import (
     IsManagementOrSuperAdmin, CanManageProjects, CanManageProjectsAndDrawings
@@ -135,6 +136,127 @@ class ProjectViewSet(viewsets.ModelViewSet):
         contractors = project.team_members.filter(role='CONTRACTOR')
         serializer = UserSerializer(contractors, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='download-template')
+    def download_template(self, request):
+        """
+        Скачать шаблон Excel для импорта проектов.
+
+        GET /api/projects/download-template/
+
+        Возвращает Excel файл с заголовками:
+        - Наименование объекта*
+        - Страна
+        - Адрес*
+        """
+        from .utils import generate_excel_template
+        return generate_excel_template()
+
+    @action(detail=False, methods=['post'], url_path='import-excel', parser_classes=[MultiPartParser, FormParser])
+    def import_excel(self, request):
+        """
+        Импортировать проекты из Excel файла.
+
+        POST /api/projects/import-excel/
+
+        Ожидается multipart/form-data с файлом 'file'.
+
+        Структура Excel файла:
+        - Наименование объекта* (обязательное)
+        - Страна (необязательное)
+        - Адрес* (обязательное)
+
+        Возвращает:
+        {
+            "success": true,
+            "created": 10,
+            "errors": []
+        }
+        """
+        from .utils import parse_excel_file
+
+        # Валидация файла через сериализатор
+        serializer = ProjectImportSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {'success': False, 'errors': serializer.errors},
+                status=http_status.HTTP_400_BAD_REQUEST
+            )
+
+        # Парсим Excel файл
+        file = serializer.validated_data['file']
+        result = parse_excel_file(file)
+
+        if not result['success']:
+            return Response(
+                {'success': False, 'errors': result['errors']},
+                status=http_status.HTTP_400_BAD_REQUEST
+            )
+
+        # Создаем проекты
+        created_count = 0
+        errors = []
+
+        for idx, project_data in enumerate(result['data'], start=2):
+            try:
+                # Проверяем, есть ли уже проект с таким названием в компании
+                existing_project = Project.objects.filter(
+                    company=request.user.company,
+                    name=project_data['name']
+                ).first()
+
+                if existing_project:
+                    errors.append(
+                        f'Строка {idx}: Проект "{project_data["name"]}" уже существует'
+                    )
+                    continue
+
+                # Создаем новый проект
+                Project.objects.create(
+                    company=request.user.company,
+                    name=project_data['name'],
+                    address=project_data['address'],
+                    customer=project_data.get('customer', ''),
+                    project_manager=request.user
+                )
+                created_count += 1
+
+            except Exception as e:
+                errors.append(f'Строка {idx}: Ошибка при создании проекта - {str(e)}')
+
+        return Response({
+            'success': True,
+            'created': created_count,
+            'errors': errors
+        })
+
+    @action(detail=False, methods=['get'], url_path='export-excel')
+    def export_excel(self, request):
+        """
+        Экспортировать все проекты компании в Excel файл.
+
+        GET /api/projects/export-excel/
+
+        Структура экспорта:
+        - Наименование объекта
+        - Страна
+        - Адрес
+        - Закреплённые сотрудники
+        - Надзоры
+        - Подрядчики
+
+        Возвращает Excel файл для скачивания.
+        """
+        from .utils import generate_excel_export
+
+        # Получаем все проекты пользователя (с учетом прав доступа)
+        projects = self.get_queryset().select_related(
+            'company', 'project_manager'
+        ).prefetch_related(
+            'team_members', 'supervisions', 'contractors'
+        )
+
+        return generate_excel_export(projects)
 
 
 class SiteViewSet(viewsets.ModelViewSet):

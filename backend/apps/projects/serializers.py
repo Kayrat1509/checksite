@@ -195,3 +195,30 @@ class DrawingSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'uploaded_by', 'created_at', 'updated_at']
+
+
+class ProjectImportSerializer(serializers.Serializer):
+    """
+    Сериализатор для импорта проектов из Excel файла.
+    """
+    file = serializers.FileField(
+        help_text='Excel файл с проектами (.xlsx)',
+        required=True
+    )
+
+    def validate_file(self, value):
+        """Валидация загруженного файла."""
+        # Проверяем расширение файла
+        if not value.name.endswith('.xlsx'):
+            raise serializers.ValidationError(
+                'Неверный формат файла. Пожалуйста, загрузите файл Excel (.xlsx)'
+            )
+
+        # Проверяем размер файла (не более 10 МБ)
+        max_size = 10 * 1024 * 1024  # 10 MB
+        if value.size > max_size:
+            raise serializers.ValidationError(
+                f'Файл слишком большой. Максимальный размер: 10 МБ'
+            )
+
+        return value

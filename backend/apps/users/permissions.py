@@ -225,3 +225,56 @@ class IsSameCompany(permissions.BasePermission):
 
         # По умолчанию запрещаем доступ
         return False
+
+
+class CanManagePersonnelExcel(permissions.BasePermission):
+    """
+    Permission для управления импортом/экспортом персонала через Excel.
+
+    Разрешено:
+    - SUPERADMIN — всегда
+    - Категория MANAGEMENT:
+        - DIRECTOR — всегда
+        - CHIEF_ENGINEER — всегда
+        - PROJECT_MANAGER — всегда
+        - SITE_MANAGER — только если approved_by_director=True
+        - FOREMAN — только если approved_by_director=True
+    - Остальные — запрещено
+
+    Логика проверки:
+    1. Если суперадмин — разрешить
+    2. Если категория MANAGEMENT:
+       a. Для высшего руководства (DIRECTOR, CHIEF_ENGINEER, PROJECT_MANAGER) — разрешить
+       b. Для среднего менеджмента (SITE_MANAGER, FOREMAN) — проверить одобрение директора
+    3. Для всех остальных — запретить
+    """
+
+    def has_permission(self, request, view):
+        from apps.users.models import User
+
+        user = request.user
+
+        # Проверяем аутентификацию
+        if not user or not user.is_authenticated:
+            return False
+
+        # 1. Суперадмин — всегда разрешено
+        if user.is_superuser:
+            return True
+
+        # 2. Проверяем категорию MANAGEMENT
+        if user.role_category == 'MANAGEMENT':
+            # Высшее руководство — всегда разрешено
+            if user.role in [
+                User.Role.DIRECTOR,
+                User.Role.CHIEF_ENGINEER,
+                User.Role.PROJECT_MANAGER
+            ]:
+                return True
+
+            # Средний менеджмент — требуется одобрение директора
+            if user.role in [User.Role.SITE_MANAGER, User.Role.FOREMAN]:
+                return user.approved_by_director
+
+        # 3. Для всех остальных — запрещено
+        return False

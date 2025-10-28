@@ -187,6 +187,38 @@ class User(AbstractUser):
     approved = models.BooleanField(_('Одобрено'), default=False, help_text=_('Разрешен ли доступ к странице пользователей'))
     archived = models.BooleanField(_('В архиве'), default=False, help_text=_('Подрядчик перемещен в архив (soft delete)'))
 
+    # НОВЫЕ ПОЛЯ ДЛЯ СИСТЕМЫ РОЛЕЙ И ДОСТУПА
+    is_company_owner = models.BooleanField(
+        _('Владелец компании'),
+        default=False,
+        help_text=_('Первый зарегистрированный пользователь компании, имеющий полный контроль')
+    )
+    has_full_access = models.BooleanField(
+        _('Полный доступ'),
+        default=False,
+        help_text=_('Автоматический доступ ко всем страницам системы (для категории Руководство)')
+    )
+    role_category = models.CharField(
+        _('Категория должности'),
+        max_length=50,
+        choices=[
+            ('MANAGEMENT', _('Руководство')),
+            ('ITR_SUPPLY', _('ИТР и снабжение')),
+        ],
+        default='ITR_SUPPLY',
+        help_text=_('Категория, определяющая уровень доступа по умолчанию')
+    )
+
+    # Одобрение директором для Excel импорта/экспорта персонала
+    approved_by_director = models.BooleanField(
+        _('Одобрен директором'),
+        default=False,
+        help_text=_(
+            'Разрешение от директора на управление импортом/экспортом персонала. '
+            'Требуется для ролей: Начальник участка, Прораб'
+        )
+    )
+
     # Временный пароль для отображения администратору
     temp_password = models.CharField(_('Временный пароль'), max_length=255, blank=True, null=True, help_text=_('Пароль для передачи пользователю'))
 
@@ -260,6 +292,36 @@ class User(AbstractUser):
             self.Role.FOREMAN,
             self.Role.MASTER,
         ]
+
+    @property
+    def is_management_category(self):
+        """Проверка: относится ли роль к категории Руководство."""
+        management_roles = [
+            self.Role.DIRECTOR,
+            self.Role.CHIEF_ENGINEER,
+            self.Role.PROJECT_MANAGER,
+            self.Role.SITE_MANAGER,
+            self.Role.FOREMAN,
+        ]
+        return self.role in management_roles
+
+    @property
+    def is_itr_supply_category(self):
+        """Проверка: относится ли роль к категории ИТР и снабжение."""
+        itr_supply_roles = [
+            self.Role.ENGINEER,
+            self.Role.MASTER,
+            self.Role.SUPPLY_MANAGER,
+            self.Role.WAREHOUSE_HEAD,
+            self.Role.SITE_WAREHOUSE_MANAGER,
+        ]
+        return self.role in itr_supply_roles
+
+    def get_role_category(self):
+        """Получить категорию роли пользователя."""
+        if self.is_management_category:
+            return 'MANAGEMENT'
+        return 'ITR_SUPPLY'
 
     @property
     def is_supervisor(self):

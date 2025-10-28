@@ -15,13 +15,14 @@ import Issues from './pages/Issues'
 import Users from './pages/Users'
 import Contractors from './pages/Contractors'
 import Supervisions from './pages/Supervisions'
-import TechnicalConditions from './pages/TechnicalConditions'
+// УДАЛЕНО: import TechnicalConditions - компонент удален из проекта
 import MaterialRequests from './pages/MaterialRequests'
 import Tenders from './pages/Tenders'
 import Warehouse from './pages/Warehouse'
 import Reports from './pages/Reports'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
+import AccessManagement from './pages/AccessManagement'
 import NotFound from './pages/NotFound'
 
 // Публичные тендеры (для внешних пользователей)
@@ -92,13 +93,14 @@ function App() {
           <Route path="users" element={<Users />} />
           <Route path="contractors" element={<Contractors />} />
           <Route path="supervisions" element={<Supervisions />} />
-          <Route path="technical-conditions" element={<TechnicalConditions />} />
+          {/* УДАЛЕНО: <Route path="technical-conditions" /> - функционал удален из системы */}
           <Route path="material-requests" element={<MaterialRequests />} />
           <Route path="tenders" element={<Tenders />} />
           <Route path="warehouse" element={<Warehouse />} />
           <Route path="reports" element={<Reports />} />
           <Route path="profile" element={<Profile />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="access-management" element={<AccessManagement />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

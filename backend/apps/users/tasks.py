@@ -135,3 +135,82 @@ def send_password_change_reminder(user_id):
     except Exception as exc:
         logger.error(f'Ошибка при отправке напоминания: {str(exc)}')
         return {'status': 'error', 'message': str(exc)}
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def send_permanent_credentials_email(self, user_id, plain_password):
+    """
+    Отправляет email с постоянными credentials (логин + пароль) при импорте персонала.
+
+    Отличия от временного пароля:
+    - Пароль постоянный (не требует обязательной смены)
+    - Рекомендуется изменить в профиле, но не обязательно
+    - Используется при массовом импорте через Excel
+
+    Args:
+        user_id (int): ID пользователя
+        plain_password (str): Пароль в открытом виде (уже захэширован в БД)
+
+    Returns:
+        dict: Результат отправки с информацией о статусе
+    """
+    try:
+        user = User.objects.get(id=user_id)
+
+        # Формируем тему письма
+        subject = f'Доступ к системе {settings.SITE_NAME or "Check_Site"}'
+
+        # Формируем контекст для шаблона
+        context = {
+            'user': user,
+            'email': user.email,
+            'password': plain_password,
+            'site_url': settings.SITE_URL or 'http://localhost:5174',
+            'site_name': settings.SITE_NAME or 'Check_Site',
+            'company_name': user.company.name if user.company else 'Неизвестная компания',
+            'login_url': f"{settings.SITE_URL or 'http://localhost:5174'}/login",
+        }
+
+        # Рендерим HTML версию письма
+        html_message = render_to_string('users/emails/permanent_credentials.html', context)
+
+        # Рендерим текстовую версию письма
+        text_message = render_to_string('users/emails/permanent_credentials.txt', context)
+
+        # Отправляем email
+        send_mail(
+            subject=subject,
+            message=text_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            html_message=html_message,
+            fail_silently=False,
+        )
+
+        logger.info(
+            f'Email с постоянными credentials отправлен пользователю {user.email} '
+            f'(Компания: {user.company.name if user.company else "N/A"})'
+        )
+
+        return {
+            'status': 'success',
+            'user_id': user_id,
+            'user_email': user.email,
+            'message': 'Email с постоянными credentials успешно отправлен'
+        }
+
+    except User.DoesNotExist:
+        logger.error(f'Пользователь с ID {user_id} не найден при отправке постоянных credentials')
+        return {
+            'status': 'error',
+            'user_id': user_id,
+            'message': f'Пользователь с ID {user_id} не найден'
+        }
+
+    except Exception as exc:
+        logger.error(
+            f'Ошибка при отправке email с постоянными credentials для user_id={user_id}: {str(exc)}',
+            exc_info=True
+        )
+        # Повторная попытка при ошибке (максимум 3 попытки с интервалом 60 секунд)
+        raise self.retry(exc=exc)

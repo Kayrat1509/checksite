@@ -70,4 +70,31 @@ export const projectsAPI = {
   deleteDrawing: async (id: number) => {
     await axios.delete(`/projects/drawings/${id}/`)
   },
+
+  // Excel Import/Export APIs
+  downloadTemplate: async () => {
+    const response = await axios.get('/projects/projects/download-template/', {
+      responseType: 'blob',
+    })
+    return response.data
+  },
+
+  importExcel: async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await axios.post('/projects/projects/import-excel/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return response.data
+  },
+
+  exportExcel: async () => {
+    const response = await axios.get('/projects/projects/export-excel/', {
+      responseType: 'blob',
+    })
+    return response.data
+  },
 }
