@@ -12,7 +12,6 @@ import {
   message,
   Spin,
   Alert,
-  Popconfirm,
   Row,
   Col,
   Result,
@@ -40,6 +39,7 @@ import { projectsAPI } from '../api/projects'
 import { companiesAPI } from '../api/companies'
 import { useAuthStore } from '../stores/authStore'
 import PersonnelImportExport from '../components/PersonnelImportExport'
+import { tripleConfirm } from '../utils/tripleConfirm'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -488,8 +488,20 @@ const Users = () => {
     setSelectedRole(null)
   }
 
-  const handleDeleteUser = (id: number) => {
-    deleteUserMutation.mutate(id)
+  // Обработчик удаления пользователя с тройным подтверждением
+  // Принимает объект пользователя для отображения его имени в диалогах подтверждения
+  const handleDeleteUser = (user: User) => {
+    // Формируем имя пользователя для отображения в диалогах подтверждения
+    const userName = `${user.last_name} ${user.first_name}`.trim() || user.email
+
+    // Используем тройное подтверждение для защиты от случайного удаления
+    tripleConfirm({
+      itemName: userName,
+      itemType: 'пользователя',
+      onConfirm: () => {
+        deleteUserMutation.mutate(user.id)
+      }
+    })
   }
 
   const handleToggleActive = (user: User) => {
@@ -737,24 +749,18 @@ const Users = () => {
                 )}
 
                 {/* Удалить */}
+                {/* Убрали Popconfirm, так как теперь используется тройное подтверждение через tripleConfirm */}
                 {canDeleteUserAction() && (
-                  <Popconfirm
-                    title="Удалить пользователя"
-                    description="Вы уверены, что хотите удалить этого пользователя?"
-                    onConfirm={() => handleDeleteUser(user.id)}
-                    okText="Да"
-                    cancelText="Нет"
+                  <Button
+                    type="default"
+                    danger
+                    icon={<DeleteOutlined />}
+                    size="small"
+                    block
+                    onClick={() => handleDeleteUser(user)}
                   >
-                    <Button
-                      type="default"
-                      danger
-                      icon={<DeleteOutlined />}
-                      size="small"
-                      block
-                    >
-                      Удалить
-                    </Button>
-                  </Popconfirm>
+                    Удалить
+                  </Button>
                 )}
               </Space>
             </Card>

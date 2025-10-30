@@ -36,6 +36,7 @@ import { usersAPI, User, CreateUserData } from '../api/users'
 import { authAPI } from '../api/auth'
 import { projectsAPI } from '../api/projects'
 import { companiesAPI } from '../api/companies'
+import { tripleConfirm } from '../utils/tripleConfirm'
 
 const { Title, Text } = Typography
 
@@ -414,8 +415,20 @@ const Contractors = () => {
     setEditingUser(null)
   }
 
-  const handleDeleteContractor = (id: number) => {
-    deleteContractorMutation.mutate(id)
+  // Обработчик удаления подрядчика с тройным подтверждением
+  // Принимает объект подрядчика для отображения его имени в диалогах подтверждения
+  const handleDeleteContractor = (contractor: User) => {
+    // Формируем имя подрядчика для отображения в диалогах подтверждения
+    const contractorName = `${contractor.last_name} ${contractor.first_name}`.trim() || contractor.email
+
+    // Используем тройное подтверждение для защиты от случайного удаления
+    tripleConfirm({
+      itemName: contractorName,
+      itemType: 'подрядчика',
+      onConfirm: () => {
+        deleteContractorMutation.mutate(contractor.id)
+      }
+    })
   }
 
   const handleArchiveContractor = (id: number) => {
@@ -664,24 +677,18 @@ const Contractors = () => {
                 )}
 
                 {/* Удалить окончательно (только для суперадмина в архиве) */}
+                {/* Убрали Popconfirm, так как теперь используется тройное подтверждение через tripleConfirm */}
                 {canDeleteContractor() && contractor.archived && (
-                  <Popconfirm
-                    title="Удалить окончательно"
-                    description="Это действие необратимо! Все данные подрядчика будут удалены."
-                    onConfirm={() => handleDeleteContractor(contractor.id)}
-                    okText="Да, удалить"
-                    cancelText="Отмена"
+                  <Button
+                    type="default"
+                    danger
+                    icon={<DeleteOutlined />}
+                    size="small"
+                    block
+                    onClick={() => handleDeleteContractor(contractor)}
                   >
-                    <Button
-                      type="default"
-                      danger
-                      icon={<DeleteOutlined />}
-                      size="small"
-                      block
-                    >
-                      Удалить окончательно
-                    </Button>
-                  </Popconfirm>
+                    Удалить окончательно
+                  </Button>
                 )}
               </Space>
             </Card>

@@ -839,9 +839,17 @@ class UserViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_201_CREATED)
 
         except Exception as e:
+            # Детальное логирование для отладки
+            import traceback
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"[import_users_v2] Exception during import: {str(e)}")
+            logger.error(f"[import_users_v2] Traceback: {traceback.format_exc()}")
+
             return Response({
                 'error': 'Ошибка при импорте персонала',
-                'details': str(e)
+                'details': str(e),
+                'traceback': traceback.format_exc() if hasattr(e, '__traceback__') else None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

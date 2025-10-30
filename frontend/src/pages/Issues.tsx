@@ -41,6 +41,7 @@ import { useAuthStore } from '../stores/authStore'
 import type { UploadFile } from 'antd/es/upload/interface'
 import dayjs from 'dayjs'
 import 'dayjs/locale/ru'
+import { tripleConfirm } from '../utils/tripleConfirm'
 
 dayjs.locale('ru')
 
@@ -555,13 +556,11 @@ const Issues = () => {
 
   // Обработчик удаления замечания
   const handleDeleteIssue = (issueId: number) => {
-    Modal.confirm({
-      title: 'Удалить замечание?',
-      content: 'Вы уверены, что хотите удалить это замечание? Это действие нельзя отменить.',
-      okText: 'Удалить',
-      okType: 'danger',
-      cancelText: 'Отмена',
-      onOk: () => {
+    // Используем тройное подтверждение для защиты от случайного удаления
+    tripleConfirm({
+      itemName: `Замечание #${issueId}`,
+      itemType: 'замечание',
+      onConfirm: () => {
         deleteIssueMutation.mutate(issueId)
       }
     })
@@ -575,12 +574,11 @@ const Issues = () => {
 
   // Обработчик для удаления фото
   const handleDeletePhoto = (photoId: number) => {
-    Modal.confirm({
-      title: 'Удалить фото?',
-      content: 'Вы уверены, что хотите удалить это фото?',
-      okText: 'Удалить',
-      cancelText: 'Отмена',
-      onOk: () => deletePhotoMutation.mutate(photoId)
+    // Используем тройное подтверждение для защиты от случайного удаления
+    tripleConfirm({
+      itemName: `Фото #${photoId}`,
+      itemType: 'фотографию',
+      onConfirm: () => deletePhotoMutation.mutate(photoId)
     })
   }
 

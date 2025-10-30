@@ -33,6 +33,7 @@ import { usersAPI, User, CreateUserData } from '../api/users'
 import { useAuthStore } from '../stores/authStore'
 import { projectsAPI } from '../api/projects'
 import { companiesAPI } from '../api/companies'
+import { tripleConfirm } from '../utils/tripleConfirm'
 
 const { Title, Text } = Typography
 
@@ -260,8 +261,20 @@ const Supervisions = () => {
     unarchiveMutation.mutate(id)
   }
 
-  const handleDeleteSupervision = (id: number) => {
-    deleteMutation.mutate(id)
+  // Обработчик удаления надзора с тройным подтверждением
+  // Принимает объект надзора для отображения его имени в диалогах подтверждения
+  const handleDeleteSupervision = (supervision: User) => {
+    // Формируем имя надзора для отображения в диалогах подтверждения
+    const supervisionName = `${supervision.last_name} ${supervision.first_name}`.trim() || supervision.email
+
+    // Используем тройное подтверждение для защиты от случайного удаления
+    tripleConfirm({
+      itemName: supervisionName,
+      itemType: 'надзор',
+      onConfirm: () => {
+        deleteMutation.mutate(supervision.id)
+      }
+    })
   }
 
   const handleModalOk = () => {
@@ -592,24 +605,18 @@ const Supervisions = () => {
                 )}
 
                 {/* Удалить окончательно (только для суперадмина в архиве) */}
+                {/* Убрали Popconfirm, так как теперь используется тройное подтверждение через tripleConfirm */}
                 {canDeleteSupervision() && supervision.archived && (
-                  <Popconfirm
-                    title="Удалить окончательно"
-                    description="Это действие необратимо! Все данные надзора будут удалены."
-                    onConfirm={() => handleDeleteSupervision(supervision.id)}
-                    okText="Да, удалить"
-                    cancelText="Отмена"
+                  <Button
+                    type="default"
+                    danger
+                    icon={<DeleteOutlined />}
+                    size="small"
+                    block
+                    onClick={() => handleDeleteSupervision(supervision)}
                   >
-                    <Button
-                      type="default"
-                      danger
-                      icon={<DeleteOutlined />}
-                      size="small"
-                      block
-                    >
-                      Удалить окончательно
-                    </Button>
-                  </Popconfirm>
+                    Удалить окончательно
+                  </Button>
                 )}
               </Space>
             </Card>

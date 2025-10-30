@@ -101,7 +101,10 @@ class PersonnelExcelHandler:
             ("2. НЕОБЯЗАТЕЛЬНЫЕ ПОЛЯ:", 11, True),
             ("   - Должность — текстовое описание должности", 11, False),
             ("   - Телефон — формат: +7XXXXXXXXXX или +7 (XXX) XXX-XX-XX", 11, False),
-            ("   - Проекты — выберите один или несколько проектов из списка (через запятую)", 11, False),
+            ("   - Проекты — можно выбрать из выпадающего списка ИЛИ ввести несколько через запятую:", 11, False),
+            ("     Пример 1: Выбрать из списка → Жилой комплекс Восход", 11, False),
+            ("     Пример 2: Ввести несколько → Жилой комплекс Восход, ТЦ Запад, Школа №5", 11, False),
+            ("     (при вводе нескольких проектов разделяйте их запятой)", 11, False),
             ("", 11, False),
             ("3. ВАЖНО:", 11, True),
             ("   - Email должен быть уникальным в системе", 11, False),
@@ -113,28 +116,28 @@ class PersonnelExcelHandler:
             ("4. ОПИСАНИЕ РОЛЕЙ:", 11, True),
             ("", 11, False),
             ("   КАТЕГОРИЯ \"РУКОВОДСТВО\" (полный доступ ко всем страницам):", 11, True),
-            ("   - DIRECTOR — Директор", 11, False),
-            ("   - CHIEF_ENGINEER — Главный инженер", 11, False),
-            ("   - PROJECT_MANAGER — Руководитель проекта", 11, False),
-            ("   - SITE_MANAGER — Начальник участка", 11, False),
-            ("   - FOREMAN — Прораб", 11, False),
+            ("   - Директор (полный доступ к системе)", 11, False),
+            ("   - Главный инженер (полный доступ к системе)", 11, False),
+            ("   - Руководитель проекта (управление проектами)", 11, False),
+            ("   - Начальник участка (управление участком)", 11, False),
+            ("   - Прораб (контроль работ)", 11, False),
             ("", 11, False),
             ("   КАТЕГОРИЯ \"ИТР И СНАБЖЕНИЕ\" (ограниченный доступ):", 11, True),
-            ("   - ENGINEER — Инженер ПТО", 11, False),
-            ("   - MASTER — Мастер", 11, False),
-            ("   - SUPPLY_MANAGER — Менеджер снабжения", 11, False),
-            ("   - WAREHOUSE_HEAD — Заведующий центральным складом", 11, False),
-            ("   - SITE_WAREHOUSE_MANAGER — Заведующий складом на объекте", 11, False),
+            ("   - Инженер ПТО (проектно-техническая документация)", 11, False),
+            ("   - Мастер (контроль работ на участке)", 11, False),
+            ("   - Снабженец (заявки на материалы)", 11, False),
+            ("   - Зав.Центрсклада (управление центральным складом)", 11, False),
+            ("   - Завсклад объекта (управление складом объекта)", 11, False),
             ("", 11, False),
-            ("   ПРОЧИЕ РОЛИ (минимальный доступ):", 11, True),
-            ("   - CONTRACTOR — Подрядчик", 11, False),
-            ("   - SUPERVISOR — Надзирающий", 11, False),
-            ("   - OBSERVER — Наблюдатель (только просмотр)", 11, False),
+            ("   ПРОЧИЕ РОЛИ (специальный доступ):", 11, True),
+            ("   - Подрядчик (управляется на отдельной странице)", 11, False),
+            ("   - Технадзор (управляется на отдельной странице)", 11, False),
+            ("   - Наблюдатель (только просмотр)", 11, False),
             ("", 11, False),
             ("5. ФОРМАТ ДАННЫХ:", 11, True),
             ("   - Email: example@company.com", 11, False),
             ("   - ФИО: Иванов Иван Иванович", 11, False),
-            ("   - Роль: DIRECTOR (выберите из списка)", 11, False),
+            ("   - Роль: Директор (выберите из выпадающего списка)", 11, False),
             ("   - Должность: Генеральный директор", 11, False),
             ("   - Телефон: +79991234567 или +7 (999) 123-45-67", 11, False),
             ("   - Проекты: Жилой комплекс \"Север\", ТЦ \"Запад\" (несколько через запятую)", 11, False),
@@ -173,7 +176,9 @@ class PersonnelExcelHandler:
 
         # ===== DROPDOWN ДЛЯ РОЛЕЙ =====
         # Все роли из User.Role (кроме SUPERADMIN)
-        role_choices = [role[0] for role in User.Role.choices if role[0] != 'SUPERADMIN']
+        # Используем role[1] для получения русских названий вместо кодов
+        # str() нужен для конвертации Django lazy translation (__proxy__) в обычную строку
+        role_choices = [str(role[1]) for role in User.Role.choices if role[0] != 'SUPERADMIN']
         role_formula = f'"{",".join(role_choices)}"'
 
         role_validation = DataValidation(
@@ -203,9 +208,10 @@ class PersonnelExcelHandler:
                     type="list",
                     formula1=projects_formula,
                     allow_blank=True,
-                    showErrorMessage=True,
-                    error='Выберите проект из списка или введите несколько через запятую',
-                    errorTitle='Неверный проект'
+                    showErrorMessage=False,  # Разрешаем свободный ввод для множественного выбора
+                    showInputMessage=True,
+                    promptTitle='Выбор проектов',
+                    prompt='Выберите один проект из списка или введите несколько через запятую (например: Проект 1, Проект 2)'
                 )
                 projects_validation.add('F2:F1000')  # Применяем к колонке "Проекты" (F)
                 ws_data.add_data_validation(projects_validation)
@@ -224,18 +230,20 @@ class PersonnelExcelHandler:
                     type="list",
                     formula1=f"'__Проекты__'!$A$1:$A${len(company_projects)}",
                     allow_blank=True,
-                    showErrorMessage=True,
-                    error='Выберите проект из списка',
-                    errorTitle='Неверный проект'
+                    showErrorMessage=False,  # Разрешаем свободный ввод для множественного выбора
+                    showInputMessage=True,
+                    promptTitle='Выбор проектов',
+                    prompt='Выберите один проект из списка или введите несколько через запятую'
                 )
                 projects_validation.add('F2:F1000')
                 ws_data.add_data_validation(projects_validation)
 
         # ===== ПРИМЕР СТРОКИ =====
+        # Используем русское название роли вместо кода
         example_data = [
             'example@company.com',
             'Иванов Иван Иванович',
-            'DIRECTOR',
+            'Директор',  # Русское название вместо 'DIRECTOR'
             'Генеральный директор',
             '+79991234567',
             ', '.join(list(company_projects)[:2]) if company_projects else ''
@@ -301,10 +309,11 @@ class PersonnelExcelHandler:
             projects_str = ', '.join(user_projects) if user_projects else ''
 
             # Данные строки
+            # Используем get_role_display() для получения русского названия роли
             row_data = [
                 user.email,
                 full_name.strip(),
-                user.role,
+                user.get_role_display(),  # Русское название роли вместо кода
                 user.position or '',
                 user.phone or '',
                 projects_str
@@ -317,7 +326,9 @@ class PersonnelExcelHandler:
                 cell.border = self.CELL_BORDER
 
         # Добавляем dropdown валидацию для ролей и проектов (как в шаблоне)
-        role_choices = [role[0] for role in User.Role.choices if role[0] != 'SUPERADMIN']
+        # Используем role[1] для получения русских названий вместо кодов
+        # str() нужен для конвертации Django lazy translation (__proxy__) в обычную строку
+        role_choices = [str(role[1]) for role in User.Role.choices if role[0] != 'SUPERADMIN']
         role_formula = f'"{",".join(role_choices)}"'
 
         role_validation = DataValidation(
@@ -328,7 +339,7 @@ class PersonnelExcelHandler:
         role_validation.add(f'C2:C{len(users) + 1}')
         ws_data.add_data_validation(role_validation)
 
-        # Dropdown для проектов
+        # Dropdown для проектов (разрешаем множественный выбор)
         company_projects = self.company.projects.filter(is_active=True).values_list('name', flat=True)
         if company_projects:
             project_list = ','.join(company_projects)
@@ -337,7 +348,11 @@ class PersonnelExcelHandler:
                 projects_validation = DataValidation(
                     type="list",
                     formula1=projects_formula,
-                    allow_blank=True
+                    allow_blank=True,
+                    showErrorMessage=False,  # Разрешаем свободный ввод для множественного выбора
+                    showInputMessage=True,
+                    promptTitle='Выбор проектов',
+                    prompt='Выберите один проект из списка или введите несколько через запятую'
                 )
                 projects_validation.add(f'F2:F{len(users) + 1}')
                 ws_data.add_data_validation(projects_validation)
@@ -466,6 +481,43 @@ class PersonnelExcelHandler:
         return workbook
 
     @staticmethod
+    def get_role_mapping():
+        """
+        Создаёт словарь для конвертации русских названий ролей в коды.
+
+        Поддерживает обратную совместимость: принимает как русские названия, так и коды.
+
+        Returns:
+            dict: Словарь вида:
+                {
+                    'Директор': 'DIRECTOR',
+                    'DIRECTOR': 'DIRECTOR',  # для обратной совместимости
+                    'Главный инженер': 'CHIEF_ENGINEER',
+                    'CHIEF_ENGINEER': 'CHIEF_ENGINEER',
+                    ...
+                }
+
+        Example:
+            >>> mapping = PersonnelExcelHandler.get_role_mapping()
+            >>> mapping['Директор']
+            'DIRECTOR'
+            >>> mapping['DIRECTOR']  # обратная совместимость
+            'DIRECTOR'
+        """
+        from apps.users.models import User
+
+        mapping = {}
+
+        for role_code, role_label in User.Role.choices:
+            if role_code != 'SUPERADMIN':
+                # Маппинг русского названия -> код
+                mapping[role_label] = role_code
+                # Маппинг кода -> код (для обратной совместимости)
+                mapping[role_code] = role_code
+
+        return mapping
+
+    @staticmethod
     def _is_valid_email(email):
         """
         Валидация email.
@@ -560,13 +612,14 @@ class PersonnelExcelHandler:
             if not any(row):
                 continue
 
-            # Извлекаем значения колонок
-            email = row[0].strip() if row[0] else None
-            full_name = row[1].strip() if row[1] else None
-            role = row[2].strip() if row[2] else None
-            position = row[3].strip() if row[3] and len(row) > 3 else ''
-            phone = row[4].strip() if row[4] and len(row) > 4 else ''
-            projects_str = row[5].strip() if row[5] and len(row) > 5 else ''
+            # Извлекаем значения колонок с безопасной обработкой типов
+            # row[i] может быть str, int, float, None - приводим все к str
+            email = str(row[0]).strip() if row[0] is not None else None
+            full_name = str(row[1]).strip() if row[1] is not None else None
+            role = str(row[2]).strip() if row[2] is not None else None
+            position = str(row[3]).strip() if (len(row) > 3 and row[3] is not None) else ''
+            phone = str(row[4]).strip() if (len(row) > 4 and row[4] is not None) else ''
+            projects_str = str(row[5]).strip() if (len(row) > 5 and row[5] is not None) else ''
 
             row_errors = []
 
@@ -585,10 +638,20 @@ class PersonnelExcelHandler:
             # 3. Роль
             if not role:
                 row_errors.append('Роль обязательна')
-            elif role not in [r[0] for r in User.Role.choices]:
-                row_errors.append(f'Неверная роль: {role}')
-            elif role == 'SUPERADMIN':
-                row_errors.append('Нельзя создавать пользователей с ролью SUPERADMIN через импорт')
+            else:
+                # Создаём маппинг русских названий к кодам (с поддержкой обратной совместимости)
+                role_mapping = self.get_role_mapping()
+
+                # Конвертируем русское название в код (если это русское название)
+                # Если это уже код - он останется без изменений благодаря обратной совместимости
+                if role in role_mapping:
+                    role = role_mapping[role]  # 'Директор' -> 'DIRECTOR' или 'DIRECTOR' -> 'DIRECTOR'
+
+                # Валидируем код роли
+                if role not in [r[0] for r in User.Role.choices]:
+                    row_errors.append(f'Неверная роль: {role}. Выберите роль из списка.')
+                elif role == 'SUPERADMIN':
+                    row_errors.append('Нельзя создавать пользователей с ролью SUPERADMIN через импорт')
 
             # ===== ВАЛИДАЦИЯ ДУБЛИКАТОВ EMAIL =====
 

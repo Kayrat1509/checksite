@@ -11,7 +11,6 @@ import {
   DatePicker,
   InputNumber,
   message,
-  Popconfirm,
   Typography,
   Row,
   Col,
@@ -33,6 +32,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { tendersAPI, Tender, TenderCreateData, TenderUpdateData } from '../api/tenders'
 import { projectsAPI } from '../api/projects'
 import { useAuthStore } from '../stores/authStore'
+import { tripleConfirm } from '../utils/tripleConfirm'
 import dayjs from 'dayjs'
 import './Tenders.css'
 
@@ -146,6 +146,19 @@ const Tenders = () => {
       message.error('Ошибка при закрытии тендера')
     }
   })
+
+  // Обработчик удаления тендера с тройным подтверждением
+  // Принимает объект тендера для отображения его названия в диалогах подтверждения
+  const handleDeleteTender = (tender: Tender) => {
+    // Используем тройное подтверждение для защиты от случайного удаления
+    tripleConfirm({
+      itemName: tender.title,
+      itemType: 'тендер',
+      onConfirm: () => {
+        deleteMutation.mutate(tender.id)
+      }
+    })
+  }
 
   // Открыть модальное окно создания/редактирования
   const handleOpenModal = (tender?: Tender) => {
@@ -336,21 +349,15 @@ const Tenders = () => {
           )}
 
           {/* Удалить */}
-          <Popconfirm
-            title="Удалить тендер?"
-            description="Вы уверены, что хотите удалить этот тендер?"
-            onConfirm={() => deleteMutation.mutate(record.id)}
-            okText="Да"
-            cancelText="Нет"
-          >
-            <Tooltip title="Удалить">
-              <Button
-                type="text"
-                danger
-                icon={<DeleteOutlined />}
-              />
-            </Tooltip>
-          </Popconfirm>
+          {/* Убрали Popconfirm, так как теперь используется тройное подтверждение через tripleConfirm */}
+          <Tooltip title="Удалить">
+            <Button
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDeleteTender(record)}
+            />
+          </Tooltip>
         </Space>
       )
     }

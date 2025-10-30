@@ -34,6 +34,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsAPI } from '../api/projects'
 import { usersAPI, User } from '../api/users'
 import { useAuthStore } from '../stores/authStore'
+import { tripleConfirm } from '../utils/tripleConfirm'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -307,13 +308,11 @@ const Projects = () => {
   }
 
   const handleDeleteProject = (project: Project) => {
-    Modal.confirm({
-      title: 'Удалить объект?',
-      content: `Вы уверены, что хотите удалить объект "${project.name}"? Это действие нельзя отменить.`,
-      okText: 'Удалить',
-      okType: 'danger',
-      cancelText: 'Отмена',
-      onOk: () => {
+    // Используем тройное подтверждение для защиты от случайного удаления
+    tripleConfirm({
+      itemName: project.name,
+      itemType: 'объект',
+      onConfirm: () => {
         deleteProjectMutation.mutate(project.id)
       }
     })
@@ -480,13 +479,11 @@ const Projects = () => {
   }
 
   const handleDeleteDrawing = (drawing: Drawing) => {
-    Modal.confirm({
-      title: 'Удалить чертёж?',
-      content: `Вы уверены, что хотите удалить чертёж "${drawing.file_name}"? Это действие нельзя отменить.`,
-      okText: 'Удалить',
-      okType: 'danger',
-      cancelText: 'Отмена',
-      onOk: async () => {
+    // Используем тройное подтверждение для защиты от случайного удаления
+    tripleConfirm({
+      itemName: drawing.file_name,
+      itemType: 'чертёж',
+      onConfirm: async () => {
         await deleteDrawingMutation.mutateAsync(drawing.id)
         // Обновляем выбранный проект после удаления чертежа
         if (selectedProject) {
