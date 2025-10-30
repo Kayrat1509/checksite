@@ -38,7 +38,7 @@ export const tripleConfirm = ({ itemName, itemType, onConfirm }: TripleConfirmOp
     title: `Удалить ${itemType}?`,
     content: (
       <div>
-        <p>Вы уверены, что хотите удалить {itemType} <strong>&quot;{itemName}&quot;</strong>?</p>
+        <p>Вы уверены, что хотите удалить {itemType} <strong>"{itemName}"</strong>?</p>
         <p style={{ color: '#ff4d4f', marginTop: '12px', fontWeight: 'bold' }}>
           ⚠️ Это первое из трёх предупреждений. Система спросит вас ещё 2 раза для безопасности.
         </p>
@@ -56,12 +56,12 @@ export const tripleConfirm = ({ itemName, itemType, onConfirm }: TripleConfirmOp
         title: `Вы действительно уверены?`,
         content: (
           <div>
-            <p>Вы собираетесь удалить {itemType} <strong>&quot;{itemName}&quot;</strong>.</p>
+            <p>Вы собираетесь удалить {itemType} <strong>"{itemName}"</strong>.</p>
             <p style={{ color: '#ff4d4f', marginTop: '12px', fontWeight: 'bold' }}>
               ⚠️ Это второе из трёх предупреждений. Остался ещё один шаг.
             </p>
             <p style={{ marginTop: '12px', color: '#666' }}>
-              Если вы не уверены, нажмите &quot;Отмена&quot;.
+              Если вы не уверены, нажмите "Отмена".
             </p>
           </div>
         ),
@@ -81,13 +81,13 @@ export const tripleConfirm = ({ itemName, itemType, onConfirm }: TripleConfirmOp
                   ВНИМАНИЕ! Это третье и последнее предупреждение!
                 </p>
                 <p style={{ marginTop: '12px', fontSize: '15px' }}>
-                  {itemType.charAt(0).toUpperCase() + itemType.slice(1)} <strong>&quot;{itemName}&quot;</strong> будет удалён БЕЗВОЗВРАТНО!
+                  {itemType.charAt(0).toUpperCase() + itemType.slice(1)} <strong>"{itemName}"</strong> будет удалён БЕЗВОЗВРАТНО!
                 </p>
                 <p style={{ marginTop: '12px', color: '#666' }}>
                   Это действие нельзя отменить. Все связанные данные также будут потеряны.
                 </p>
                 <p style={{ marginTop: '16px', padding: '12px', backgroundColor: '#fff1f0', border: '1px solid #ffccc7', borderRadius: '4px' }}>
-                  После нажатия кнопки &quot;УДАЛИТЬ ОКОНЧАТЕЛЬНО&quot; данные будут удалены из системы навсегда.
+                  После нажатия кнопки "УДАЛИТЬ ОКОНЧАТЕЛЬНО" данные будут удалены из системы навсегда.
                 </p>
               </div>
             ),
