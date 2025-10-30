@@ -238,22 +238,29 @@ def generate_excel_export(projects: List) -> HttpResponse:
         # Адрес
         ws.cell(row=row_num, column=3, value=project.address)
 
-        # Закреплённые сотрудники (через запятую)
-        team_members = project.team_members.all()
-        team_members_str = ', '.join([member.get_full_name() for member in team_members])
-        ws.cell(row=row_num, column=4, value=team_members_str)
+        # Получаем всех участников проекта из ManyToMany поля team_members
+        all_team_members = project.team_members.all()
 
-        # Надзоры (через запятую)
-        supervisions = project.supervisions.all() if hasattr(project, 'supervisions') else []
-        supervisions_str = ', '.join([supervision.name for supervision in supervisions])
-        ws.cell(row=row_num, column=5, value=supervisions_str)
+        # Закреплённые сотрудники (все роли КРОМЕ CONTRACTOR и SUPERVISOR)
+        # Фильтруем сотрудников: исключаем подрядчиков и надзоры
+        staff_members = [m for m in all_team_members if m.role not in ['CONTRACTOR', 'SUPERVISOR']]
+        staff_str = ', '.join([member.get_full_name() for member in staff_members])
+        ws.cell(row=row_num, column=4, value=staff_str)
 
-        # Подрядчики (через запятую)
-        contractors = project.contractors.all() if hasattr(project, 'contractors') else []
-        contractors_str = ', '.join([contractor.name for contractor in contractors])
+        # Надзоры (только роль SUPERVISOR - Технадзор)
+        # Фильтруем участников с ролью 'SUPERVISOR'
+        supervisors = [m for m in all_team_members if m.role == 'SUPERVISOR']
+        supervisors_str = ', '.join([sup.get_full_name() for sup in supervisors])
+        ws.cell(row=row_num, column=5, value=supervisors_str)
+
+        # Подрядчики (только роль CONTRACTOR - Подрядчик)
+        # Фильтруем участников с ролью 'CONTRACTOR'
+        contractors = [m for m in all_team_members if m.role == 'CONTRACTOR']
+        contractors_str = ', '.join([contr.get_full_name() for contr in contractors])
         ws.cell(row=row_num, column=6, value=contractors_str)
 
-        # Выравнивание текста
+        # Выравнивание текста для всех ячеек строки
+        # Применяем стиль: выравнивание влево, по верхнему краю, с переносом текста
         for col_num in range(1, 7):
             cell = ws.cell(row=row_num, column=col_num)
             cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)

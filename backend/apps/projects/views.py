@@ -250,10 +250,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
         from .utils import generate_excel_export
 
         # Получаем все проекты пользователя (с учетом прав доступа)
+        # Используем select_related для ForeignKey полей (company, project_manager)
+        # Используем prefetch_related для ManyToMany поля (team_members)
+        # Примечание: поля 'supervisions' и 'contractors' не существуют в модели Project,
+        # эти данные фильтруются из team_members по ролям в функции generate_excel_export
         projects = self.get_queryset().select_related(
             'company', 'project_manager'
         ).prefetch_related(
-            'team_members', 'supervisions', 'contractors'
+            'team_members'
         )
 
         return generate_excel_export(projects)

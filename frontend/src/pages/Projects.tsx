@@ -506,12 +506,14 @@ const Projects = () => {
   const uploadProps = {
     fileList,
     beforeUpload: (file: File) => {
+      // Проверяем, что файл имеет формат PDF
       const isPDF = file.type === 'application/pdf'
       if (!isPDF) {
         message.error('Можно загружать только PDF файлы!')
         return false
       }
 
+      // Создаём объект файла для добавления в список
       const uploadFile: UploadFile = {
         uid: `${Date.now()}-${Math.random()}`,
         name: file.name,
@@ -519,11 +521,15 @@ const Projects = () => {
         originFileObj: file as any
       }
 
-      setFileList([...fileList, uploadFile])
+      // Используем функциональное обновление состояния для корректной работы
+      // при множественном выборе файлов (избегаем race condition)
+      setFileList(prevList => [...prevList, uploadFile])
       return false
     },
     onRemove: (file: UploadFile) => {
-      setFileList(fileList.filter(f => f.uid !== file.uid))
+      // Используем функциональное обновление состояния для удаления файла
+      // из списка выбранных файлов
+      setFileList(prevList => prevList.filter(f => f.uid !== file.uid))
     },
     accept: '.pdf'
   }
