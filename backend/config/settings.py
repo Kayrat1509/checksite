@@ -229,6 +229,9 @@ SERVER_EMAIL = DEFAULT_FROM_EMAIL
 # Site URL для ссылок в письмах
 SITE_URL = os.getenv('SITE_URL', 'http://localhost:5174')
 
+# Название сайта для email уведомлений
+SITE_NAME = os.getenv('SITE_NAME', 'Check_Site')
+
 # Telegram Bot
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
 
