@@ -168,5 +168,45 @@ export const usersAPI = {
       }
     })
     return response.data
+  },
+
+  // ===== МЕТОДЫ ДЛЯ CONTRACTORS EXCEL V2 =====
+
+  // Экспорт шаблона v2 для импорта подрядчиков
+  exportContractorsTemplateV2: async () => {
+    const response = await axios.get('/auth/users/contractors/export-template-v2/', {
+      responseType: 'blob'
+    })
+    return response.data
+  },
+
+  // Экспорт текущих подрядчиков в формате v2
+  exportContractorsV2: async () => {
+    const response = await axios.get('/auth/users/contractors/export-v2/', {
+      responseType: 'blob'
+    })
+    return response.data
+  },
+
+  // Создание backup подрядчиков
+  exportContractorsBackup: async () => {
+    const response = await axios.get('/auth/users/contractors/export-backup/', {
+      responseType: 'blob'
+    })
+    return response.data
+  },
+
+  // Импорт подрядчиков из Excel v2
+  importContractorsV2: async (file: File, mode: 'create' | 'update' = 'create') => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('mode', mode)
+
+    const response = await axios.post('/auth/users/contractors/import-v2/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    return response.data
   }
 }

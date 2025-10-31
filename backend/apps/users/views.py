@@ -852,6 +852,426 @@ class UserViewSet(viewsets.ModelViewSet):
                 'traceback': traceback.format_exc() if hasattr(e, '__traceback__') else None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    # ===== МЕТОДЫ ДЛЯ CONTRACTORS EXCEL V2 =====
+
+    @action(detail=False, methods=['get'], url_path='contractors/export-template-v2',
+            permission_classes=[permissions.IsAuthenticated])
+    def export_contractors_template_v2(self, request):
+        """
+        Экспорт шаблона Excel v2 для импорта подрядчиков.
+
+        Шаблон включает:
+        - Лист "Инструкция" с подробным описанием процесса
+        - Лист "Данные" с заголовками и dropdown для проектов
+        - Поля: Email, Фамилия, Имя, Отчество, Компания подрядчика, Телефон, Объекты
+        - Пример заполнения данных
+
+        Permissions: CanManageContractorsExcel (от Прораба до Директора)
+        """
+        from .permissions import CanManageContractorsExcel
+        from .utils.contractor_excel_handler import ContractorExcelHandler
+        from datetime import datetime
+        import logging
+        import traceback
+
+        logger = logging.getLogger(__name__)
+
+        try:
+            user = request.user
+            logger.info(f"[export_contractors_template_v2] User: {user.email}, Company: {user.company}")
+
+            # Проверяем наличие компании ДО permission check
+            if not user.company:
+                logger.warning(f"[export_contractors_template_v2] User {user.email} has no company")
+                return Response({
+                    'error': 'У вас нет привязки к компании',
+                    'details': 'Для работы с Excel необходимо привязать пользователя к компании через админ-панель'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Проверяем права доступа
+            logger.info(f"[export_contractors_template_v2] Checking permissions for user {user.email}")
+            permission = CanManageContractorsExcel()
+            if not permission.has_permission(request, self):
+                logger.warning(f"[export_contractors_template_v2] Permission denied for user {user.email}")
+                return Response({
+                    'error': 'У вас нет прав для экспорта шаблона подрядчиков',
+                    'details': 'Требуется роль от Прораба до Директора'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # Создаем handler и генерируем шаблон
+            logger.info(f"[export_contractors_template_v2] Creating ContractorExcelHandler")
+            handler = ContractorExcelHandler(company=user.company)
+            logger.info(f"[export_contractors_template_v2] Generating template")
+            workbook = handler.generate_template_v2()
+
+            # Создаем HTTP response с Excel файлом
+            logger.info(f"[export_contractors_template_v2] Creating HTTP response")
+            response = HttpResponse(
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = 'attachment; filename=contractors_import_template_v2.xlsx'
+
+            # Сохраняем workbook в response
+            logger.info(f"[export_contractors_template_v2] Saving workbook to response")
+            workbook.save(response)
+
+            logger.info(f"[export_contractors_template_v2] Success!")
+            return response
+
+        except Exception as e:
+            logger.error(f"[export_contractors_template_v2] Exception: {str(e)}")
+            logger.error(f"[export_contractors_template_v2] Traceback: {traceback.format_exc()}")
+            return Response({
+                'error': 'Ошибка при создании шаблона',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'], url_path='contractors/export-v2',
+            permission_classes=[permissions.IsAuthenticated])
+    def export_contractors_v2(self, request):
+        """
+        Экспорт текущих подрядчиков компании в Excel v2.
+
+        Включает данные:
+        - Email, Фамилия, Имя, Отчество
+        - Компания подрядчика
+        - Телефон
+        - Объекты (через запятую)
+        - Dropdown валидация для редактирования
+
+        Используется для варианта 2: Export → Edit → Import
+
+        Permissions: CanManageContractorsExcel (от Прораба до Директора)
+        """
+        from .permissions import CanManageContractorsExcel
+        from .utils.contractor_excel_handler import ContractorExcelHandler
+        from datetime import datetime
+
+        try:
+            user = request.user
+
+            # Проверяем наличие компании ДО permission check
+            if not user.company:
+                return Response({
+                    'error': 'У вас нет привязки к компании',
+                    'details': 'Для работы с Excel необходимо привязать пользователя к компании через админ-панель'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Проверяем права доступа
+            permission = CanManageContractorsExcel()
+            if not permission.has_permission(request, self):
+                return Response({
+                    'error': 'У вас нет прав для экспорта подрядчиков',
+                    'details': 'Требуется роль от Прораба до Директора'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # Создаем handler и генерируем экспорт
+            handler = ContractorExcelHandler(company=user.company)
+            workbook = handler.generate_export_v2()
+
+            # Создаем HTTP response с Excel файлом
+            current_date = datetime.now().strftime('%Y-%m-%d')
+            filename = f'contractors_export_v2_{current_date}.xlsx'
+
+            response = HttpResponse(
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = f'attachment; filename={filename}'
+
+            # Сохраняем workbook в response
+            workbook.save(response)
+
+            return response
+
+        except Exception as e:
+            return Response({
+                'error': 'Ошибка при экспорте подрядчиков',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'], url_path='contractors/export-backup',
+            permission_classes=[permissions.IsAuthenticated])
+    def export_contractors_backup(self, request):
+        """
+        Создание backup всех подрядчиков компании.
+
+        Включает расширенные данные:
+        - ID, Email, ФИО
+        - Компания подрядчика
+        - Телефон, Объекты
+        - Статусы (активен, архивирован)
+        - Даты создания и обновления
+        - Лист "Информация" с метаданными backup
+
+        Используется для варианта 3: Backup с timestamp
+
+        Permissions: CanManageContractorsExcel (от Прораба до Директора)
+        """
+        from .permissions import CanManageContractorsExcel
+        from .utils.contractor_excel_handler import ContractorExcelHandler
+        from datetime import datetime
+
+        try:
+            user = request.user
+
+            # Проверяем наличие компании ДО permission check
+            if not user.company:
+                return Response({
+                    'error': 'У вас нет привязки к компании',
+                    'details': 'Для работы с Excel необходимо привязать пользователя к компании через админ-панель'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Проверяем права доступа
+            permission = CanManageContractorsExcel()
+            if not permission.has_permission(request, self):
+                return Response({
+                    'error': 'У вас нет прав для создания backup подрядчиков',
+                    'details': 'Требуется роль от Прораба до Директора'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # Создаем handler и генерируем backup
+            handler = ContractorExcelHandler(company=user.company)
+            workbook = handler.generate_backup()
+
+            # Создаем HTTP response с Excel файлом
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f'contractors_backup_{timestamp}.xlsx'
+
+            response = HttpResponse(
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = f'attachment; filename={filename}'
+
+            # Сохраняем workbook в response
+            workbook.save(response)
+
+            return response
+
+        except Exception as e:
+            return Response({
+                'error': 'Ошибка при создании backup',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'], url_path='contractors/import-v2',
+            permission_classes=[permissions.IsAuthenticated])
+    def import_contractors_v2(self, request):
+        """
+        Импорт подрядчиков из Excel v2 с постоянными паролями.
+
+        Поддерживает два режима:
+        - mode=create: Массовое добавление новых подрядчиков (по умолчанию)
+        - mode=update: Обновление данных существующих подрядчиков
+
+        Процесс:
+        1. Парсинг и валидация Excel файла
+        2. Генерация постоянных паролей для новых подрядчиков
+        3. Создание/обновление записей в БД (role='CONTRACTOR')
+        4. Привязка к проектам
+        5. Асинхронная отправка credentials на email
+
+        Request:
+            - file: Excel файл (multipart/form-data)
+            - mode: 'create' | 'update' (optional, default: 'create')
+
+        Response:
+            {
+                'status': 'success',
+                'stats': {
+                    'total_rows': 50,
+                    'new_records': 30,
+                    'updated_records': 15,
+                    'skipped_records': 3,
+                    'errors': 2,
+                    'projects_assigned': 45,
+                    'emails_sent': 30
+                },
+                'details': {
+                    'errors': [{'row': 5, 'errors': ['...']}]
+                }
+            }
+
+        Permissions: CanManageContractorsExcel (от Прораба до Директора)
+        """
+        from .permissions import CanManageContractorsExcel
+        from .utils.contractor_excel_handler import ContractorExcelHandler
+        from .utils.password_generator import generate_and_hash_password
+        from .tasks import send_permanent_credentials_email
+        from apps.projects.models import Project
+
+        try:
+            user = request.user
+
+            # Проверяем наличие компании ДО permission check
+            if not user.company:
+                return Response({
+                    'error': 'У вас нет привязки к компании',
+                    'details': 'Для работы с Excel необходимо привязать пользователя к компании через админ-панель'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Проверяем права доступа
+            permission = CanManageContractorsExcel()
+            if not permission.has_permission(request, self):
+                return Response({
+                    'error': 'У вас нет прав для импорта подрядчиков',
+                    'details': 'Требуется роль от Прораба до Директора'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # Получаем файл из request
+            if 'file' not in request.FILES:
+                return Response({
+                    'error': 'Файл не предоставлен',
+                    'details': 'Требуется загрузить Excel файл'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            file = request.FILES['file']
+
+            # Получаем режим импорта
+            mode = request.data.get('mode', 'create')
+            if mode not in ['create', 'update']:
+                return Response({
+                    'error': 'Неверный режим импорта',
+                    'details': 'Допустимые значения: create, update'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Парсим и валидируем файл
+            handler = ContractorExcelHandler(company=user.company)
+            parse_result = handler.parse_import_file(file, mode=mode)
+
+            valid_rows = parse_result['valid_rows']
+            errors = parse_result['errors']
+
+            # Если есть ошибки валидации, возвращаем их
+            if errors:
+                return Response({
+                    'status': 'validation_error',
+                    'message': 'Обнаружены ошибки валидации',
+                    'stats': {
+                        'total_rows': len(valid_rows) + len(errors),
+                        'valid_rows': len(valid_rows),
+                        'error_rows': len(errors)
+                    },
+                    'details': {'errors': errors}
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Обрабатываем валидные строки
+            new_records = 0
+            updated_records = 0
+            skipped_records = 0
+            projects_assigned = 0
+            emails_sent = 0
+
+            for row_data in valid_rows:
+                try:
+                    email = row_data['email']
+
+                    if mode == 'create':
+                        # Создание нового подрядчика
+                        # Генерируем постоянный пароль
+                        plain_password, hashed_password = generate_and_hash_password(length=12)
+
+                        # Создаем подрядчика с role='CONTRACTOR'
+                        new_contractor = User.objects.create(
+                            email=email,
+                            first_name=row_data['first_name'],
+                            last_name=row_data['last_name'],
+                            middle_name=row_data['middle_name'],
+                            role='CONTRACTOR',  # Всегда CONTRACTOR
+                            external_company_name=row_data['contractor_company'],  # Компания подрядчика
+                            work_type=row_data['work_type'],  # Вид работ
+                            phone=row_data['phone'],
+                            company=user.company,  # Привязываем к компании пользователя
+                            role_category='ITR_SUPPLY',  # Категория для подрядчиков
+                            password=hashed_password,
+                            is_active=True,
+                            approved=True,
+                            password_change_required=False  # Постоянный пароль
+                        )
+
+                        # Привязываем к проектам
+                        if row_data['project_ids']:
+                            projects = Project.objects.filter(
+                                id__in=row_data['project_ids'],
+                                company=user.company
+                            )
+                            new_contractor.projects.set(projects)
+                            projects_assigned += projects.count()
+
+                        # Отправляем credentials на email асинхронно
+                        send_permanent_credentials_email.delay(new_contractor.id, plain_password)
+                        emails_sent += 1
+
+                        new_records += 1
+
+                    elif mode == 'update':
+                        # Обновление существующего подрядчика
+                        existing_contractor = User.objects.get(
+                            email__iexact=email,
+                            company=user.company,
+                            role='CONTRACTOR'
+                        )
+
+                        # Обновляем поля
+                        existing_contractor.first_name = row_data['first_name']
+                        existing_contractor.last_name = row_data['last_name']
+                        existing_contractor.middle_name = row_data['middle_name']
+                        existing_contractor.external_company_name = row_data['contractor_company']
+                        existing_contractor.work_type = row_data['work_type']  # Обновляем вид работ
+                        existing_contractor.phone = row_data['phone']
+
+                        existing_contractor.save()
+
+                        # Обновляем проекты
+                        if row_data['project_ids']:
+                            projects = Project.objects.filter(
+                                id__in=row_data['project_ids'],
+                                company=user.company
+                            )
+                            existing_contractor.projects.set(projects)
+                            projects_assigned += projects.count()
+
+                        updated_records += 1
+
+                except Exception as row_error:
+                    # Если ошибка при обработке конкретной строки
+                    skipped_records += 1
+                    errors.append({
+                        'row': '?',
+                        'errors': [f'Ошибка обработки: {str(row_error)}']
+                    })
+
+            # Возвращаем результат
+            return Response({
+                'status': 'success',
+                'message': f'Импорт завершен успешно (режим: {mode})',
+                'stats': {
+                    'total_rows': len(valid_rows),
+                    'new_records': new_records,
+                    'updated_records': updated_records,
+                    'skipped_records': skipped_records,
+                    'errors': len(errors),
+                    'projects_assigned': projects_assigned,
+                    'emails_sent': emails_sent
+                },
+                'details': {
+                    'errors': errors if errors else []
+                }
+            }, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            # Детальное логирование для отладки
+            import traceback
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"[import_contractors_v2] Exception during import: {str(e)}")
+            logger.error(f"[import_contractors_v2] Traceback: {traceback.format_exc()}")
+
+            return Response({
+                'error': 'Ошибка при импорте подрядчиков',
+                'details': str(e),
+                'traceback': traceback.format_exc() if hasattr(e, '__traceback__') else None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class CompanyViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for viewing companies."""

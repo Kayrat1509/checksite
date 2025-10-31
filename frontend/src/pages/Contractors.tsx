@@ -25,11 +25,7 @@ import {
   DeleteOutlined,
   EditOutlined,
   CheckCircleOutlined,
-  StopOutlined,
-  EyeOutlined,
-  EyeInvisibleOutlined,
-  UnlockOutlined,
-  LockOutlined
+  StopOutlined
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersAPI, User, CreateUserData } from '../api/users'
@@ -37,6 +33,7 @@ import { authAPI } from '../api/auth'
 import { projectsAPI } from '../api/projects'
 import { companiesAPI } from '../api/companies'
 import { tripleConfirm } from '../utils/tripleConfirm'
+import ContractorsImportExport from '../components/ContractorsImportExport'
 
 const { Title, Text } = Typography
 
@@ -47,8 +44,6 @@ const Contractors = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active')
-  // Состояния для показа/скрытия паролей
-  const [visiblePasswords, setVisiblePasswords] = useState<{ [key: number]: boolean }>({})
 
   // Проверка доступа текущего пользователя
   const { data: currentUser, isLoading: isLoadingCurrentUser } = useQuery({
@@ -447,12 +442,6 @@ const Contractors = () => {
     }
   }
 
-  const togglePasswordVisibility = (contractorId: number) => {
-    setVisiblePasswords(prev => ({
-      ...prev,
-      [contractorId]: !prev[contractorId]
-    }))
-  }
 
   const getInitials = (contractor: User) => {
     const firstNameInitial = contractor.first_name ? contractor.first_name.charAt(0) + '.' : ''
@@ -494,17 +483,24 @@ const Contractors = () => {
       {/* Заголовок страницы */}
       <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Title level={2}>Подрядчики</Title>
-        {/* Кнопка "Добавить подрядчика" */}
-        {canAddContractor() && (
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleCreateContractor}
-            size="large"
-          >
-            Добавить подрядчика
-          </Button>
-        )}
+
+        {/* Кнопки управления подрядчиками */}
+        <Space size="middle">
+          {/* Кнопки импорта/экспорта v2 с расширенным функционалом */}
+          {canAddContractor() && <ContractorsImportExport />}
+
+          {/* Кнопка "Добавить подрядчика" */}
+          {canAddContractor() && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleCreateContractor}
+              size="large"
+            >
+              Добавить подрядчика
+            </Button>
+          )}
+        </Space>
       </div>
 
       {/* Вкладки: Активные / Архив */}
@@ -555,25 +551,6 @@ const Contractors = () => {
               <div style={{ marginBottom: '8px' }}>
                 <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Email:</Text>
                 <Text style={{ fontSize: '14px' }}>{contractor.email}</Text>
-              </div>
-
-              {/* Пароль (скрыт) */}
-              <div style={{ marginBottom: '8px' }}>
-                <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Пароль:</Text>
-                <Space>
-                  <Text code style={{ fontSize: '14px' }}>
-                    {visiblePasswords[contractor.id] ? (contractor.temp_password || '-') : '••••••••'}
-                  </Text>
-                  {contractor.temp_password && (
-                    <Button
-                      type="link"
-                      size="small"
-                      icon={visiblePasswords[contractor.id] ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-                      onClick={() => togglePasswordVisibility(contractor.id)}
-                      style={{ padding: 0 }}
-                    />
-                  )}
-                </Space>
               </div>
 
               {/* Компания подрядчика */}

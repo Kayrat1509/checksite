@@ -24,13 +24,8 @@ import {
   EditOutlined,
   CheckCircleOutlined,
   StopOutlined,
-  EyeOutlined,
-  EyeInvisibleOutlined,
   UnlockOutlined,
-  LockOutlined,
-  DownloadOutlined,
-  UploadOutlined,
-  FileExcelOutlined
+  LockOutlined
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersAPI, User, CreateUserData } from '../api/users'
@@ -52,8 +47,6 @@ const Users = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [selectedRole, setSelectedRole] = useState<string | null>(null)
-  // Состояния для показа/скрытия паролей
-  const [visiblePasswords, setVisiblePasswords] = useState<{ [key: number]: boolean }>({})
 
   // Проверка доступа текущего пользователя
   const { data: currentUser, isLoading: isLoadingCurrentUser } = useQuery({
@@ -520,12 +513,6 @@ const Users = () => {
     }
   }
 
-  const togglePasswordVisibility = (userId: number) => {
-    setVisiblePasswords(prev => ({
-      ...prev,
-      [userId]: !prev[userId]
-    }))
-  }
 
   const getRoleLabel = (role: string) => {
     const allRoles = [...ROLES.ITR, ...ROLES.MANAGEMENT, ...ROLES.CONTRACTOR, ...ROLES.MATERIAL_REQUESTS]
@@ -644,25 +631,6 @@ const Users = () => {
               <div style={{ marginBottom: '8px' }}>
                 <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Email:</Text>
                 <Text style={{ fontSize: '14px' }}>{user.email}</Text>
-              </div>
-
-              {/* Пароль (скрыт) */}
-              <div style={{ marginBottom: '8px' }}>
-                <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Пароль:</Text>
-                <Space>
-                  <Text code style={{ fontSize: '14px' }}>
-                    {visiblePasswords[user.id] ? (user.temp_password || '-') : '••••••••'}
-                  </Text>
-                  {user.temp_password && (
-                    <Button
-                      type="link"
-                      size="small"
-                      icon={visiblePasswords[user.id] ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-                      onClick={() => togglePasswordVisibility(user.id)}
-                      style={{ padding: 0 }}
-                    />
-                  )}
-                </Space>
               </div>
 
               {/* Роль */}
