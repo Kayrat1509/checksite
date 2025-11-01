@@ -1,14 +1,20 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from apps.projects.models import Project
+from apps.core.mixins import SoftDeleteMixin, SoftDeleteManager
 
 User = get_user_model()
 
 
-class Tender(models.Model):
+class Tender(SoftDeleteMixin, models.Model):
     """
     Модель для управления тендерами.
     Доступ: ИТР (Инженер ПТО, Начальник участка, Прораб, Мастер) и Руководство (Руководитель проекта, Главный инженер, Директор)
+
+    Использует мягкое удаление (soft delete):
+    - При удалении тендер перемещается в корзину на 31 день
+    - Можно восстановить в течение 31 дней
+    - После 31 дня удаляется автоматически навсегда
     """
 
     class Status(models.TextChoices):
@@ -81,6 +87,10 @@ class Tender(models.Model):
     # Даты
     created_at = models.DateTimeField('Создан', auto_now_add=True)
     updated_at = models.DateTimeField('Обновлен', auto_now=True)
+
+    # Managers для soft delete
+    objects = SoftDeleteManager()  # По умолчанию: только активные (не удаленные)
+    all_objects = models.Manager()  # Для доступа ко всем записям (включая удаленные)
 
     class Meta:
         verbose_name = 'Тендер'

@@ -28,6 +28,7 @@ urlpatterns = [
     path('api/public-tenders/', include('apps.tenders.public_urls')),  # Публичные тендеры
     path('api/warehouse/', include('apps.warehouse.urls')),  # Складской учет
     path('api/settings/', include('apps.settings.urls')),  # Настройки системы
+    path('api/', include('apps.core.urls')),  # Корзина (Recycle Bin)
 ]
 
 # Serve media files in development

@@ -329,3 +329,54 @@ class CanManageContractorsExcel(permissions.BasePermission):
 
         # Проверяем роль и статус одобрения
         return user.role in allowed_roles and user.approved
+
+
+class CanManageSupervisionExcel(permissions.BasePermission):
+    """
+    Permission для управления импортом/экспортом надзоров (Технадзор и Авторский надзор) через Excel.
+
+    Доступно для ролей от Прораба до Директора:
+    - FOREMAN (Прораб)
+    - SITE_MANAGER (Начальник участка)
+    - ENGINEER (Инженер ПТО)
+    - PROJECT_MANAGER (Руководитель проекта)
+    - CHIEF_ENGINEER (Главный инженер)
+    - DIRECTOR (Директор)
+    - SUPERADMIN (всегда)
+
+    Требования:
+    - Пользователь должен быть аутентифицирован
+    - Пользователь должен иметь привязку к компании
+    - Пользователь должен быть одобрен (approved=True)
+    - Роль пользователя должна быть из списка разрешенных
+    """
+
+    def has_permission(self, request, view):
+        from apps.users.models import User
+
+        user = request.user
+
+        # Проверяем аутентификацию
+        if not user or not user.is_authenticated:
+            return False
+
+        # Суперадмин — всегда разрешено
+        if user.is_superuser:
+            return True
+
+        # Проверяем наличие компании
+        if not user.company:
+            return False
+
+        # Роли с доступом к управлению надзорами
+        allowed_roles = [
+            User.Role.FOREMAN,           # Прораб
+            User.Role.SITE_MANAGER,      # Начальник участка
+            User.Role.ENGINEER,          # Инженер ПТО
+            User.Role.PROJECT_MANAGER,   # Руководитель проекта
+            User.Role.CHIEF_ENGINEER,    # Главный инженер
+            User.Role.DIRECTOR           # Директор
+        ]
+
+        # Проверяем роль и статус одобрения
+        return user.role in allowed_roles and user.approved

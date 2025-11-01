@@ -1,10 +1,18 @@
 from django.db import models
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
+from apps.core.mixins import SoftDeleteMixin, SoftDeleteManager
 
 
-class Project(models.Model):
-    """Model representing a construction project."""
+class Project(SoftDeleteMixin, models.Model):
+    """
+    Model representing a construction project.
+
+    Использует мягкое удаление (soft delete):
+    - При удалении проект перемещается в корзину на 31 день
+    - Можно восстановить в течение 31 дней
+    - После 31 дня удаляется автоматически навсегда
+    """
 
     # Company ownership - каждый проект принадлежит компании
     company = models.ForeignKey(
@@ -48,6 +56,10 @@ class Project(models.Model):
 
     created_at = models.DateTimeField(_('Создан'), auto_now_add=True)
     updated_at = models.DateTimeField(_('Обновлен'), auto_now=True)
+
+    # Managers для soft delete
+    objects = SoftDeleteManager()  # По умолчанию: только активные (не удаленные)
+    all_objects = models.Manager()  # Для доступа ко всем записям (включая удаленные)
 
     class Meta:
         verbose_name = _('Объект')

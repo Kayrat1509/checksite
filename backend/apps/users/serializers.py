@@ -31,7 +31,7 @@ class UserSerializer(serializers.ModelSerializer):
             'id', 'email', 'secondary_email', 'first_name', 'last_name',
             'middle_name', 'full_name', 'short_name', 'role', 'position',
             'phone', 'telegram_id', 'avatar', 'company', 'company_name', 'external_company_name', 'work_type', 'supervision_company',
-            'is_active', 'is_verified', 'is_superuser', 'approved', 'archived', 'temp_password',
+            'is_active', 'is_verified', 'is_superuser', 'approved', 'is_deleted', 'temp_password',
             'is_company_owner', 'has_full_access', 'role_category',  # НОВЫЕ ПОЛЯ
             'user_projects', 'created_at', 'updated_at'
         ]

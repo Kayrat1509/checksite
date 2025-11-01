@@ -208,5 +208,45 @@ export const usersAPI = {
       }
     })
     return response.data
+  },
+
+  // ===== МЕТОДЫ ДЛЯ SUPERVISIONS (НАДЗОРЫ) EXCEL V2 =====
+
+  // Экспорт шаблона v2 для импорта надзоров
+  exportSupervisionsTemplateV2: async () => {
+    const response = await axios.get('/auth/users/supervisions/export-template-v2/', {
+      responseType: 'blob'
+    })
+    return response.data
+  },
+
+  // Экспорт текущих надзоров в формате v2
+  exportSupervisionsV2: async () => {
+    const response = await axios.get('/auth/users/supervisions/export-v2/', {
+      responseType: 'blob'
+    })
+    return response.data
+  },
+
+  // Создание backup надзоров
+  exportSupervisionsBackup: async () => {
+    const response = await axios.get('/auth/users/supervisions/export-backup/', {
+      responseType: 'blob'
+    })
+    return response.data
+  },
+
+  // Импорт надзоров из Excel v2
+  importSupervisionsV2: async (file: File, mode: 'create' | 'update' = 'create') => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('mode', mode)
+
+    const response = await axios.post('/auth/users/supervisions/import-v2/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    return response.data
   }
 }

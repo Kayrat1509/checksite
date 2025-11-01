@@ -14,9 +14,10 @@ from .serializers import (
 from apps.users.permissions import (
     IsManagementOrSuperAdmin, CanManageProjects, CanManageProjectsAndDrawings
 )
+from apps.core.viewsets import SoftDeleteViewSetMixin
 
 
-class ProjectViewSet(viewsets.ModelViewSet):
+class ProjectViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
     """ViewSet for managing projects."""
 
     queryset = Project.objects.all()

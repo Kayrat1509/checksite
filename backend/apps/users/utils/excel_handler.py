@@ -100,7 +100,7 @@ class PersonnelExcelHandler:
             ("", 11, False),
             ("2. НЕОБЯЗАТЕЛЬНЫЕ ПОЛЯ:", 11, True),
             ("   - Должность — текстовое описание должности", 11, False),
-            ("   - Телефон — формат: +7XXXXXXXXXX или +7 (XXX) XXX-XX-XX", 11, False),
+            ("   - Телефон — контактный телефон (любой формат)", 11, False),
             ("   - Проекты — можно выбрать из выпадающего списка ИЛИ ввести несколько через запятую:", 11, False),
             ("     Пример 1: Выбрать из списка → Жилой комплекс Восход", 11, False),
             ("     Пример 2: Ввести несколько → Жилой комплекс Восход, ТЦ Запад, Школа №5", 11, False),
@@ -139,7 +139,7 @@ class PersonnelExcelHandler:
             ("   - ФИО: Иванов Иван Иванович", 11, False),
             ("   - Роль: Директор (выберите из выпадающего списка)", 11, False),
             ("   - Должность: Генеральный директор", 11, False),
-            ("   - Телефон: +79991234567 или +7 (999) 123-45-67", 11, False),
+            ("   - Телефон: +7 777 123 45 67 (любой формат)", 11, False),
             ("   - Проекты: Жилой комплекс \"Север\", ТЦ \"Запад\" (несколько через запятую)", 11, False),
             ("", 11, False),
             (f"Дата создания шаблона: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", 10, False),
@@ -534,37 +534,6 @@ class PersonnelExcelHandler:
         email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         return re.match(email_regex, email) is not None
 
-    @staticmethod
-    def _is_valid_phone(phone):
-        """
-        Валидация телефона (российский формат).
-
-        Допустимые форматы:
-        - +79991234567
-        - +7 (999) 123-45-67
-        - 89991234567
-
-        Args:
-            phone (str): Телефон для проверки
-
-        Returns:
-            bool: True если телефон валиден
-        """
-        if not phone:
-            return False
-
-        # Убираем все символы кроме цифр и +
-        clean_phone = re.sub(r'[^\d+]', '', phone)
-
-        # Проверяем форматы
-        if clean_phone.startswith('+7') and len(clean_phone) == 12:
-            return True
-        elif clean_phone.startswith('8') and len(clean_phone) == 11:
-            return True
-        elif clean_phone.startswith('7') and len(clean_phone) == 11:
-            return True
-
-        return False
 
     def parse_import_file(self, file, mode='create'):
         """
@@ -671,12 +640,11 @@ class PersonnelExcelHandler:
 
             # ===== ВАЛИДАЦИЯ НЕОБЯЗАТЕЛЬНЫХ ПОЛЕЙ =====
 
-            # 4. Телефон (если указан)
-            if phone and not self._is_valid_phone(phone):
-                row_errors.append(
-                    'Неверный формат телефона. Допустимые форматы: +79991234567, '
-                    '+7 (999) 123-45-67, 89991234567'
-                )
+            # 4. Телефон (необязательное поле, любой формат разрешён)
+            if phone:
+                phone = str(phone).strip()
+            else:
+                phone = ''
 
             # 5. Проекты (если указаны)
             project_ids = []

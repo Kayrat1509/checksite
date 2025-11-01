@@ -118,6 +118,9 @@ class ProjectListSerializer(serializers.ModelSerializer):
     progress_percentage = serializers.FloatField(read_only=True)
     drawings = DrawingListSerializer(many=True, read_only=True)
 
+    # Добавляем детальную информацию о всех участниках команды (включая сотрудников)
+    team_members_details = UserSerializer(source='team_members', many=True, read_only=True)
+
     # Получаем список подрядчиков для проекта
     contractors = serializers.SerializerMethodField()
 
@@ -139,7 +142,8 @@ class ProjectListSerializer(serializers.ModelSerializer):
         model = Project
         fields = [
             'id', 'name', 'address', 'customer', 'project_manager', 'project_manager_name',
-            'team_members', 'is_active', 'progress_percentage', 'drawings', 'contractors', 'created_at'
+            'team_members', 'team_members_details', 'is_active', 'progress_percentage',
+            'drawings', 'contractors', 'created_at'
         ]
 
 

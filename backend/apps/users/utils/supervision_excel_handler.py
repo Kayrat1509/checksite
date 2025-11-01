@@ -1,17 +1,17 @@
 """
-Обработчик Excel для импорта/экспорта подрядчиков.
+Обработчик Excel для импорта/экспорта надзоров (Технадзор и Авторский надзор).
 
 Поддерживает три варианта работы:
-1. Массовое добавление (создание новых подрядчиков)
+1. Массовое добавление (создание новых надзоров)
 2. Обновление данных (export → edit → import)
 3. Backup (полная выгрузка с timestamp)
 
 Особенности:
 - Генерация постоянных паролей (не временных)
 - Валидация email, телефонов, проектов
-- Dropdown списки для проектов
+- Dropdown списки для ролей (SUPERVISOR, OBSERVER) и проектов
 - Отправка credentials на email
-- Роль всегда 'CONTRACTOR'
+- Роли: SUPERVISOR (Технадзор), OBSERVER (Авторский надзор)
 """
 
 import openpyxl
@@ -24,19 +24,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class ContractorExcelHandler:
+class SupervisionExcelHandler:
     """
-    Класс для работы с Excel файлами подрядчиков.
+    Класс для работы с Excel файлами надзоров.
 
     Методы:
     - generate_template_v2() — создать шаблон для импорта с dropdown
-    - generate_export_v2() — экспорт текущих подрядчиков
+    - generate_export_v2() — экспорт текущих надзоров
     - generate_backup() — создать backup с timestamp
     - parse_import_file() — парсинг и валидация импортируемого файла
     """
 
     # Константы для Excel
-    HEADER_FILL = PatternFill(start_color='FF6B35', end_color='FF6B35', fill_type='solid')  # Оранжевый для подрядчиков
+    HEADER_FILL = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')  # Синий для надзоров
     HEADER_FONT = Font(name='Arial', size=11, bold=True, color='FFFFFF')
     CELL_BORDER = Border(
         left=Side(style='thin', color='000000'),
@@ -45,12 +45,11 @@ class ContractorExcelHandler:
         bottom=Side(style='thin', color='000000')
     )
 
-    # Заголовки колонок для подрядчиков
+    # Заголовки колонок для надзоров
     COLUMNS = {
         'email': 'Email*',
         'full_name': 'ФИО*',
-        'contractor_company': 'Компания подрядчика*',
-        'work_type': 'Вид работ',
+        'role': 'Роль*',
         'phone': 'Телефон',
         'projects': 'Объекты'
     }
@@ -59,10 +58,15 @@ class ContractorExcelHandler:
     COLUMN_WIDTHS = {
         'A': 30,  # Email
         'B': 30,  # ФИО
-        'C': 30,  # Компания подрядчика
-        'D': 30,  # Вид работ
-        'E': 18,  # Телефон
-        'F': 40   # Объекты
+        'C': 25,  # Роль
+        'D': 18,  # Телефон
+        'E': 40   # Объекты
+    }
+
+    # Роли надзоров
+    ROLES = {
+        'SUPERVISOR': 'Технадзор',
+        'OBSERVER': 'Авторский надзор'
     }
 
     def __init__(self, company):
@@ -74,7 +78,7 @@ class ContractorExcelHandler:
 
     def generate_template_v2(self):
         """
-        Генерация шаблона Excel v2 для импорта подрядчиков.
+        Генерация шаблона Excel v2 для импорта надзоров.
 
         Структура:
         - Лист 1: "Инструкция" (ReadOnly) — описание процесса импорта
@@ -90,18 +94,15 @@ class ContractorExcelHandler:
         ws_instruction.title = "Инструкция"
 
         instructions = [
-            ("ИНСТРУКЦИЯ ПО ИМПОРТУ ПОДРЯДЧИКОВ", 16, True),
+            ("ИНСТРУКЦИЯ ПО ИМПОРТУ НАДЗОРОВ", 16, True),
             ("", 11, False),
             ("1. ОБЯЗАТЕЛЬНЫЕ ПОЛЯ (отмечены звездочкой *):", 11, True),
-            ("   - Email* — уникальный email подрядчика", 11, False),
+            ("   - Email* — уникальный email надзора", 11, False),
             ("   - ФИО* — полное имя (Фамилия Имя Отчество или Фамилия Имя)", 11, False),
-            ("   - Компания подрядчика* — название компании подрядчика", 11, False),
+            ("   - Роль* — Технадзор или Авторский надзор", 11, False),
             ("", 11, False),
             ("2. НЕОБЯЗАТЕЛЬНЫЕ ПОЛЯ:", 11, True),
-            ("   - Вид работ — описание видов выполняемых работ", 11, False),
-            ("     Примеры: Электромонтажные работы, Сантехнические работы, Отделочные работы", 11, False),
-            ("   - Телефон — контактный телефон", 11, False),
-            ("     Форматы: +7XXXXXXXXXX или +7 (XXX) XXX-XX-XX", 11, False),
+            ("   - Телефон — контактный телефон (любой формат)", 11, False),
             ("   - Объекты — можно выбрать из выпадающего списка ИЛИ ввести несколько через запятую:", 11, False),
             ("     Пример 1: Выбрать из списка → Жилой комплекс Восход", 11, False),
             ("     Пример 2: Ввести несколько → Жилой комплекс Восход, ТЦ Запад, Школа №5", 11, False),
@@ -111,21 +112,19 @@ class ContractorExcelHandler:
             ("   - Email должен быть уникальным в системе", 11, False),
             ("   - При импорте будет сгенерирован постоянный пароль (12 символов)", 11, False),
             ("   - Данные для входа будут отправлены на указанный email", 11, False),
-            ("   - Подрядчики будут привязаны к вашей компании автоматически", 11, False),
-            ("   - Роль 'Подрядчик' устанавливается автоматически", 11, False),
+            ("   - Надзоры будут привязаны к вашей компании автоматически", 11, False),
             ("   - Рекомендуется сменить пароль в профиле после первого входа", 11, False),
             ("", 11, False),
             ("4. ПОРЯДОК РАБОТЫ:", 11, True),
             ("   1) Заполните таблицу на листе 'Данные'", 11, False),
             ("   2) Сохраните файл", 11, False),
-            ("   3) Загрузите через кнопку 'Импорт' на странице Подрядчики", 11, False),
+            ("   3) Загрузите через кнопку 'Импорт' на странице Надзоры", 11, False),
             ("   4) Дождитесь завершения импорта и проверьте статистику", 11, False),
             ("", 11, False),
             ("5. ПРИМЕР ЗАПОЛНЕНИЯ:", 11, True),
-            ("   Email: ivanov@stroi.kz", 11, False),
+            ("   Email: ivanov@supervision.kz", 11, False),
             ("   ФИО: Иванов Иван Иванович", 11, False),
-            ("   Компания подрядчика: ТОО \"СтройСервис\"", 11, False),
-            ("   Вид работ: Электромонтажные работы", 11, False),
+            ("   Роль: Технадзор", 11, False),
             ("   Телефон: +7 777 123 45 67", 11, False),
             ("   Объекты: Жилой комплекс \"Север\", ТЦ \"Запад\"", 11, False),
             ("", 11, False),
@@ -161,28 +160,42 @@ class ContractorExcelHandler:
         # Устанавливаем высоту заголовка
         ws_data.row_dimensions[1].height = 30
 
+        # ===== DROPDOWN ДЛЯ РОЛЕЙ =====
+        roles_list = ','.join(self.ROLES.values())
+        roles_validation = DataValidation(
+            type="list",
+            formula1=f'"{roles_list}"',
+            allow_blank=False,
+            showErrorMessage=True,
+            errorTitle='Неверная роль',
+            error='Выберите роль из списка: Технадзор или Авторский надзор',
+            showInputMessage=True,
+            promptTitle='Выбор роли',
+            prompt='Выберите роль из списка'
+        )
+        roles_validation.add('C2:C1000')  # Применяем к колонке "Роль" (C)
+        ws_data.add_data_validation(roles_validation)
+
         # ===== DROPDOWN ДЛЯ ПРОЕКТОВ/ОБЪЕКТОВ =====
-        # Получаем проекты компании (используем ТОТ ЖЕ метод что и у сотрудников)
         company_projects = self.company.projects.filter(is_active=True).values_list('name', flat=True)
 
         if company_projects:
-            # Ограничение Excel: формула не может быть длиннее 255 символов
             project_list = ','.join(company_projects)
 
             if len(project_list) <= 250:
-                # Если список проектов короткий, используем прямую формулу (как у сотрудников)
+                # Если список проектов короткий, используем прямую формулу
                 projects_formula = f'"{project_list}"'
 
                 projects_validation = DataValidation(
                     type="list",
                     formula1=projects_formula,
                     allow_blank=True,
-                    showErrorMessage=False,  # Разрешаем свободный ввод для множественного выбора
+                    showErrorMessage=False,
                     showInputMessage=True,
                     promptTitle='Выбор объектов',
-                    prompt='Выберите один объект из списка или введите несколько через запятую (например: Объект 1, Объект 2)'
+                    prompt='Выберите один объект из списка или введите несколько через запятую'
                 )
-                projects_validation.add('F2:F1000')  # Применяем к колонке "Объекты" (F)
+                projects_validation.add('E2:E1000')  # Применяем к колонке "Объекты" (E)
                 ws_data.add_data_validation(projects_validation)
             else:
                 # Если список длинный, создаем скрытый лист с проектами
@@ -199,31 +212,29 @@ class ContractorExcelHandler:
                     type="list",
                     formula1=f"'__Объекты__'!$A$1:$A${len(company_projects)}",
                     allow_blank=True,
-                    showErrorMessage=False,  # Разрешаем свободный ввод для множественного выбора
+                    showErrorMessage=False,
                     showInputMessage=True,
                     promptTitle='Выбор объектов',
                     prompt='Выберите один объект из списка или введите несколько через запятую'
                 )
-                projects_validation.add('F2:F1000')
+                projects_validation.add('E2:E1000')
                 ws_data.add_data_validation(projects_validation)
 
         # Добавляем примеры данных (2 строки)
         examples = [
             {
-                'email': 'ivanov@stroi.kz',
+                'email': 'technadz or@company.kz',
                 'full_name': 'Иванов Иван Иванович',
-                'contractor_company': 'ТОО "СтройСервис"',
-                'work_type': 'Электромонтажные работы',
+                'role': 'Технадзор',
                 'phone': '+7 777 123 45 67',
-                'projects': '' if not company_projects else list(company_projects)[0] if len(company_projects) == 1 else f"{list(company_projects)[0]}, {list(company_projects)[1] if len(company_projects) > 1 else ''}"
+                'projects': '' if not company_projects else list(company_projects)[0]
             },
             {
-                'email': 'petrov@build.kz',
-                'full_name': 'Петров Петр',
-                'contractor_company': 'ИП "ПетровСтрой"',
-                'work_type': 'Сантехнические работы',
+                'email': 'observer@company.kz',
+                'full_name': 'Петров Петр Петрович',
+                'role': 'Авторский надзор',
                 'phone': '+7 777 987 65 43',
-                'projects': '' if not company_projects else list(company_projects)[0]
+                'projects': '' if not company_projects else ', '.join(list(company_projects)[:2]) if len(company_projects) >= 2 else list(company_projects)[0]
             }
         ]
 
@@ -237,7 +248,7 @@ class ContractorExcelHandler:
 
     def generate_export_v2(self):
         """
-        Экспорт текущих подрядчиков компании в Excel v2.
+        Экспорт текущих надзоров компании в Excel v2.
 
         Создает файл с текущими данными для редактирования и последующего
         реимпорта в режиме update.
@@ -249,7 +260,7 @@ class ContractorExcelHandler:
 
         workbook = openpyxl.Workbook()
         ws = workbook.active
-        ws.title = "Подрядчики"
+        ws.title = "Надзоры"
 
         # Заголовки
         headers = list(self.COLUMNS.values())
@@ -267,16 +278,26 @@ class ContractorExcelHandler:
         # Устанавливаем высоту заголовка
         ws.row_dimensions[1].height = 30
 
+        # ===== DROPDOWN ДЛЯ РОЛЕЙ =====
+        roles_list = ','.join(self.ROLES.values())
+        roles_validation = DataValidation(
+            type="list",
+            formula1=f'"{roles_list}"',
+            allow_blank=False,
+            showErrorMessage=True,
+            errorTitle='Неверная роль',
+            error='Выберите роль из списка'
+        )
+        roles_validation.add('C2:C1000')
+        ws.add_data_validation(roles_validation)
+
         # ===== DROPDOWN ДЛЯ ПРОЕКТОВ =====
-        # Используем ТОТ ЖЕ метод что и у сотрудников
         company_projects = self.company.projects.filter(is_active=True).values_list('name', flat=True)
 
         if company_projects:
-            # Ограничение Excel: формула не может быть длиннее 255 символов
             project_list = ','.join(company_projects)
 
             if len(project_list) <= 250:
-                # Если список проектов короткий, используем прямую формулу
                 projects_formula = f'"{project_list}"'
 
                 projects_validation = DataValidation(
@@ -288,10 +309,9 @@ class ContractorExcelHandler:
                     promptTitle='Выбор объектов',
                     prompt='Выберите один объект из списка или введите несколько через запятую'
                 )
-                projects_validation.add('F2:F1000')
+                projects_validation.add('E2:E1000')
                 ws.add_data_validation(projects_validation)
             else:
-                # Если список длинный, создаем скрытый лист
                 ws_projects = workbook.create_sheet("__Объекты__")
 
                 for idx, project_name in enumerate(company_projects, start=1):
@@ -308,33 +328,35 @@ class ContractorExcelHandler:
                     promptTitle='Выбор объектов',
                     prompt='Выберите один объект из списка или введите несколько через запятую'
                 )
-                projects_validation.add('F2:F1000')
+                projects_validation.add('E2:E1000')
                 ws.add_data_validation(projects_validation)
 
-        # ===== ДАННЫЕ ПОДРЯДЧИКОВ =====
-        # Получаем только подрядчиков компании (не удаленных)
-        contractors = User.objects.filter(
+        # ===== ДАННЫЕ НАДЗОРОВ =====
+        # Получаем только надзоров компании (SUPERVISOR, OBSERVER), не удаленных
+        supervisions = User.objects.filter(
             company=self.company,
-            role='CONTRACTOR',
+            role__in=['SUPERVISOR', 'OBSERVER'],
             is_deleted=False
         ).prefetch_related('projects')
 
-        for row_idx, contractor in enumerate(contractors, start=2):
+        for row_idx, supervision in enumerate(supervisions, start=2):
             # Формируем список проектов через запятую
-            project_names = ', '.join([p.name for p in contractor.projects.all()])
+            project_names = ', '.join([p.name for p in supervision.projects.all()])
 
             # Формируем ФИО (Фамилия Имя Отчество)
-            full_name_parts = [contractor.last_name, contractor.first_name]
-            if contractor.middle_name:
-                full_name_parts.append(contractor.middle_name)
+            full_name_parts = [supervision.last_name, supervision.first_name]
+            if supervision.middle_name:
+                full_name_parts.append(supervision.middle_name)
             full_name = ' '.join(full_name_parts)
 
+            # Получаем русское название роли
+            role_display = self.ROLES.get(supervision.role, supervision.role)
+
             row_data = {
-                'email': contractor.email,
+                'email': supervision.email,
                 'full_name': full_name,
-                'contractor_company': contractor.external_company_name or '',
-                'work_type': contractor.work_type or '',
-                'phone': contractor.phone or '',
+                'role': role_display,
+                'phone': supervision.phone or '',
                 'projects': project_names
             }
 
@@ -347,7 +369,7 @@ class ContractorExcelHandler:
 
     def generate_backup(self):
         """
-        Создание полного backup подрядчиков с timestamp.
+        Создание полного backup надзоров с timestamp.
 
         Включает все данные, включая статусы и даты для архивных целей.
 
@@ -363,13 +385,13 @@ class ContractorExcelHandler:
         ws_info.title = "Информация"
 
         backup_info = [
-            ("BACKUP ПОДРЯДЧИКОВ", 16, True),
+            ("BACKUP НАДЗОРОВ", 16, True),
             ("", 11, False),
             (f"Дата создания: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", 11, False),
             (f"Компания: {self.company.name}", 11, False),
             ("", 11, False),
             ("Содержание:", 11, True),
-            ("- Лист 'Подрядчики': все подрядчики компании (активные и архивированные)", 11, False),
+            ("- Лист 'Надзоры': все надзоры компании (активные и архивированные)", 11, False),
             ("- Включает расширенные данные: ID, статусы, даты", 11, False),
             ("", 11, False),
             ("Назначение:", 11, True),
@@ -385,16 +407,15 @@ class ContractorExcelHandler:
 
         ws_info.column_dimensions['A'].width = 80
 
-        # ===== ЛИСТ 2: ДАННЫЕ ПОДРЯДЧИКОВ =====
-        ws_data = workbook.create_sheet("Подрядчики")
+        # ===== ЛИСТ 2: ДАННЫЕ НАДЗОРОВ =====
+        ws_data = workbook.create_sheet("Надзоры")
 
         # Расширенные заголовки для backup
         backup_columns = {
             'id': 'ID',
             'email': 'Email',
             'full_name': 'ФИО',
-            'contractor_company': 'Компания подрядчика',
-            'work_type': 'Вид работ',
+            'role': 'Роль',
             'phone': 'Телефон',
             'projects': 'Объекты',
             'is_active': 'Активен',
@@ -412,41 +433,43 @@ class ContractorExcelHandler:
             cell.border = self.CELL_BORDER
 
         # Устанавливаем ширину колонок
-        column_widths = [6, 30, 30, 30, 30, 18, 40, 10, 12, 20, 20]
+        column_widths = [6, 30, 30, 25, 18, 40, 10, 12, 20, 20]
         for idx, width in enumerate(column_widths, start=1):
             ws_data.column_dimensions[openpyxl.utils.get_column_letter(idx)].width = width
 
         # Устанавливаем высоту заголовка
         ws_data.row_dimensions[1].height = 30
 
-        # ===== ДАННЫЕ ПОДРЯДЧИКОВ (ВСЕ, включая архивированных) =====
-        contractors = User.objects.filter(
+        # ===== ДАННЫЕ НАДЗОРОВ (ВСЕ, включая архивированных) =====
+        supervisions = User.objects.filter(
             company=self.company,
-            role='CONTRACTOR'
+            role__in=['SUPERVISOR', 'OBSERVER']
         ).prefetch_related('projects')
 
-        for row_idx, contractor in enumerate(contractors, start=2):
+        for row_idx, supervision in enumerate(supervisions, start=2):
             # Формируем список проектов через запятую
-            project_names = ', '.join([p.name for p in contractor.projects.all()])
+            project_names = ', '.join([p.name for p in supervision.projects.all()])
 
             # Формируем ФИО (Фамилия Имя Отчество)
-            full_name_parts = [contractor.last_name, contractor.first_name]
-            if contractor.middle_name:
-                full_name_parts.append(contractor.middle_name)
+            full_name_parts = [supervision.last_name, supervision.first_name]
+            if supervision.middle_name:
+                full_name_parts.append(supervision.middle_name)
             full_name = ' '.join(full_name_parts)
 
+            # Получаем русское название роли
+            role_display = self.ROLES.get(supervision.role, supervision.role)
+
             row_data = {
-                'id': contractor.id,
-                'email': contractor.email,
+                'id': supervision.id,
+                'email': supervision.email,
                 'full_name': full_name,
-                'contractor_company': contractor.external_company_name or '',
-                'work_type': contractor.work_type or '',
-                'phone': contractor.phone or '',
+                'role': role_display,
+                'phone': supervision.phone or '',
                 'projects': project_names,
-                'is_active': 'Да' if contractor.is_active else 'Нет',
-                'is_deleted': 'Да' if contractor.is_deleted else 'Нет',
-                'created_at': contractor.created_at.strftime('%Y-%m-%d %H:%M:%S') if contractor.created_at else '',
-                'updated_at': contractor.updated_at.strftime('%Y-%m-%d %H:%M:%S') if contractor.updated_at else ''
+                'is_active': 'Да' if supervision.is_active else 'Нет',
+                'is_deleted': 'Да' if supervision.is_deleted else 'Нет',
+                'created_at': supervision.created_at.strftime('%Y-%m-%d %H:%M:%S') if supervision.created_at else '',
+                'updated_at': supervision.updated_at.strftime('%Y-%m-%d %H:%M:%S') if supervision.updated_at else ''
             }
 
             for col_idx, field in enumerate(backup_columns.keys(), start=1):
@@ -458,7 +481,7 @@ class ContractorExcelHandler:
 
     def parse_import_file(self, file, mode='create'):
         """
-        Парсинг и валидация Excel файла для импорта подрядчиков.
+        Парсинг и валидация Excel файла для импорта надзоров.
 
         Args:
             file: Upload file object (Excel файл)
@@ -486,20 +509,22 @@ class ContractorExcelHandler:
         valid_rows = []
         errors = []
 
+        # Обратный маппинг: русское название → код роли
+        role_reverse_map = {v: k for k, v in self.ROLES.items()}
+
         # Начинаем с 2-й строки (1-я строка — заголовки)
         for row_idx in range(2, ws.max_row + 1):
             row_errors = []
 
-            # Читаем данные из ячеек (новая структура: Email, ФИО, Компания, Вид работ, Телефон, Объекты)
+            # Читаем данные из ячеек (Email, ФИО, Роль, Телефон, Объекты)
             email = ws.cell(row=row_idx, column=1).value
             full_name = ws.cell(row=row_idx, column=2).value
-            contractor_company = ws.cell(row=row_idx, column=3).value
-            work_type = ws.cell(row=row_idx, column=4).value
-            phone = ws.cell(row=row_idx, column=5).value
-            projects_str = ws.cell(row=row_idx, column=6).value
+            role_display = ws.cell(row=row_idx, column=3).value
+            phone = ws.cell(row=row_idx, column=4).value
+            projects_str = ws.cell(row=row_idx, column=5).value
 
             # Пропускаем пустые строки
-            if not any([email, full_name, contractor_company]):
+            if not any([email, full_name, role_display]):
                 continue
 
             # === ВАЛИДАЦИЯ ОБЯЗАТЕЛЬНЫХ ПОЛЕЙ ===
@@ -518,8 +543,12 @@ class ContractorExcelHandler:
                         if User.objects.filter(email__iexact=email).exists():
                             row_errors.append(f'Email {email} уже существует в системе')
                     elif mode == 'update':
-                        if not User.objects.filter(email__iexact=email, company=self.company, role='CONTRACTOR').exists():
-                            row_errors.append(f'Подрядчик с email {email} не найден')
+                        if not User.objects.filter(
+                            email__iexact=email,
+                            company=self.company,
+                            role__in=['SUPERVISOR', 'OBSERVER']
+                        ).exists():
+                            row_errors.append(f'Надзор с email {email} не найден')
 
             # ФИО (парсим на фамилию, имя, отчество)
             if not full_name or not isinstance(full_name, str) or not full_name.strip():
@@ -529,11 +558,10 @@ class ContractorExcelHandler:
                 middle_name = ''
             else:
                 full_name = full_name.strip()
-                # Разбиваем ФИО на части: "Иванов Иван Иванович" → ['Иванов', 'Иван', 'Иванович']
                 name_parts = full_name.split()
 
                 if len(name_parts) < 2:
-                    row_errors.append('ФИО должно содержать минимум Фамилию и Имя (например: Иванов Иван)')
+                    row_errors.append('ФИО должно содержать минимум Фамилию и Имя')
                     last_name = name_parts[0] if len(name_parts) > 0 else ''
                     first_name = ''
                     middle_name = ''
@@ -542,19 +570,17 @@ class ContractorExcelHandler:
                     first_name = name_parts[1]
                     middle_name = ' '.join(name_parts[2:]) if len(name_parts) > 2 else ''
 
-            # Компания подрядчика
-            if not contractor_company or not isinstance(contractor_company, str) or not contractor_company.strip():
-                row_errors.append('Компания подрядчика обязательна')
+            # Роль
+            if not role_display or not isinstance(role_display, str):
+                row_errors.append('Роль обязательна')
+                role = None
             else:
-                contractor_company = contractor_company.strip()
+                role_display = role_display.strip()
+                role = role_reverse_map.get(role_display)
+                if not role:
+                    row_errors.append(f'Неверная роль: {role_display}. Используйте: Технадзор или Авторский надзор')
 
             # === ВАЛИДАЦИЯ НЕОБЯЗАТЕЛЬНЫХ ПОЛЕЙ ===
-
-            # Вид работ (необязательное поле)
-            if work_type:
-                work_type = str(work_type).strip()
-            else:
-                work_type = ''
 
             # Телефон (необязательное поле, любой формат разрешён)
             if phone:
@@ -595,8 +621,7 @@ class ContractorExcelHandler:
                     'last_name': last_name,
                     'first_name': first_name,
                     'middle_name': middle_name,
-                    'contractor_company': contractor_company,
-                    'work_type': work_type,
+                    'role': role,
                     'phone': phone,
                     'project_ids': project_ids
                 })

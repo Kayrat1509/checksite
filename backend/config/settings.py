@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django_celery_beat',
 
     # Local apps
+    'apps.core',  # Базовые миксины и утилиты
     'apps.users',
     'apps.projects',
     'apps.issues',

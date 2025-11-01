@@ -34,9 +34,10 @@ from .permissions import (
     MaterialRequestDocumentPermission,
     MaterialRequestCommentPermission
 )
+from apps.core.viewsets import SoftDeleteViewSetMixin
 
 
-class MaterialRequestViewSet(viewsets.ModelViewSet):
+class MaterialRequestViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
     """
     ViewSet для работы с заявками на материалы.
 

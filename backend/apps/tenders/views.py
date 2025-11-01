@@ -14,9 +14,10 @@ from .serializers import (
     TenderBidSerializer
 )
 from .permissions import CanManageTenders
+from apps.core.viewsets import SoftDeleteViewSetMixin
 
 
-class TenderViewSet(viewsets.ModelViewSet):
+class TenderViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
     """
     ViewSet для управления тендерами.
     Доступно: ИТР и Руководство

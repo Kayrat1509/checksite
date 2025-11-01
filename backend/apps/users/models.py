@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from apps.core.mixins import SoftDeleteMixin, SoftDeleteManager
 
 
 class Company(models.Model):
@@ -120,8 +121,16 @@ class UserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 
-class User(AbstractUser):
-    """Custom user model with email as username and role-based access."""
+class User(SoftDeleteMixin, AbstractUser):
+    """
+    Custom user model with email as username and role-based access.
+
+    Использует мягкое удаление (soft delete):
+    - При удалении пользователь перемещается в корзину на 31 день
+    - Можно восстановить в течение 31 дней
+    - После 31 дня удаляется автоматически навсегда
+    - Заменяет старое поле 'archived'
+    """
 
     class Role(models.TextChoices):
         SUPERADMIN = 'SUPERADMIN', _('Суперадмин')
@@ -193,7 +202,7 @@ class User(AbstractUser):
     is_active = models.BooleanField(_('Активен'), default=True)
     is_verified = models.BooleanField(_('Подтвержден'), default=False)
     approved = models.BooleanField(_('Одобрено'), default=False, help_text=_('Разрешен ли доступ к странице пользователей'))
-    archived = models.BooleanField(_('В архиве'), default=False, help_text=_('Подрядчик перемещен в архив (soft delete)'))
+    # ПРИМЕЧАНИЕ: Поле archived заменено на is_deleted из SoftDeleteMixin
 
     # НОВЫЕ ПОЛЯ ДЛЯ СИСТЕМЫ РОЛЕЙ И ДОСТУПА
     is_company_owner = models.BooleanField(
@@ -258,7 +267,9 @@ class User(AbstractUser):
     created_at = models.DateTimeField(_('Создан'), auto_now_add=True)
     updated_at = models.DateTimeField(_('Обновлен'), auto_now=True)
 
-    objects = UserManager()
+    # Managers: комбинируем UserManager с SoftDeleteManager
+    objects = UserManager()  # По умолчанию: только активные (не удаленные)
+    all_objects = models.Manager()  # Для доступа ко всем записям (включая удаленные)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name']

@@ -32,6 +32,10 @@ app.conf.beat_schedule = {
         'task': 'apps.issues.tasks.send_deadline_reminders',
         'schedule': crontab(hour=10, minute=0),  # Every day at 10:00 AM
     },
+    'clean-recycle-bin': {
+        'task': 'core.clean_recycle_bin',
+        'schedule': crontab(hour=3, minute=0),  # Every day at 3:00 AM
+    },
 }
 
 @app.task(bind=True, ignore_result=True)

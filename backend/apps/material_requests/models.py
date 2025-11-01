@@ -2,12 +2,18 @@ from django.db import models
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from apps.projects.models import Project
+from apps.core.mixins import SoftDeleteMixin, SoftDeleteManager
 
 
-class MaterialRequest(models.Model):
+class MaterialRequest(SoftDeleteMixin, models.Model):
     """
     Модель заявки на строительные материалы.
     Основная таблица для учета и контроля движения строительных материалов.
+
+    Использует мягкое удаление (soft delete):
+    - При удалении заявка перемещается в корзину на 31 день
+    - Можно восстановить в течение 31 дней
+    - После 31 дня удаляется автоматически навсегда
     """
 
     class Status(models.TextChoices):
@@ -99,6 +105,10 @@ class MaterialRequest(models.Model):
     # Даты
     created_at = models.DateTimeField(_('Дата создания'), auto_now_add=True)
     updated_at = models.DateTimeField(_('Последнее действие'), auto_now=True)
+
+    # Managers для soft delete
+    objects = SoftDeleteManager()  # По умолчанию: только активные (не удаленные)
+    all_objects = models.Manager()  # Для доступа ко всем записям (включая удаленные)
 
     class Meta:
         verbose_name = _('Заявка на материалы')

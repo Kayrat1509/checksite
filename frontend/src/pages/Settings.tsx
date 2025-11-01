@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Typography, Card, Tabs, Table, Checkbox, Button, Space, message } from 'antd'
-import { SaveOutlined, SecurityScanOutlined } from '@ant-design/icons'
+import { SaveOutlined, SecurityScanOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useAuthStore } from '../stores/authStore'
 import { settingsAPI } from '../api/settings'
+import RecycleBin from '../components/RecycleBin'
 
 const { Title, Text } = Typography
 const { TabPane } = Tabs
@@ -406,6 +407,21 @@ const Settings = () => {
                   </Text>
                 </div>
               </Space>
+            </TabPane>
+          )}
+
+          {/* Вкладка: Корзина (только для определенных ролей) */}
+          {canAccessPermissions() && (
+            <TabPane
+              tab={
+                <span>
+                  <DeleteOutlined />
+                  Корзина
+                </span>
+              }
+              key="recycle-bin"
+            >
+              <RecycleBin />
             </TabPane>
           )}
         </Tabs>

@@ -34,6 +34,7 @@ import { useAuthStore } from '../stores/authStore'
 import { projectsAPI } from '../api/projects'
 import { companiesAPI } from '../api/companies'
 import { tripleConfirm } from '../utils/tripleConfirm'
+import SupervisionsImportExport from '../components/SupervisionsImportExport'
 
 const { Title, Text } = Typography
 
@@ -401,17 +402,23 @@ const Supervisions = () => {
       {/* Заголовок страницы */}
       <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Title level={2}>Надзоры</Title>
-        {/* Кнопка "Добавить надзор" */}
-        {canAddSupervision() && (
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleCreateSupervision}
-            size="large"
-          >
-            Добавить надзор
-          </Button>
-        )}
+
+        <Space size="middle">
+          {/* Кнопки импорта/экспорта надзоров */}
+          {canAddSupervision() && <SupervisionsImportExport />}
+
+          {/* Кнопка "Добавить надзор" */}
+          {canAddSupervision() && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleCreateSupervision}
+              size="large"
+            >
+              Добавить надзор
+            </Button>
+          )}
+        </Space>
       </div>
 
       {/* Вкладки: Активные / Архив */}
