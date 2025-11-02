@@ -33,7 +33,6 @@ import { reportsAPI, ReportFilters } from '../api/reports'
 import { projectsAPI } from '../api/projects'
 import { usersAPI } from '../api/users'
 import { useAuthStore } from '../stores/authStore'
-import { useButtonAccess } from '../hooks/useButtonAccess'
 import dayjs, { Dayjs } from 'dayjs'
 
 const { Title, Paragraph, Text } = Typography
@@ -41,7 +40,6 @@ const { RangePicker } = DatePicker
 
 const Reports = () => {
   const { hasPageAccess } = useAuthStore()
-  const { canUseButton } = useButtonAccess('reports')
 
   // Состояние фильтров
   const [filters, setFilters] = useState<ReportFilters>({})
@@ -404,25 +402,21 @@ const Reports = () => {
               </Row>
 
               <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                {canUseButton('export_pdf') && (
-                  <Button
-                    type="primary"
-                    icon={<FilePdfOutlined />}
-                    loading={loading === 'issues-pdf'}
-                    onClick={() => generateReport('issues', 'pdf')}
-                  >
-                    Скачать PDF
-                  </Button>
-                )}
-                {canUseButton('export_excel') && (
-                  <Button
-                    icon={<FileExcelOutlined />}
-                    loading={loading === 'issues-excel'}
-                    onClick={() => generateReport('issues', 'excel')}
-                  >
-                    Скачать Excel
-                  </Button>
-                )}
+                <Button
+                  type="primary"
+                  icon={<FilePdfOutlined />}
+                  loading={loading === 'issues-pdf'}
+                  onClick={() => generateReport('issues', 'pdf')}
+                >
+                  Скачать PDF
+                </Button>
+                <Button
+                  icon={<FileExcelOutlined />}
+                  loading={loading === 'issues-excel'}
+                  onClick={() => generateReport('issues', 'excel')}
+                >
+                  Скачать Excel
+                </Button>
               </Space>
             </Space>
           </Card>
@@ -468,25 +462,21 @@ const Reports = () => {
               </Row>
 
               <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                {canUseButton('export_excel') && (
-                  <Button
-                    type="primary"
-                    icon={<FileExcelOutlined />}
-                    loading={loading === 'projects-excel'}
-                    onClick={() => generateReport('projects', 'excel')}
-                  >
-                    Скачать Excel
-                  </Button>
-                )}
-                {canUseButton('export_pdf') && (
-                  <Button
-                    icon={<FilePdfOutlined />}
-                    loading={loading === 'projects-pdf'}
-                    onClick={() => generateReport('projects', 'pdf')}
-                  >
-                    Скачать PDF
-                  </Button>
-                )}
+                <Button
+                  type="primary"
+                  icon={<FileExcelOutlined />}
+                  loading={loading === 'projects-excel'}
+                  onClick={() => generateReport('projects', 'excel')}
+                >
+                  Скачать Excel
+                </Button>
+                <Button
+                  icon={<FilePdfOutlined />}
+                  loading={loading === 'projects-pdf'}
+                  onClick={() => generateReport('projects', 'pdf')}
+                >
+                  Скачать PDF
+                </Button>
               </Space>
             </Space>
           </Card>
@@ -532,25 +522,21 @@ const Reports = () => {
               </Row>
 
               <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                {canUseButton('export_pdf') && (
-                  <Button
-                    type="primary"
-                    icon={<FilePdfOutlined />}
-                    loading={loading === 'contractors_kpi-pdf'}
-                    onClick={() => generateReport('contractors_kpi', 'pdf')}
-                  >
-                    Скачать PDF
-                  </Button>
-                )}
-                {canUseButton('export_excel') && (
-                  <Button
-                    icon={<FileExcelOutlined />}
-                    loading={loading === 'contractors_kpi-excel'}
-                    onClick={() => generateReport('contractors_kpi', 'excel')}
-                  >
-                    Скачать Excel
-                  </Button>
-                )}
+                <Button
+                  type="primary"
+                  icon={<FilePdfOutlined />}
+                  loading={loading === 'contractors_kpi-pdf'}
+                  onClick={() => generateReport('contractors_kpi', 'pdf')}
+                >
+                  Скачать PDF
+                </Button>
+                <Button
+                  icon={<FileExcelOutlined />}
+                  loading={loading === 'contractors_kpi-excel'}
+                  onClick={() => generateReport('contractors_kpi', 'excel')}
+                >
+                  Скачать Excel
+                </Button>
               </Space>
             </Space>
           </Card>
@@ -596,25 +582,21 @@ const Reports = () => {
               </Row>
 
               <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                {canUseButton('export_excel') && (
-                  <Button
-                    type="primary"
-                    icon={<FileExcelOutlined />}
-                    loading={loading === 'material_requests-excel'}
-                    onClick={() => generateReport('material_requests', 'excel')}
-                  >
-                    Скачать Excel
-                  </Button>
-                )}
-                {canUseButton('export_pdf') && (
-                  <Button
-                    icon={<FilePdfOutlined />}
-                    loading={loading === 'material_requests-pdf'}
-                    onClick={() => generateReport('material_requests', 'pdf')}
-                  >
-                    Скачать PDF
-                  </Button>
-                )}
+                <Button
+                  type="primary"
+                  icon={<FileExcelOutlined />}
+                  loading={loading === 'material_requests-excel'}
+                  onClick={() => generateReport('material_requests', 'excel')}
+                >
+                  Скачать Excel
+                </Button>
+                <Button
+                  icon={<FilePdfOutlined />}
+                  loading={loading === 'material_requests-pdf'}
+                  onClick={() => generateReport('material_requests', 'pdf')}
+                >
+                  Скачать PDF
+                </Button>
               </Space>
             </Space>
           </Card>

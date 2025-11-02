@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { App as AntApp } from 'antd'
 import { useAuthStore } from './stores/authStore'
+import { useAccessRefresh } from './hooks/useAccessRefresh'
 import MainLayout from './components/Layout/MainLayout'
 import LandingPage from './pages/Home/LandingPage'
 import PricingPage from './pages/Home/PricingPage'
@@ -22,7 +23,6 @@ import Warehouse from './pages/Warehouse'
 import Reports from './pages/Reports'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
-import AccessManagement from './pages/AccessManagement'
 import NotFound from './pages/NotFound'
 
 // Публичные тендеры (для внешних пользователей)
@@ -47,6 +47,9 @@ function DashboardRedirect() {
 
 function App() {
   const { isAuthenticated, isLoading, checkAuth } = useAuthStore()
+
+  // Автоматическое обновление прав доступа
+  useAccessRefresh()
 
   // Проверка аутентификации только при первом монтировании
   useEffect(() => {
@@ -100,7 +103,6 @@ function App() {
           <Route path="reports" element={<Reports />} />
           <Route path="profile" element={<Profile />} />
           <Route path="settings" element={<Settings />} />
-          <Route path="access-management" element={<AccessManagement />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

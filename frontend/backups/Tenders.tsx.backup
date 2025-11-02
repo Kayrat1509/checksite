@@ -32,7 +32,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { tendersAPI, Tender, TenderCreateData, TenderUpdateData } from '../api/tenders'
 import { projectsAPI } from '../api/projects'
 import { useAuthStore } from '../stores/authStore'
-import { useButtonAccess } from '../hooks/useButtonAccess'
 import { tripleConfirm } from '../utils/tripleConfirm'
 import dayjs from 'dayjs'
 import './Tenders.css'
@@ -44,7 +43,6 @@ const { RangePicker } = DatePicker
 const Tenders = () => {
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
-  const { canUseButton } = useButtonAccess('tenders') // Проверка доступа к кнопкам
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [selectedTender, setSelectedTender] = useState<Tender | null>(null)
@@ -238,46 +236,6 @@ const Tenders = () => {
     return num.toLocaleString('ru-RU')
   }
 
-  // Проверка доступа к созданию тендера
-  const canCreateTender = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('create')
-  }
-
-  // Проверка доступа к редактированию тендера
-  const canEditTender = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('edit')
-  }
-
-  // Проверка доступа к удалению тендера
-  const canDeleteTender = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('delete')
-  }
-
-  // Проверка доступа к просмотру деталей тендера
-  const canViewDetails = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('view_details')
-  }
-
   // Колонки таблицы
   const columns = [
     {
@@ -345,19 +303,17 @@ const Tenders = () => {
       width: 150,
       render: (_: any, record: Tender) => (
         <Space size="small" className="tenders-actions">
-          {/* Просмотр - проверяется через матрицу доступа */}
-          {canViewDetails() && (
-            <Tooltip title="Просмотр">
-              <Button
-                type="text"
-                icon={<EyeOutlined />}
-                onClick={() => handleViewDetail(record)}
-              />
-            </Tooltip>
-          )}
+          {/* Просмотр */}
+          <Tooltip title="Просмотр">
+            <Button
+              type="text"
+              icon={<EyeOutlined />}
+              onClick={() => handleViewDetail(record)}
+            />
+          </Tooltip>
 
-          {/* Опубликовать (только для черновиков) - проверяется через матрицу доступа (edit) */}
-          {canEditTender() && record.status === 'DRAFT' && (
+          {/* Опубликовать (только для черновиков) */}
+          {record.status === 'DRAFT' && (
             <Tooltip title="Опубликовать">
               <Button
                 type="text"
@@ -368,8 +324,8 @@ const Tenders = () => {
             </Tooltip>
           )}
 
-          {/* Редактировать (для незакрытых тендеров) - проверяется через матрицу доступа */}
-          {canEditTender() && record.status !== 'CLOSED' && record.status !== 'CANCELLED' && (
+          {/* Редактировать (для незакрытых тендеров) */}
+          {record.status !== 'CLOSED' && record.status !== 'CANCELLED' && (
             <>
               <Tooltip title="Изменить">
                 <Button
@@ -380,7 +336,7 @@ const Tenders = () => {
                 />
               </Tooltip>
 
-              {/* Закрыть - проверяется через матрицу доступа (edit) */}
+              {/* Закрыть */}
               <Tooltip title="Закрыть">
                 <Button
                   type="text"
@@ -392,17 +348,16 @@ const Tenders = () => {
             </>
           )}
 
-          {/* Удалить - проверяется через матрицу доступа */}
-          {canDeleteTender() && (
-            <Tooltip title="Удалить">
-              <Button
-                type="text"
-                danger
-                icon={<DeleteOutlined />}
-                onClick={() => handleDeleteTender(record)}
-              />
-            </Tooltip>
-          )}
+          {/* Удалить */}
+          {/* Убрали Popconfirm, так как теперь используется тройное подтверждение через tripleConfirm */}
+          <Tooltip title="Удалить">
+            <Button
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDeleteTender(record)}
+            />
+          </Tooltip>
         </Space>
       )
     }
@@ -412,17 +367,14 @@ const Tenders = () => {
     <div className="tenders-container">
       <div className="tenders-header">
         <Title level={2} className="tenders-title">Тендеры</Title>
-        {/* Кнопка "Создать тендер" проверяется через матрицу доступа */}
-        {canCreateTender() && (
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => handleOpenModal()}
-            className="tenders-create-btn"
-          >
-            Создать тендер
-          </Button>
-        )}
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => handleOpenModal()}
+          className="tenders-create-btn"
+        >
+          Создать тендер
+        </Button>
       </div>
 
       <Table

@@ -1,0 +1,509 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% load page_access_tags %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    /* Общий контейнер */
+    .matrix-container {
+        padding: 24px;
+        background: #f0f2f5;
+        min-height: calc(100vh - 120px);
+    }
+
+    /* Заголовок */
+    .page-header {
+        margin-bottom: 24px;
+    }
+
+    .page-header h1 {
+        font-size: 24px;
+        font-weight: 600;
+        color: rgba(0, 0, 0, 0.85);
+        margin: 0;
+    }
+
+    /* Карточка */
+    .ant-card {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03),
+                    0 1px 6px -1px rgba(0, 0, 0, 0.02),
+                    0 2px 4px 0 rgba(0, 0, 0, 0.02);
+        margin-bottom: 16px;
+    }
+
+    .ant-card-body {
+        padding: 24px;
+    }
+
+    /* Секция описания */
+    .description-section {
+        margin-bottom: 24px;
+    }
+
+    .description-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: rgba(0, 0, 0, 0.85);
+        margin-bottom: 8px;
+    }
+
+    .description-text {
+        font-size: 14px;
+        color: rgba(0, 0, 0, 0.65);
+        line-height: 1.5715;
+    }
+
+    /* Ant Design Table стили */
+    .ant-table-wrapper {
+        margin-bottom: 24px;
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    .ant-table {
+        font-size: 14px;
+        color: rgba(0, 0, 0, 0.85);
+        border: 1px solid #f0f0f0;
+        border-radius: 8px;
+        overflow: hidden;
+        min-width: fit-content;
+    }
+
+    .ant-table table {
+        width: auto;
+        max-width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    /* Заголовок таблицы */
+    .ant-table thead > tr > th {
+        position: relative;
+        color: rgba(0, 0, 0, 0.85);
+        font-weight: 600;
+        text-align: center;
+        background: #fafafa;
+        border-bottom: 1px solid #f0f0f0;
+        padding: 8px 4px;
+        font-size: 11px;
+        transition: background 0.3s ease;
+        white-space: normal;
+        word-wrap: break-word;
+        width: 70px;
+        max-width: 70px;
+    }
+
+    .ant-table thead > tr > th:first-child {
+        text-align: left;
+        position: sticky;
+        left: 0;
+        z-index: 3;
+        background: #fafafa;
+        min-width: 140px;
+        width: 140px;
+        max-width: 140px;
+        font-size: 12px;
+    }
+
+    /* Тело таблицы */
+    .ant-table tbody > tr > td {
+        padding: 8px 4px;
+        border-bottom: 1px solid #f0f0f0;
+        text-align: center;
+        transition: background 0.3s;
+        width: 70px;
+        max-width: 70px;
+    }
+
+    .ant-table tbody > tr > td:first-child {
+        text-align: left;
+        font-weight: 500;
+        position: sticky;
+        left: 0;
+        background: #fff;
+        z-index: 2;
+        border-right: 1px solid #f0f0f0;
+        color: rgba(0, 0, 0, 0.85);
+        min-width: 140px;
+        width: 140px;
+        max-width: 140px;
+        font-size: 12px;
+        padding: 8px 12px;
+    }
+
+    .ant-table tbody > tr:hover > td {
+        background: #fafafa;
+    }
+
+    .ant-table tbody > tr:hover > td:first-child {
+        background: #fafafa;
+    }
+
+    /* Чекбоксы в стиле Ant Design */
+    .ant-checkbox-wrapper {
+        display: inline-flex;
+        align-items: center;
+        cursor: pointer;
+    }
+
+    .ant-checkbox {
+        position: relative;
+        white-space: nowrap;
+        cursor: pointer;
+        outline: none;
+        display: inline-block;
+        line-height: 1;
+        vertical-align: middle;
+    }
+
+    .ant-checkbox-input {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 1;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+        opacity: 0;
+        margin: 0;
+    }
+
+    .ant-checkbox-inner {
+        position: relative;
+        top: 0;
+        left: 0;
+        display: block;
+        width: 14px;
+        height: 14px;
+        background-color: #fff;
+        border: 1px solid #d9d9d9;
+        border-radius: 3px;
+        transition: all 0.3s;
+    }
+
+    .ant-checkbox:hover .ant-checkbox-inner {
+        border-color: #1890ff;
+    }
+
+    .ant-checkbox-input:checked + .ant-checkbox-inner {
+        background-color: #1890ff;
+        border-color: #1890ff;
+    }
+
+    .ant-checkbox-input:checked + .ant-checkbox-inner::after {
+        position: absolute;
+        display: table;
+        border: 2px solid #fff;
+        border-top: 0;
+        border-left: 0;
+        transform: rotate(45deg) scale(1) translate(-50%, -50%);
+        opacity: 1;
+        transition: all 0.2s cubic-bezier(0.12, 0.4, 0.29, 1.46) 0.1s;
+        content: ' ';
+        top: 50%;
+        left: 21.5%;
+        width: 5.71428571px;
+        height: 9.14285714px;
+    }
+
+    /* Кнопка сохранения */
+    .actions-bar {
+        padding: 16px 24px;
+        background: #fff;
+        border-top: 1px solid #f0f0f0;
+        border-radius: 0 0 8px 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .ant-btn {
+        height: 40px;
+        padding: 4px 24px;
+        font-size: 14px;
+        border-radius: 4px;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+        user-select: none;
+        touch-action: manipulation;
+        line-height: 1.5715;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
+    }
+
+    .ant-btn-primary {
+        color: #fff;
+        background: #1890ff;
+        border-color: #1890ff;
+        box-shadow: 0 2px 0 rgba(0, 0, 0, 0.045);
+    }
+
+    .ant-btn-primary:hover {
+        background: #40a9ff;
+        border-color: #40a9ff;
+    }
+
+    .ant-btn-primary:active {
+        background: #096dd9;
+        border-color: #096dd9;
+    }
+
+    /* Индикатор сохранения */
+    .save-indicator {
+        color: #52c41a;
+        font-weight: 500;
+        font-size: 14px;
+        display: none;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .save-indicator.show {
+        display: inline-flex;
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-4px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Информационная карточка внизу */
+    .info-card {
+        padding: 16px;
+        background: #e6f7ff;
+        border: 1px solid #91d5ff;
+        border-radius: 8px;
+        margin-top: 24px;
+    }
+
+    .info-card strong {
+        color: rgba(0, 0, 0, 0.85);
+    }
+
+    .info-card-text {
+        font-size: 14px;
+        color: rgba(0, 0, 0, 0.65);
+        line-height: 1.5715;
+        margin: 0;
+    }
+
+    /* Скролл */
+    .table-scroll {
+        overflow-x: auto;
+        margin-bottom: 16px;
+    }
+
+    /* Изменения не сохранены - подсветка кнопки */
+    .ant-btn-primary.changed {
+        background: #fa8c16;
+        border-color: #fa8c16;
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.045);
+        }
+        50% {
+            box-shadow: 0 2px 8px rgba(250, 140, 22, 0.4);
+        }
+    }
+
+    /* Статистика */
+    .stats-row {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .stat-card {
+        flex: 1;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        color: #fff;
+        text-align: center;
+    }
+
+    .stat-card:nth-child(2) {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .stat-card:nth-child(3) {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+
+    .stat-number {
+        font-size: 36px;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+
+    .stat-label {
+        font-size: 14px;
+        opacity: 0.9;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="matrix-container">
+    <div class="page-header">
+        <h1>Матрица доступа к страницам</h1>
+    </div>
+
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-number">{{ total_pages }}</div>
+            <div class="stat-label">Страниц</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">13</div>
+            <div class="stat-label">Ролей</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ total_pages|multiply:13 }}</div>
+            <div class="stat-label">Комбинаций</div>
+        </div>
+    </div>
+
+    <div class="ant-card">
+        <div class="ant-card-body">
+            <div class="description-section">
+                <div class="description-title">Управление правами доступа</div>
+                <div class="description-text">
+                    Отметьте галочками страницы, к которым должны иметь доступ пользователи с определенной ролью.
+                    Изменения применятся ко всем компаниям и вступят в силу после сохранения.
+                </div>
+            </div>
+
+            <form method="post" action="{% url 'admin:settings_save_page_access_matrix' %}" id="matrix-form">
+                {% csrf_token %}
+
+                <div class="table-scroll">
+                    <div class="ant-table-wrapper">
+                        <div class="ant-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Страница</th>
+                                        {% for role_key, role_name in roles %}
+                                        <th>{{ role_name }}</th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for page_key, page_name in pages %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ page_name }}</strong>
+                                        </td>
+                                        {% for role_key, role_name in roles %}
+                                        <td>
+                                            <label class="ant-checkbox-wrapper">
+                                                <span class="ant-checkbox">
+                                                    <input
+                                                        type="checkbox"
+                                                        class="ant-checkbox-input"
+                                                        name="access_{{ page_key }}_{{ role_key }}"
+                                                        {% if access_matrix|get_access:page_key|get_access:role_key %}checked{% endif %}
+                                                        onchange="markChanged()"
+                                                    />
+                                                    <span class="ant-checkbox-inner"></span>
+                                                </span>
+                                            </label>
+                                        </td>
+                                        {% endfor %}
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="actions-bar">
+                    <div>
+                        <span class="save-indicator" id="save-indicator">
+                            ✓ Изменения сохранены
+                        </span>
+                    </div>
+                    <div>
+                        <button type="submit" class="ant-btn ant-btn-primary" id="save-btn">
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                                <path d="M13 0H3.4L0 3.4V14h14V0h-1zM7 12.556c-1.3 0-2.333-1.033-2.333-2.333S5.7 7.89 7 7.89s2.333 1.033 2.333 2.333S8.3 12.556 7 12.556zM10.5 5.444H2.333V1.167H10.5v4.277z"/>
+                            </svg>
+                            Сохранить изменения
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <div class="info-card">
+                <p class="info-card-text">
+                    <strong>Примечание:</strong> Роль "Суперадмин" имеет полный доступ ко всем страницам и не отображается в матрице.
+                    Изменения применяются ко всем компаниям автоматически.
+                </p>
+                <p class="info-card-text" style="margin-top: 8px;">
+                    <strong>⏱ Время вступления в силу:</strong> Пользователи увидят изменения в течение 5 минут
+                    (обновление происходит автоматически при возвращении на вкладку или по таймеру каждые 5 минут).
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let hasChanges = false;
+
+    function markChanged() {
+        hasChanges = true;
+        const saveBtn = document.getElementById('save-btn');
+        saveBtn.classList.add('changed');
+    }
+
+    // Предупреждение при уходе со страницы с несохраненными изменениями
+    window.addEventListener('beforeunload', function (e) {
+        if (hasChanges) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
+    // Обработка успешного сохранения
+    const form = document.getElementById('matrix-form');
+    if (form) {
+        form.addEventListener('submit', function() {
+            hasChanges = false;
+        });
+    }
+
+    // Показываем индикатор сохранения если есть GET параметр saved=1
+    if (window.location.search.includes('saved=1')) {
+        const indicator = document.getElementById('save-indicator');
+        if (indicator) {
+            indicator.classList.add('show');
+            setTimeout(() => {
+                indicator.classList.remove('show');
+            }, 3000);
+        }
+    }
+</script>
+{% endblock %}

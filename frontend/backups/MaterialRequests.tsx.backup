@@ -4,7 +4,6 @@ import { PlusOutlined, DownloadOutlined, EditOutlined, CloseCircleOutlined, Send
 import { materialRequestsAPI, MaterialRequest, CreateMaterialRequestData } from '../api/materialRequests';
 import { projectsAPI } from '../api/projects';
 import { useAuthStore } from '../stores/authStore';
-import { useButtonAccess } from '../hooks/useButtonAccess';
 import { useQueryClient } from '@tanstack/react-query';
 
 const { Option } = Select;
@@ -46,7 +45,6 @@ const getStatusColor = (status: string): string => {
 const MaterialRequests = () => {
   const { user } = useAuthStore();
   const queryClient = useQueryClient(); // Для инвалидации кеша страницы Склад
-  const { canUseButton } = useButtonAccess('material-requests'); // Проверка доступа к кнопкам
   const [requests, setRequests] = useState<MaterialRequest[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
@@ -1210,23 +1208,19 @@ const MaterialRequests = () => {
       render: (record: FlatMaterialRow) => {
         // Определяем, можно ли редактировать заявку
         const isAuthor = record.request.author_data?.id === user?.id;
-        const isDraftOrRework = record.material &&
+        const canEdit = isAuthor && record.material &&
                         (record.material.item_status === 'DRAFT' || record.material.item_status === 'RETURNED_FOR_REVISION');
-        const canEdit = isAuthor && isDraftOrRework && canEditRequest();
 
         return (
           <Space size="small">
-            {/* Кнопка "Скачать Excel" проверяется через матрицу доступа */}
-            {canExportExcel() && (
-              <Tooltip title="Скачать Excel">
-                <Button
-                  type="primary"
-                  icon={<DownloadOutlined />}
-                  onClick={() => handleExportExcel(record.request)}
-                  size="small"
-                />
-              </Tooltip>
-            )}
+            <Tooltip title="Скачать Excel">
+              <Button
+                type="primary"
+                icon={<DownloadOutlined />}
+                onClick={() => handleExportExcel(record.request)}
+                size="small"
+              />
+            </Tooltip>
             {/* Кнопка "Редактировать" доступна только автору при статусах DRAFT или RETURNED_FOR_REVISION */}
             {canEdit && (
               <Tooltip title="Изменить">
@@ -1238,8 +1232,8 @@ const MaterialRequests = () => {
                 />
               </Tooltip>
             )}
-            {/* Кнопка "Отменить" - показывается только для активных позиций и проверяется через матрицу */}
-            {canDeleteItem() && record.material && record.material.status !== 'CANCELLED' && (
+            {/* Кнопка "Отменить" - показывается только для активных позиций */}
+            {record.material && record.material.status !== 'CANCELLED' && (
               <Tooltip title="Отменить позицию">
                 <Popconfirm
                   title="Отменить позицию?"
@@ -1257,8 +1251,8 @@ const MaterialRequests = () => {
               </Tooltip>
             )}
 
-            {/* Кнопка "Восстановить" - показывается только для отмененных позиций и проверяется через матрицу */}
-            {canDeleteItem() && record.material && record.material.status === 'CANCELLED' && (
+            {/* Кнопка "Восстановить" - показывается только для отмененных позиций */}
+            {record.material && record.material.status === 'CANCELLED' && (
               <Tooltip title="Восстановить позицию (продолжит согласование)">
                 <Popconfirm
                   title="Восстановить позицию?"
@@ -1281,54 +1275,12 @@ const MaterialRequests = () => {
     },
   ];
 
-  // Проверка доступа к кнопке "Создать заявку" через систему ButtonAccess
+  // Проверка, может ли пользователь создавать заявки
   const canCreateRequest = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true;
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('create');
-  };
-
-  // Проверка доступа к редактированию заявки
-  const canEditRequest = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true;
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('edit');
-  };
-
-  // Проверка доступа к удалению/отмене позиции
-  const canDeleteItem = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true;
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('delete');
-  };
-
-  // Проверка доступа к экспорту в Excel
-  const canExportExcel = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true;
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('view_details');
-  };
-
-  // Проверка доступа к согласованию/отклонению заявки
-  const canApproveReject = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true;
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('approve');
+    if (!user) return false;
+    // Роли снабжения не могут создавать заявки
+    const supplyRoles = ['SUPPLY_MANAGER', 'WAREHOUSE_HEAD', 'ACCOUNTANT'];
+    return !supplyRoles.includes(user.role);
   };
 
   return (

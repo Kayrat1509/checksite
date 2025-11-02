@@ -1,5 +1,5 @@
 """
-ViewSet для работы с корзиной (Recycle Bin).
+ViewSet для работы с корзиной (Recycle Bin) и матрицей доступа к кнопкам.
 """
 
 from rest_framework import viewsets, status
@@ -11,7 +11,13 @@ from datetime import timedelta
 from django.apps import apps
 
 from .permissions import CanAccessRecycleBin, CanRestoreFromRecycleBin, CanPermanentlyDelete
-from .serializers import RecycleBinItemSerializer, RecycleBinStatsSerializer
+from .serializers import (
+    RecycleBinItemSerializer,
+    RecycleBinStatsSerializer,
+    ButtonAccessSerializer,
+    ButtonAccessMinimalSerializer,
+)
+from .models import ButtonAccess
 
 
 class RecycleBinViewSet(viewsets.ViewSet):
@@ -369,3 +375,121 @@ class RecycleBinViewSet(viewsets.ViewSet):
             'deleted_count': deleted_count,
             'details': details
         })
+
+
+class ButtonAccessViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet для получения информации о доступе к кнопкам.
+
+    ВАЖНО: Настройка доступа производится только через Django Admin (/admin/).
+    API предоставляет только чтение (ReadOnly).
+
+    Endpoints:
+    - GET /api/button-access/ - список всех кнопок с их настройками доступа
+    - GET /api/button-access/{id}/ - детальная информация о кнопке
+    - GET /api/button-access/by_page/?page=projects - кнопки доступные текущему пользователю на странице
+    """
+
+    queryset = ButtonAccess.objects.all()
+    serializer_class = ButtonAccessSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Фильтрация queryset по query параметрам.
+
+        Query params:
+        - page: фильтр по странице (например, 'projects', 'users')
+        """
+        queryset = super().get_queryset()
+
+        # Фильтр по странице
+        page = self.request.query_params.get('page')
+        if page:
+            queryset = queryset.filter(page=page)
+
+        return queryset.order_by('page', 'button_key')
+
+    @action(detail=False, methods=['get'])
+    def by_page(self, request):
+        """
+        Получить все доступные кнопки для текущего пользователя на конкретной странице.
+
+        Query params:
+        - page (required): название страницы (projects, users, contractors и т.д.)
+
+        Response:
+        [
+            {
+                "button_key": "create",
+                "button_name": "Создать проект",
+                "description": "Создание нового проекта"
+            },
+            ...
+        ]
+
+        Example:
+        GET /api/button-access/by_page/?page=projects
+        """
+        page = request.query_params.get('page')
+
+        if not page:
+            return Response(
+                {'error': 'Параметр "page" обязателен'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user_role = request.user.role
+
+        # Получаем все кнопки для данной страницы
+        buttons = ButtonAccess.objects.filter(page=page)
+
+        # Фильтруем кнопки по доступу пользователя
+        available_buttons = []
+        for button in buttons:
+            if button.has_access(user_role):
+                available_buttons.append(button)
+
+        # Используем минимальный сериализатор
+        serializer = ButtonAccessMinimalSerializer(available_buttons, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def all_pages(self, request):
+        """
+        Получить список всех страниц и доступные кнопки на каждой странице для текущего пользователя.
+
+        Response:
+        {
+            "projects": [
+                {"button_key": "create", "button_name": "Создать проект", ...},
+                {"button_key": "edit", "button_name": "Редактировать", ...}
+            ],
+            "users": [
+                {"button_key": "create", "button_name": "Добавить сотрудника", ...}
+            ],
+            ...
+        }
+
+        Example:
+        GET /api/button-access/all_pages/
+        """
+        user_role = request.user.role
+
+        # Получаем все кнопки
+        all_buttons = ButtonAccess.objects.all().order_by('page', 'button_key')
+
+        # Группируем по страницам
+        pages_dict = {}
+        for button in all_buttons:
+            if button.has_access(user_role):
+                if button.page not in pages_dict:
+                    pages_dict[button.page] = []
+
+                pages_dict[button.page].append({
+                    'button_key': button.button_key,
+                    'button_name': button.button_name,
+                    'description': button.description,
+                })
+
+        return Response(pages_dict)

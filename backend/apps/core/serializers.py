@@ -1,9 +1,10 @@
 """
-Сериализаторы для работы с корзиной (Recycle Bin).
+Сериализаторы для работы с корзиной (Recycle Bin) и матрицей доступа к кнопкам.
 """
 
 from rest_framework import serializers
 from django.contrib.contenttypes.models import ContentType
+from .models import ButtonAccess
 
 
 class RecycleBinItemSerializer(serializers.Serializer):
@@ -37,3 +38,49 @@ class RecycleBinStatsSerializer(serializers.Serializer):
     material_requests_count = serializers.IntegerField(read_only=True)
     tenders_count = serializers.IntegerField(read_only=True)
     expires_soon_count = serializers.IntegerField(read_only=True)  # Записей с days_left < 7
+
+
+class ButtonAccessSerializer(serializers.ModelSerializer):
+    """
+    Сериализатор для модели ButtonAccess.
+    Используется для получения информации о доступе к кнопкам на страницах.
+    """
+
+    accessible_roles = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ButtonAccess
+        fields = [
+            'id',
+            'page',
+            'button_key',
+            'button_name',
+            'description',
+            'default_access',
+            'accessible_roles',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'accessible_roles']
+
+    def get_accessible_roles(self, obj):
+        """
+        Возвращает список ролей с доступом к кнопке.
+        Если default_access=True, возвращает ['ALL'].
+        """
+        return obj.get_accessible_roles()
+
+
+class ButtonAccessMinimalSerializer(serializers.ModelSerializer):
+    """
+    Минимальный сериализатор для ButtonAccess.
+    Возвращает только необходимую информацию для фронтенда.
+    """
+
+    class Meta:
+        model = ButtonAccess
+        fields = [
+            'button_key',
+            'button_name',
+            'description',
+        ]

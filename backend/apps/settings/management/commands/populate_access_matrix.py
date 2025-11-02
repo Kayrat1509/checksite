@@ -63,13 +63,6 @@ class Command(BaseCommand):
                 'OBSERVER': False, 'SUPPLY_MANAGER': False, 'WAREHOUSE_HEAD': False,
                 'SITE_WAREHOUSE_MANAGER': False,
             },
-            'technical-conditions': {
-                'DIRECTOR': True, 'CHIEF_ENGINEER': True, 'PROJECT_MANAGER': True,
-                'ENGINEER': True, 'SITE_MANAGER': True, 'FOREMAN': True,
-                'MASTER': True, 'SUPERVISOR': True, 'CONTRACTOR': True,
-                'OBSERVER': True, 'SUPPLY_MANAGER': False, 'WAREHOUSE_HEAD': False,
-                'SITE_WAREHOUSE_MANAGER': False,
-            },
             'material-requests': {
                 'DIRECTOR': True, 'CHIEF_ENGINEER': True, 'PROJECT_MANAGER': True,
                 'ENGINEER': True, 'SITE_MANAGER': True, 'FOREMAN': True,

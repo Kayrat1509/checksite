@@ -31,7 +31,6 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersAPI, User, CreateUserData } from '../api/users'
 import { useAuthStore } from '../stores/authStore'
-import { useButtonAccess } from '../hooks/useButtonAccess'
 import { projectsAPI } from '../api/projects'
 import { companiesAPI } from '../api/companies'
 import { tripleConfirm } from '../utils/tripleConfirm'
@@ -50,66 +49,57 @@ const Supervisions = () => {
 
   // Получаем текущего пользователя из authStore
   const currentUser = useAuthStore(state => state.user)
-  const { canUseButton } = useButtonAccess('supervisions')
 
-  // Функция проверки прав на ДОБАВЛЕНИЕ надзора через матрицу доступа
+  // Функция проверки прав на ДОБАВЛЕНИЕ надзора
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер, Прораб
   const canAddSupervision = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('create')
+    if (!currentUser) return false
+    if (currentUser.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER', 'FOREMAN']
+    return allowedRoles.includes(currentUser.role)
   }
 
-  // Функция проверки прав на РЕДАКТИРОВАНИЕ надзора через матрицу доступа
+  // Функция проверки прав на РЕДАКТИРОВАНИЕ надзора
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер, Прораб
   const canEditSupervision = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('edit')
+    if (!currentUser) return false
+    if (currentUser.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER', 'FOREMAN']
+    return allowedRoles.includes(currentUser.role)
   }
 
-  // Функция проверки прав на ДЕАКТИВАЦИЮ/АКТИВАЦИЮ надзора через матрицу доступа
+  // Функция проверки прав на ДЕАКТИВАЦИЮ/АКТИВАЦИЮ надзора
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер, Прораб
   const canToggleSupervisionStatus = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('toggle_status')
+    if (!currentUser) return false
+    if (currentUser.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER', 'FOREMAN']
+    return allowedRoles.includes(currentUser.role)
   }
 
-  // Функция проверки прав на АРХИВАЦИЮ надзора через матрицу доступа
+  // Функция проверки прав на АРХИВАЦИЮ надзора
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер, Прораб
   const canArchiveSupervision = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('archive')
+    if (!currentUser) return false
+    if (currentUser.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER', 'FOREMAN']
+    return allowedRoles.includes(currentUser.role)
   }
 
-  // Функция проверки прав на ВОССТАНОВЛЕНИЕ надзора из архива через матрицу доступа
+  // Функция проверки прав на ВОССТАНОВЛЕНИЕ надзора из архива
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер (БЕЗ Прораба)
   const canRestoreSupervision = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('restore')
+    if (!currentUser) return false
+    if (currentUser.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER']
+    return allowedRoles.includes(currentUser.role)
   }
 
-  // Функция проверки прав на УДАЛЕНИЕ надзора окончательно через матрицу доступа
+  // Функция проверки прав на УДАЛЕНИЕ надзора окончательно
+  // Доступно: только Суперадмин
   const canDeleteSupervision = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('delete')
+    if (!currentUser) return false
+    return currentUser.is_superuser
   }
 
   // Fetch users and filter only supervisions (SUPERVISOR и OBSERVER)

@@ -38,7 +38,6 @@ import { issuesAPI, Issue } from '../api/issues'
 import { projectsAPI } from '../api/projects'
 import { usersAPI } from '../api/users'
 import { useAuthStore } from '../stores/authStore'
-import { useButtonAccess } from '../hooks/useButtonAccess'
 import type { UploadFile } from 'antd/es/upload/interface'
 import dayjs from 'dayjs'
 import 'dayjs/locale/ru'
@@ -61,7 +60,6 @@ interface CommentsSectionProps {
 const CommentsSection = ({ issueId, commentText, setCommentText, onCommentAdded }: CommentsSectionProps) => {
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
-  const { canUseButton } = useButtonAccess('issues')
 
   // FIXED infinite reload: Загрузка комментариев с разумными настройками кеширования
   const { data: commentsData, isLoading: commentsLoading } = useQuery({
@@ -122,14 +120,11 @@ const CommentsSection = ({ issueId, commentText, setCommentText, onCommentAdded 
     addCommentMutation.mutate({ text: commentText })
   }
 
-  // Проверка прав на добавление комментариев через матрицу доступа
+  // Проверка прав на добавление комментариев
   const canAddComment = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('add_comment')
+    if (!user) return false
+    const allowedRoles = ['ENGINEER', 'SITE_MANAGER', 'PROJECT_MANAGER', 'CHIEF_ENGINEER', 'DIRECTOR', 'CONTRACTOR']
+    return user.is_superuser || allowedRoles.includes(user.role)
   }
 
   return (
@@ -279,66 +274,54 @@ const Issues = () => {
 
   // Получаем текущего пользователя
   const { user } = useAuthStore()
-  const { canUseButton } = useButtonAccess('issues')
 
-  // Функция проверки прав на добавление фото "До" через матрицу доступа
+  // Функция проверки прав на добавление фото "До"
+  // Доступно: Главный инженер, Руководитель проекта, Начальник участка, Прораб, Инженер, Мастер, Технадзор, Авторский надзор
   const canAddPhotoBefore = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('add_photo_before')
+    if (!user) return false
+    const allowedRoles = ['CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'FOREMAN', 'ENGINEER', 'MASTER', 'SUPERVISOR', 'OBSERVER']
+    return user.is_superuser || allowedRoles.includes(user.role)
   }
 
-  // Функция проверки прав на добавление фото "После" через матрицу доступа
+  // Функция проверки прав на добавление фото "После" (отчет)
+  // Доступно: Главный инженер, Руководитель проекта, Начальник участка, Прораб, Инженер, Мастер, Технадзор, Авторский надзор, Подрядчик
   const canAddPhotoAfter = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('add_photo_after')
+    if (!user) return false
+    const allowedRoles = ['CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'FOREMAN', 'ENGINEER', 'MASTER', 'SUPERVISOR', 'OBSERVER', 'CONTRACTOR']
+    return user.is_superuser || allowedRoles.includes(user.role)
   }
 
-  // Функция проверки прав на редактирование замечания через матрицу доступа
+  // Функция проверки прав на редактирование замечания
+  // Доступно: Главный инженер, Руководитель проекта, Начальник участка, Прораб
   const canEditIssue = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('edit')
+    if (!user) return false
+    const allowedRoles = ['CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'FOREMAN']
+    return user.is_superuser || allowedRoles.includes(user.role)
   }
 
-  // Функция проверки прав на удаление замечания через матрицу доступа
+  // Функция проверки прав на удаление замечания
+  // Доступно: Главный инженер, Руководитель проекта, Начальник участка
   const canDeleteIssue = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('delete')
+    if (!user) return false
+    const allowedRoles = ['CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER']
+    return user.is_superuser || allowedRoles.includes(user.role)
   }
 
-  // Функция проверки прав на принятие замечания через матрицу доступа
+  // Функция проверки прав на принятие замечания (перевод в статус "Исполнено")
+  // Доступно: Главный инженер, Руководитель проекта, Начальник участка, Прораб, Технадзор, Авторский надзор
   const canAcceptIssue = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('accept')
+    if (!user) return false
+    const allowedRoles = ['CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'FOREMAN', 'SUPERVISOR', 'OBSERVER']
+    return user.is_superuser || allowedRoles.includes(user.role)
   }
 
-  // Функция проверки прав на создание замечания через матрицу доступа
+  // Функция проверки прав на создание замечания
+  // Доступно всем, кроме: Подрядчик
   const canCreateIssue = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('create')
+    if (!user) return false
+    // Запрещаем создание замечаний для роли CONTRACTOR
+    if (user.role === 'CONTRACTOR') return false
+    return true
   }
 
   // FIXED infinite reload: Загрузка замечаний с оптимизированными настройками

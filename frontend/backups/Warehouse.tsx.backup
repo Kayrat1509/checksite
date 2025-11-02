@@ -4,7 +4,6 @@ import { Table, Card, Typography, Select, InputNumber, message } from 'antd'
 import { materialRequestsAPI, MaterialRequestItem } from '../api/materialRequests'
 import { projectsAPI } from '../api/projects'
 import { useAuthStore } from '../stores/authStore'
-import { useButtonAccess } from '../hooks/useButtonAccess'
 import dayjs from 'dayjs'
 
 const { Option } = Select
@@ -13,7 +12,6 @@ const { Title } = Typography
 const Warehouse = () => {
   const [selectedProject, setSelectedProject] = useState<number | null>(null)
   const { user } = useAuthStore()
-  const { canUseButton } = useButtonAccess('warehouse')
 
   // Получаем список проектов
   const { data: projectsData } = useQuery({
@@ -32,14 +30,16 @@ const Warehouse = () => {
     enabled: !!selectedProject,
   })
 
-  // Проверка прав на редактирование через матрицу доступа из админ-панели
+  // Проверка прав на редактирование (только Завсклад объекта и Начальник участка)
   const canEdit = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
+    if (!user) {
+      console.log('canEdit: user not found')
+      return false
     }
-    // Для остальных ролей проверяем через матрицу доступа
-    return canUseButton('edit')
+    const allowedRoles = ['SITE_WAREHOUSE_MANAGER', 'FOREMAN']
+    const hasPermission = allowedRoles.includes(user.role)
+    console.log(`canEdit: user.role = ${user.role}, hasPermission = ${hasPermission}`)
+    return hasPermission
   }
 
   // Обновление выданного количества

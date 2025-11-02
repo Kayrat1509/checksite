@@ -17,7 +17,6 @@ import {
   DollarOutlined,
   InboxOutlined,
   SettingOutlined,
-  SecurityScanOutlined,
   UsergroupAddOutlined, // НОВАЯ ИКОНКА: для меню "Персонал"
 } from '@ant-design/icons'
 // УДАЛЕНО: FileProtectOutlined - использовалась для техусловий, больше не нужна
@@ -139,29 +138,13 @@ const MainLayout = () => {
       visible: hasPageAccess('reports'),
     },
 
-    // 9. Настройки (с подпунктами)
+    // 9. Настройки
     {
-      key: 'settings',
+      key: '/dashboard/settings',
       icon: <SettingOutlined />,
-      label: 'Настройки',
+      label: <Link to="/dashboard/settings">Настройки</Link>,
       page: 'settings',
       visible: hasPageAccess('settings'),
-      children: [
-        {
-          key: '/dashboard/access-management',
-          icon: <SecurityScanOutlined />,
-          label: <Link to="/dashboard/access-management">Управление доступом</Link>,
-          page: 'settings',
-          visible: hasPageAccess('settings'),
-        },
-        {
-          key: '/dashboard/settings',
-          icon: <SettingOutlined />,
-          label: <Link to="/dashboard/settings">Настройки системы</Link>,
-          page: 'settings',
-          visible: hasPageAccess('settings'),
-        },
-      ],
     },
   ]
 

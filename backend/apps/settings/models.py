@@ -95,7 +95,6 @@ class PageAccess(models.Model):
         USERS = 'users', _('Сотрудники')
         CONTRACTORS = 'contractors', _('Подрядчики')
         SUPERVISIONS = 'supervisions', _('Надзоры')
-        TECHNICAL_CONDITIONS = 'technical-conditions', _('Техусловия')
         MATERIAL_REQUESTS = 'material-requests', _('Заявки')
         WAREHOUSE = 'warehouse', _('Склад')
         TENDERS = 'tenders', _('Тендеры')

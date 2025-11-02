@@ -33,7 +33,6 @@ import { authAPI } from '../api/auth'
 import { projectsAPI } from '../api/projects'
 import { companiesAPI } from '../api/companies'
 import { useAuthStore } from '../stores/authStore'
-import { useButtonAccess } from '../hooks/useButtonAccess'
 import PersonnelImportExport from '../components/PersonnelImportExport'
 import { tripleConfirm } from '../utils/tripleConfirm'
 
@@ -44,7 +43,6 @@ const Users = () => {
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const { hasPageAccess } = useAuthStore()
-  const { canUseButton } = useButtonAccess('users')
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
@@ -57,54 +55,49 @@ const Users = () => {
     retry: 1
   })
 
-  // Функция проверки прав на ДОБАВЛЕНИЕ пользователей через матрицу доступа
+  // Функция проверки прав на ДОБАВЛЕНИЕ пользователей
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер ПТО, Прораб
   const canAddUser = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('create')
+    if (!currentUser) return false
+    if (currentUser.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER', 'FOREMAN']
+    return allowedRoles.includes(currentUser.role)
   }
 
-  // Функция проверки прав на ОТКРЫТИЕ/ЗАКРЫТИЕ доступа через матрицу доступа
+  // Функция проверки прав на ОТКРЫТИЕ/ЗАКРЫТИЕ доступа
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Прораб
   const canToggleAccess = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('toggle_access')
+    if (!currentUser) return false
+    if (currentUser.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'FOREMAN']
+    return allowedRoles.includes(currentUser.role)
   }
 
-  // Функция проверки прав на РЕДАКТИРОВАНИЕ пользователей через матрицу доступа
+  // Функция проверки прав на РЕДАКТИРОВАНИЕ пользователей
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер ПТО, Прораб
   const canEditUser = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('edit')
+    if (!currentUser) return false
+    if (currentUser.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER', 'FOREMAN']
+    return allowedRoles.includes(currentUser.role)
   }
 
-  // Функция проверки прав на ДЕАКТИВАЦИЮ пользователей через матрицу доступа
+  // Функция проверки прав на ДЕАКТИВАЦИЮ пользователей
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка
   const canDeactivateUser = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('deactivate')
+    if (!currentUser) return false
+    if (currentUser.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER']
+    return allowedRoles.includes(currentUser.role)
   }
 
-  // Функция проверки прав на УДАЛЕНИЕ пользователей через матрицу доступа
+  // Функция проверки прав на УДАЛЕНИЕ пользователей
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка
   const canDeleteUserAction = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('delete')
+    if (!currentUser) return false
+    if (currentUser.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER']
+    return allowedRoles.includes(currentUser.role)
   }
 
   // Роли пользователей (SUPERVISOR и OBSERVER перенесены на страницу Supervisions)

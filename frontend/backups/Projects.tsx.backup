@@ -34,7 +34,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsAPI } from '../api/projects'
 import { usersAPI, User } from '../api/users'
 import { useAuthStore } from '../stores/authStore'
-import { useButtonAccess } from '../hooks/useButtonAccess'
 import { tripleConfirm } from '../utils/tripleConfirm'
 
 const { Title, Text } = Typography
@@ -82,56 +81,50 @@ const Projects = () => {
 
   // Получаем текущего пользователя из authStore
   const { user } = useAuthStore()
-  const { canUseButton } = useButtonAccess('projects')
 
-  // Функция проверки прав на ДОБАВЛЕНИЕ объекта через матрицу доступа
+  // Функция проверки прав на ДОБАВЛЕНИЕ объекта
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер, Прораб
   const canAddProject = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('create')
+    if (!user) return false
+    if (user.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER', 'FOREMAN']
+    return allowedRoles.includes(user.role)
   }
 
-  // Функция проверки прав на РЕДАКТИРОВАНИЕ объекта через матрицу доступа
+  // Функция проверки прав на РЕДАКТИРОВАНИЕ объекта
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер, Прораб
   const canEditProject = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('edit')
+    if (!user) return false
+    if (user.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER', 'FOREMAN']
+    return allowedRoles.includes(user.role)
   }
 
-  // Функция проверки прав на УДАЛЕНИЕ объекта через матрицу доступа
+  // Функция проверки прав на УДАЛЕНИЕ объекта
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер (БЕЗ Прораба)
   const canDeleteProject = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('delete')
+    if (!user) return false
+    if (user.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER']
+    return allowedRoles.includes(user.role)
   }
 
-  // Функция проверки прав на ДОБАВЛЕНИЕ чертежа через матрицу доступа
+  // Функция проверки прав на ДОБАВЛЕНИЕ чертежа
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер, Прораб
   const canAddDrawing = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('add_drawing')
+    if (!user) return false
+    if (user.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER', 'FOREMAN']
+    return allowedRoles.includes(user.role)
   }
 
-  // Функция проверки прав на УДАЛЕНИЕ чертежа через матрицу доступа
+  // Функция проверки прав на УДАЛЕНИЕ чертежа
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер (БЕЗ Прораба)
   const canDeleteDrawing = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('delete_drawing')
+    if (!user) return false
+    if (user.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER']
+    return allowedRoles.includes(user.role)
   }
 
   // Fetch projects with better error handling

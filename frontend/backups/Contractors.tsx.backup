@@ -32,7 +32,6 @@ import { usersAPI, User, CreateUserData } from '../api/users'
 import { authAPI } from '../api/auth'
 import { projectsAPI } from '../api/projects'
 import { companiesAPI } from '../api/companies'
-import { useButtonAccess } from '../hooks/useButtonAccess'
 import { tripleConfirm } from '../utils/tripleConfirm'
 import ContractorsImportExport from '../components/ContractorsImportExport'
 
@@ -41,7 +40,6 @@ const { Title, Text } = Typography
 const Contractors = () => {
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
-  const { canUseButton } = useButtonAccess('contractors')
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
@@ -54,64 +52,57 @@ const Contractors = () => {
     retry: 1
   })
 
-  // Функция проверки прав на ДОБАВЛЕНИЕ подрядчика через матрицу доступа
+  // Функция проверки прав на управление подрядчиками
+  // Функция проверки прав на ДОБАВЛЕНИЕ подрядчика
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер, Прораб
   const canAddContractor = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('create')
+    if (!currentUser) return false
+    if (currentUser.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER', 'FOREMAN']
+    return allowedRoles.includes(currentUser.role)
   }
 
-  // Функция проверки прав на РЕДАКТИРОВАНИЕ подрядчика через матрицу доступа
+  // Функция проверки прав на РЕДАКТИРОВАНИЕ подрядчика
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер, Прораб
   const canEditContractor = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('edit')
+    if (!currentUser) return false
+    if (currentUser.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER', 'FOREMAN']
+    return allowedRoles.includes(currentUser.role)
   }
 
-  // Функция проверки прав на ДЕАКТИВАЦИЮ/АКТИВАЦИЮ подрядчика через матрицу доступа
+  // Функция проверки прав на ДЕАКТИВАЦИЮ/АКТИВАЦИЮ подрядчика
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер, Прораб
   const canToggleContractorStatus = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('toggle_status')
+    if (!currentUser) return false
+    if (currentUser.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER', 'FOREMAN']
+    return allowedRoles.includes(currentUser.role)
   }
 
-  // Функция проверки прав на АРХИВАЦИЮ подрядчика через матрицу доступа
+  // Функция проверки прав на АРХИВАЦИЮ подрядчика
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер, Прораб
   const canArchiveContractor = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('archive')
+    if (!currentUser) return false
+    if (currentUser.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER', 'FOREMAN']
+    return allowedRoles.includes(currentUser.role)
   }
 
-  // Функция проверки прав на ВОССТАНОВЛЕНИЕ подрядчика из архива через матрицу доступа
+  // Функция проверки прав на ВОССТАНОВЛЕНИЕ подрядчика из архива
+  // Доступно: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер (БЕЗ Прораба)
   const canRestoreContractor = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('restore')
+    if (!currentUser) return false
+    if (currentUser.is_superuser) return true
+    const allowedRoles = ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER']
+    return allowedRoles.includes(currentUser.role)
   }
 
-  // Функция проверки прав на УДАЛЕНИЕ подрядчика окончательно через матрицу доступа
+  // Функция проверки прав на УДАЛЕНИЕ подрядчика окончательно
+  // Доступно: только Суперадмин
   const canDeleteContractor = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('delete')
+    if (!currentUser) return false
+    return currentUser.is_superuser
   }
 
   // Fetch users and filter only contractors
