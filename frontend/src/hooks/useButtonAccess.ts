@@ -1,6 +1,12 @@
 /**
  * Custom hook для работы с матрицей доступа к кнопкам.
  *
+ * ОБНОВЛЕНО: Теперь использует React Query для автоматического обновления данных.
+ * Данные автоматически обновляются:
+ * - Каждые 10 секунд (staleTime)
+ * - При возврате на вкладку браузера (refetchOnWindowFocus)
+ * - При восстановлении интернет-соединения (refetchOnReconnect)
+ *
  * Использование:
  * 1. Для одной страницы:
  *    const { canUseButton, loading } = useButtonAccess('projects')
@@ -11,7 +17,8 @@
  *    if (canUseButton('create', 'projects')) { ... }
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { buttonAccessAPI, ButtonAccess, AllPagesButtons } from '../api/buttonAccess'
 
 interface UseButtonAccessReturn {
@@ -54,6 +61,8 @@ interface UseButtonAccessReturn {
 /**
  * Hook для работы с доступом к кнопкам на странице
  *
+ * ОБНОВЛЕНО: Использует React Query для автоматического обновления данных.
+ *
  * @param page - опциональное название страницы. Если указано, загружаются только кнопки этой страницы.
  *               Если не указано, загружаются кнопки всех страниц.
  *
@@ -87,50 +96,40 @@ interface UseButtonAccessReturn {
  * }
  */
 export const useButtonAccess = (page?: string): UseButtonAccessReturn => {
-  const [buttons, setButtons] = useState<ButtonAccess[]>([])
-  const [allPageButtons, setAllPageButtons] = useState<AllPagesButtons>({})
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<Error | null>(null)
-
   // Флаг для определения режима (одна страница или все)
   const isSinglePage = page !== undefined
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-
-    try {
+  // Используем React Query для автоматического обновления данных
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['button-access', page], // Уникальный ключ кеша для каждой страницы
+    queryFn: async () => {
       if (isSinglePage && page) {
         // Загружаем кнопки для одной страницы
-        const data = await buttonAccessAPI.getByPage(page)
-        setButtons(data)
+        return await buttonAccessAPI.getByPage(page)
       } else {
         // Загружаем кнопки для всех страниц
-        const data = await buttonAccessAPI.getAllPages()
-        setAllPageButtons(data)
+        return await buttonAccessAPI.getAllPages()
       }
-    } catch (err) {
-      console.error('Ошибка при загрузке доступа к кнопкам:', err)
-      setError(err instanceof Error ? err : new Error('Неизвестная ошибка'))
-    } finally {
-      setLoading(false)
-    }
-  }, [page, isSinglePage])
-
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    },
+    // Настройки автообновления унаследованы из queryClient в App.tsx:
+    // - staleTime: 10000 (данные свежие 10 секунд)
+    // - refetchOnWindowFocus: true (обновить при возврате на вкладку)
+    // - refetchOnReconnect: true (обновить при восстановлении сети)
+  })
 
   /**
    * Проверяет наличие доступа к кнопке
    */
   const canUseButton = useCallback(
     (buttonKey: string, pageName?: string): boolean => {
+      if (!data) return false
+
       if (isSinglePage) {
-        // Режим одной страницы
+        // Режим одной страницы - data это ButtonAccess[]
+        const buttons = data as ButtonAccess[]
         return buttons.some((btn) => btn.button_key === buttonKey)
       } else {
-        // Режим всех страниц - требуется указать страницу
+        // Режим всех страниц - data это AllPagesButtons
         if (!pageName) {
           console.warn(
             'useButtonAccess: page parameter is required when hook is initialized without specific page'
@@ -138,11 +137,12 @@ export const useButtonAccess = (page?: string): UseButtonAccessReturn => {
           return false
         }
 
-        const pageButtons = allPageButtons[pageName] || []
+        const allPages = data as AllPagesButtons
+        const pageButtons = allPages[pageName] || []
         return pageButtons.some((btn) => btn.button_key === buttonKey)
       }
     },
-    [isSinglePage, buttons, allPageButtons]
+    [data, isSinglePage]
   )
 
   /**
@@ -150,7 +150,11 @@ export const useButtonAccess = (page?: string): UseButtonAccessReturn => {
    */
   const getButton = useCallback(
     (buttonKey: string, pageName?: string): ButtonAccess | undefined => {
+      if (!data) return undefined
+
       if (isSinglePage) {
+        // Режим одной страницы
+        const buttons = data as ButtonAccess[]
         return buttons.find((btn) => btn.button_key === buttonKey)
       } else {
         if (!pageName) {
@@ -160,11 +164,12 @@ export const useButtonAccess = (page?: string): UseButtonAccessReturn => {
           return undefined
         }
 
-        const pageButtons = allPageButtons[pageName] || []
+        const allPages = data as AllPagesButtons
+        const pageButtons = allPages[pageName] || []
         return pageButtons.find((btn) => btn.button_key === buttonKey)
       }
     },
-    [isSinglePage, buttons, allPageButtons]
+    [data, isSinglePage]
   )
 
   /**
@@ -172,8 +177,10 @@ export const useButtonAccess = (page?: string): UseButtonAccessReturn => {
    */
   const getButtons = useCallback(
     (pageName?: string): ButtonAccess[] => {
+      if (!data) return []
+
       if (isSinglePage) {
-        return buttons
+        return data as ButtonAccess[]
       } else {
         if (!pageName) {
           console.warn(
@@ -182,19 +189,22 @@ export const useButtonAccess = (page?: string): UseButtonAccessReturn => {
           return []
         }
 
-        return allPageButtons[pageName] || []
+        const allPages = data as AllPagesButtons
+        return allPages[pageName] || []
       }
     },
-    [isSinglePage, buttons, allPageButtons]
+    [data, isSinglePage]
   )
 
   return {
     canUseButton,
     getButton,
     getButtons,
-    loading,
-    error,
-    refetch: fetchData,
+    loading: isLoading,
+    error: error as Error | null,
+    refetch: async () => {
+      await refetch()
+    },
   }
 }
 

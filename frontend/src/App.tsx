@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { App as AntApp } from 'antd'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useAuthStore } from './stores/authStore'
 import { useAccessRefresh } from './hooks/useAccessRefresh'
 import MainLayout from './components/Layout/MainLayout'
@@ -30,6 +31,17 @@ import PublicTendersRegister from './pages/PublicTenders/Register'
 import PublicTendersLogin from './pages/PublicTenders/Login'
 import PublicTendersStatus from './pages/PublicTenders/Status'
 import PublicTendersList from './pages/PublicTenders/TendersList'
+
+// Создаем QueryClient для React Query с настройками автообновления
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 10000, // Данные свежие 10 секунд
+      refetchOnWindowFocus: true, // Обновить при возврате на вкладку
+      refetchOnReconnect: true, // Обновить при восстановлении сети
+    },
+  },
+})
 
 // Компонент редиректа для дашборда в зависимости от роли
 function DashboardRedirect() {
@@ -69,45 +81,47 @@ function App() {
   }
 
   return (
-    <AntApp>
-      <Routes>
-        {/* Публичные страницы */}
-        <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />} />
-        <Route path="/pricing" element={<PricingPage />} />
-        <Route path="/about-service" element={<AboutServicePage />} />
-        <Route path="/features" element={<FeaturesPage />} />
-        <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />} />
-        <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Register />} />
+    <QueryClientProvider client={queryClient}>
+      <AntApp>
+        <Routes>
+          {/* Публичные страницы */}
+          <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/about-service" element={<AboutServicePage />} />
+          <Route path="/features" element={<FeaturesPage />} />
+          <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />} />
+          <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Register />} />
 
-        {/* Публичные тендеры (для внешних пользователей) */}
-        <Route path="/public-tenders/register" element={<PublicTendersRegister />} />
-        <Route path="/public-tenders/login" element={<PublicTendersLogin />} />
-        <Route path="/public-tenders/status" element={<PublicTendersStatus />} />
-        <Route path="/public-tenders/list" element={<PublicTendersList />} />
+          {/* Публичные тендеры (для внешних пользователей) */}
+          <Route path="/public-tenders/register" element={<PublicTendersRegister />} />
+          <Route path="/public-tenders/login" element={<PublicTendersLogin />} />
+          <Route path="/public-tenders/status" element={<PublicTendersStatus />} />
+          <Route path="/public-tenders/list" element={<PublicTendersList />} />
 
-        {/* Защищенные страницы */}
-        <Route
-          path="/dashboard"
-          element={isAuthenticated ? <MainLayout /> : <Navigate to="/" />}
-        >
-          <Route index element={<DashboardRedirect />} />
-          <Route path="projects" element={<Projects />} />
-          <Route path="issues" element={<Issues />} />
-          <Route path="users" element={<Users />} />
-          <Route path="contractors" element={<Contractors />} />
-          <Route path="supervisions" element={<Supervisions />} />
-          {/* УДАЛЕНО: <Route path="technical-conditions" /> - функционал удален из системы */}
-          <Route path="material-requests" element={<MaterialRequests />} />
-          <Route path="tenders" element={<Tenders />} />
-          <Route path="warehouse" element={<Warehouse />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="profile" element={<Profile />} />
-          <Route path="settings" element={<Settings />} />
-        </Route>
+          {/* Защищенные страницы */}
+          <Route
+            path="/dashboard"
+            element={isAuthenticated ? <MainLayout /> : <Navigate to="/" />}
+          >
+            <Route index element={<DashboardRedirect />} />
+            <Route path="projects" element={<Projects />} />
+            <Route path="issues" element={<Issues />} />
+            <Route path="users" element={<Users />} />
+            <Route path="contractors" element={<Contractors />} />
+            <Route path="supervisions" element={<Supervisions />} />
+            {/* УДАЛЕНО: <Route path="technical-conditions" /> - функционал удален из системы */}
+            <Route path="material-requests" element={<MaterialRequests />} />
+            <Route path="tenders" element={<Tenders />} />
+            <Route path="warehouse" element={<Warehouse />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="settings" element={<Settings />} />
+          </Route>
 
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </AntApp>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </AntApp>
+    </QueryClientProvider>
   )
 }
 

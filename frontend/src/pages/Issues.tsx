@@ -213,25 +213,25 @@ const getImageUrl = (photoUrl: string | undefined | null) => {
   // Если URL не передан, возвращаем пустую строку
   if (!photoUrl) return ''
 
-  // Если URL содержит внутреннее имя контейнера Docker (backend:8000),
-  // заменяем его на текущий origin браузера
+  // Базовый URL бекенда для отдачи медиа (попадает из .env: VITE_BACKEND_URL)
+  // Локально: http://localhost:8001, на продакшне: https://checksite.example.com
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8001'
+
+  // Если бекенд вернул внутренний docker URL (например backend:8000) — убрать домен и взять только путь
   if (photoUrl.includes('backend:8000')) {
-    // Убираем http://backend:8000 или https://backend:8000
-    const pathOnly = photoUrl.replace(/https?:\/\/backend:8000\/?/g, '/');
-    return `${window.location.origin}${pathOnly}`
+    const pathOnly = photoUrl.replace(/https?:\/\/backend:8000\/?/g, '/')
+    return `${backendUrl}${pathOnly}`
   }
 
-  // Если URL уже полный и корректный (начинается с http:// или https://), возвращаем как есть
-  if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) {
-    return photoUrl
+  // Если приходит относительный путь (например "/media/issues/2025/11/02/xx.webp")
+  if (!/^https?:\/\//i.test(photoUrl)) {
+    // Убедиться, что между backendUrl и photoUrl ровно один /
+    const normalizedPath = photoUrl.startsWith('/') ? photoUrl : `/${photoUrl}`
+    return `${backendUrl}${normalizedPath}`
   }
 
-  // Для относительных путей используем текущий origin браузера
-  // Это работает и на localhost:5174, и на https://stroyka.asia
-  // photoUrl приходит из бэкенда в формате: "/media/issues/2025/10/16/photo.jpeg"
-  // window.location.origin даст: "http://localhost:5174" или "https://stroyka.asia"
-  // Итоговый URL: "http://localhost:5174/media/..." или "https://stroyka.asia/media/..."
-  return `${window.location.origin}${photoUrl}`
+  // Если уже внешний полный URL — вернуть как есть
+  return photoUrl
 }
 
 const Issues = () => {
@@ -339,6 +339,16 @@ const Issues = () => {
     }
     // Для остальных ролей проверяем через матрицу доступа из админ-панели
     return canUseButton('create')
+  }
+
+  // Функция проверки прав на отправку замечания на проверку через матрицу доступа
+  const canSendToReview = () => {
+    // SUPERADMIN всегда имеет доступ
+    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
+      return true
+    }
+    // Для остальных ролей проверяем через матрицу доступа из админ-панели
+    return canUseButton('send_to_review')
   }
 
   // FIXED infinite reload: Загрузка замечаний с оптимизированными настройками
@@ -1051,8 +1061,8 @@ const Issues = () => {
                     </Row>
                   )}
 
-                  {/* Ряд 3: На проверку (доступно всем ролям, кроме завершенных/отклоненных) */}
-                  {issue.status !== 'COMPLETED' && issue.status !== 'REJECTED' && (
+                  {/* Ряд 3: На проверку (проверяется через матрицу доступа) */}
+                  {canSendToReview() && issue.status !== 'COMPLETED' && issue.status !== 'REJECTED' && (
                     <Row gutter={8}>
                       <Col span={24}>
                         <Button

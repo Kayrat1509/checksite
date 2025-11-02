@@ -12,6 +12,7 @@ from .serializers import (
     IssuePhotoSerializer, IssueCommentSerializer
 )
 from apps.users.permissions import CanCreateIssues, CanVerifyIssues
+from .tasks import send_new_issue_notification
 
 
 class IssueViewSet(viewsets.ModelViewSet):
@@ -87,6 +88,10 @@ class IssueViewSet(viewsets.ModelViewSet):
                 stage=IssuePhoto.Stage.AFTER,
                 uploaded_by=request.user
             )
+
+        # Отправляем email уведомление подрядчику, если замечание назначено
+        if issue.assigned_to and issue.assigned_to.email:
+            send_new_issue_notification.delay(issue.id)
 
         # Возвращаем полные данные замечания
         headers = self.get_success_headers(serializer.data)

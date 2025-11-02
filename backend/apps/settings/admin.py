@@ -128,7 +128,7 @@ class PageAccessAdmin(admin.ModelAdmin):
             message += f' Создано записей: {created_count}.'
         if updated_count > 0:
             message += f' Обновлено записей: {updated_count}.'
-        message += ' Пользователи увидят изменения в течение 5 минут.'
+        message += ' Пользователи увидят изменения в течение 10 секунд (или при переходе на другую вкладку).'
 
         messages.success(request, message)
         url = reverse('admin:settings_pageaccess_changelist')

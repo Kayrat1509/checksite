@@ -246,7 +246,9 @@ class ButtonAccessAdmin(admin.ModelAdmin):
                 button.save()
                 updated_count += 1
 
-        messages.success(request, f'Матрица доступа обновлена! Изменено кнопок: {updated_count}')
+        message = f'Матрица доступа обновлена! Изменено кнопок: {updated_count}.'
+        message += ' Пользователи увидят изменения в течение 10 секунд (или при переходе на другую вкладку).'
+        messages.success(request, message)
         url = reverse('admin:core_buttonaccess_changelist')
         return redirect(f'{url}?saved=1')
 
