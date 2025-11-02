@@ -1,90 +1,17 @@
 from rest_framework import serializers
-from .models import PageAccess, RoleTemplate
+from .models import RoleTemplate
 from apps.users.models import User
 
+# PageAccessSerializer удалён - используйте ButtonAccess из apps.core
+# AccessMatrixSerializer удалён - используйте ButtonAccess API
+# UserAccessManagementSerializer удалён - используйте ButtonAccess API
 
-class PageAccessSerializer(serializers.ModelSerializer):
-    """Сериализатор для модели PageAccess."""
-
-    company_name = serializers.CharField(source='company.name', read_only=True)
-
-    class Meta:
-        model = PageAccess
-        fields = ['id', 'company', 'company_name', 'page', 'role', 'has_access', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
-
-
-class AccessMatrixSerializer(serializers.Serializer):
-    """
-    Сериализатор для работы с матрицей доступа в формате:
-    {
-        'dashboard': {'DIRECTOR': true, 'ENGINEER': false, ...},
-        'projects': {'DIRECTOR': true, ...},
-        ...
-    }
-    """
-    matrix = serializers.DictField(
-        child=serializers.DictField(
-            child=serializers.BooleanField()
-        )
-    )
-
-    def validate_matrix(self, value):
-        """Валидация матрицы доступа."""
-        valid_pages = [choice[0] for choice in PageAccess.PageChoices.choices]
-        valid_roles = [choice[0] for choice in PageAccess.RoleChoices.choices]
-
-        for page, roles in value.items():
-            if page not in valid_pages:
-                raise serializers.ValidationError(f"Неверная страница: {page}")
-
-            for role, has_access in roles.items():
-                if role not in valid_roles:
-                    raise serializers.ValidationError(f"Неверная роль: {role}")
-
-                if not isinstance(has_access, bool):
-                    raise serializers.ValidationError(f"Значение доступа должно быть boolean")
-
-        return value
-
-    def create(self, validated_data):
-        """Сохранение матрицы доступа в базу данных для компании пользователя."""
-        matrix = validated_data['matrix']
-        company = self.context.get('company')
-
-        if not company:
-            raise serializers.ValidationError("Компания не указана")
-
-        # Обновляем или создаем записи для каждой комбинации страница-роль для конкретной компании
-        for page, roles in matrix.items():
-            for role, has_access in roles.items():
-                PageAccess.objects.update_or_create(
-                    company=company,
-                    page=page,
-                    role=role,
-                    defaults={'has_access': has_access}
-                )
-
-        return validated_data
-
-    def to_representation(self, instance):
-        """Преобразование данных из БД в формат матрицы для компании пользователя."""
-        company = self.context.get('company')
-
-        if not company:
-            raise serializers.ValidationError("Компания не указана")
-
-        # Получаем записи доступа только для конкретной компании
-        access_records = PageAccess.objects.filter(company=company)
-
-        # Формируем матрицу
-        matrix = {}
-        for record in access_records:
-            if record.page not in matrix:
-                matrix[record.page] = {}
-            matrix[record.page][record.role] = record.has_access
-
-        return {'matrix': matrix}
+# Все сериализаторы, связанные с PageAccess, удалены
+# Теперь используется унифицированная модель ButtonAccess (apps.core.models)
+#
+# Для работы с доступом к страницам используйте:
+# - API: /api/button-access/page_access/
+# - Admin: /admin/core/buttonaccess/
 
 
 class RoleTemplateSerializer(serializers.ModelSerializer):
@@ -112,7 +39,12 @@ class RoleTemplateSerializer(serializers.ModelSerializer):
         if not isinstance(value, list):
             raise serializers.ValidationError("allowed_pages должен быть списком")
 
-        valid_pages = [choice[0] for choice in PageAccess.PageChoices.choices]
+        # Список допустимых страниц (аналог PageAccess.PageChoices)
+        valid_pages = [
+            'dashboard', 'projects', 'issues', 'users', 'contractors',
+            'supervisions', 'material-requests', 'warehouse', 'tenders',
+            'reports', 'profile', 'settings'
+        ]
         invalid_pages = [p for p in value if p not in valid_pages]
 
         if invalid_pages:
@@ -135,65 +67,6 @@ class RoleTemplateSerializer(serializers.ModelSerializer):
         if request and hasattr(request, 'user') and request.user.company:
             validated_data['company'] = request.user.company
         return super().create(validated_data)
-
-
-class UserAccessManagementSerializer(serializers.Serializer):
-    """Сериализатор для управления доступом конкретного пользователя."""
-
-    user_id = serializers.IntegerField()
-    allowed_pages = serializers.ListField(
-        child=serializers.CharField(),
-        help_text='Список slug страниц, доступных пользователю'
-    )
-
-    def validate_user_id(self, value):
-        """Валидация пользователя."""
-        request = self.context.get('request')
-        if not request:
-            raise serializers.ValidationError('Request не найден в контексте')
-
-        try:
-            user = User.objects.get(id=value, company=request.user.company)
-        except User.DoesNotExist:
-            raise serializers.ValidationError('Пользователь не найден в вашей компании')
-
-        return value
-
-    def validate_allowed_pages(self, value):
-        """Валидация списка разрешенных страниц."""
-        valid_pages = [choice[0] for choice in PageAccess.PageChoices.choices]
-        invalid_pages = [p for p in value if p not in valid_pages]
-
-        if invalid_pages:
-            raise serializers.ValidationError(
-                f'Недопустимые страницы: {", ".join(invalid_pages)}'
-            )
-
-        return value
-
-    def save(self):
-        """Сохранение прав доступа для пользователя."""
-        user_id = self.validated_data['user_id']
-        allowed_pages = self.validated_data['allowed_pages']
-
-        user = User.objects.get(id=user_id)
-
-        # Удаляем существующие права доступа для роли пользователя
-        PageAccess.objects.filter(
-            company=user.company,
-            role=user.role
-        ).delete()
-
-        # Создаем новые права доступа
-        for page in allowed_pages:
-            PageAccess.objects.create(
-                company=user.company,
-                role=user.role,
-                page=page,
-                has_access=True
-            )
-
-        return user
 
 
 class UserAccessInfoSerializer(serializers.Serializer):

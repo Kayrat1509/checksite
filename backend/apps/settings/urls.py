@@ -1,11 +1,12 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import PageAccessViewSet, RoleTemplateViewSet, AccessManagementViewSet
+from .views import RoleTemplateViewSet
+
+# PageAccessViewSet удалён - используйте /api/button-access/page_access/
+# AccessManagementViewSet удалён - функциональность в ButtonAccess
 
 router = DefaultRouter()
-router.register(r'page-access', PageAccessViewSet, basename='page-access')
 router.register(r'role-templates', RoleTemplateViewSet, basename='role-templates')
-router.register(r'access-management', AccessManagementViewSet, basename='access-management')
 
 urlpatterns = [
     path('', include(router.urls)),

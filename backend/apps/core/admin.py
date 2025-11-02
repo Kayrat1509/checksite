@@ -17,6 +17,8 @@ class ButtonAccessAdmin(admin.ModelAdmin):
     change_list_template = "admin/button_access_change_list.html"
 
     list_display = (
+        'access_type_display',
+        'company_display',
         'page',
         'button_key',
         'button_name',
@@ -26,7 +28,9 @@ class ButtonAccessAdmin(admin.ModelAdmin):
     )
 
     list_filter = (
+        'access_type',
         'page',
+        'company',
         'default_access',
         'DIRECTOR',
         'CHIEF_ENGINEER',
@@ -45,13 +49,15 @@ class ButtonAccessAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Основная информация', {
             'fields': (
+                'access_type',
+                'company',
                 'page',
                 'button_key',
                 'button_name',
                 'description',
                 'default_access'
             ),
-            'description': 'Основные параметры кнопки и её идентификаторы'
+            'description': 'Основные параметры элемента и его идентификаторы. Для кнопок company должен быть NULL (глобальная настройка), для страниц - обязательно указывается компания.'
         }),
         ('Доступ для руководства', {
             'fields': (
@@ -91,6 +97,30 @@ class ButtonAccessAdmin(admin.ModelAdmin):
             'classes': ('collapse',),
         }),
     )
+
+    def access_type_display(self, obj):
+        """Отображение типа доступа"""
+        if obj.access_type == 'button':
+            return format_html(
+                '<span style="color: blue;">🔘 Кнопка</span>'
+            )
+        else:
+            return format_html(
+                '<span style="color: green;">📄 Страница</span>'
+            )
+    access_type_display.short_description = 'Тип'
+
+    def company_display(self, obj):
+        """Отображение компании"""
+        if obj.company:
+            return format_html(
+                '<span>{}</span>',
+                obj.company.name
+            )
+        return format_html(
+            '<span style="color: gray; font-style: italic;">— Глобально —</span>'
+        )
+    company_display.short_description = 'Компания'
 
     def default_access_display(self, obj):
         """Отображение статуса доступа по умолчанию с визуальным индикатором"""
@@ -167,18 +197,28 @@ class ButtonAccessAdmin(admin.ModelAdmin):
     def changelist_view(self, request, extra_context=None):
         """
         Переопределяем стандартный changelist_view для отображения матрицы.
+        Поддерживает кнопки и страницы (глобальные настройки для всех компаний).
         """
-        # Получаем все кнопки
-        buttons = ButtonAccess.objects.all().order_by('page', 'button_key')
+        # Получаем все элементы доступа (только глобальные)
+        all_items = ButtonAccess.objects.filter(
+            company__isnull=True
+        ).order_by('access_type', 'page', 'button_key')
 
-        # Группируем по страницам
-        pages = {}
+        # Разделяем на кнопки и страницы
+        buttons = all_items.filter(access_type='button')
+        pages_access = all_items.filter(access_type='page')
+
+        # Группируем кнопки по страницам
+        buttons_by_page = {}
         all_pages_set = set()
         for button in buttons:
-            if button.page not in pages:
-                pages[button.page] = []
-            pages[button.page].append(button)
+            if button.page not in buttons_by_page:
+                buttons_by_page[button.page] = []
+            buttons_by_page[button.page].append(button)
             all_pages_set.add(button.page)
+
+        # Группируем страницы (аналогично кнопкам, но в отдельную переменную)
+        pages_list = list(pages_access)
 
         # Роли для отображения (без SUPERADMIN)
         roles = [
@@ -199,11 +239,13 @@ class ButtonAccessAdmin(admin.ModelAdmin):
 
         extra_context = extra_context or {}
         extra_context.update({
-            'pages': pages,
+            'buttons_by_page': buttons_by_page,
+            'pages_list': pages_list,  # Простой список страниц (глобальные настройки)
             'roles': roles,
             'all_pages': sorted(all_pages_set),
             'total_buttons': buttons.count(),
-            'total_pages': len(pages),
+            'total_pages': pages_access.count(),
+            'total_items': all_items.count(),
         })
 
         return super().changelist_view(request, extra_context=extra_context)

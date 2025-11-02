@@ -66,16 +66,38 @@ class SoftDeleteManager(models.Manager):
 
 class ButtonAccess(models.Model):
     """
-    Матрица доступа к кнопкам на страницах.
-    Определяет, какие кнопки доступны для каждой роли на каждой странице.
+    Унифицированная матрица доступа к кнопкам и страницам.
+    Определяет, какие кнопки/страницы доступны для каждой роли.
 
     Логика:
-    - Если default_access=True, кнопка доступна всем ролям (галочки ролей игнорируются)
+    - Если default_access=True, элемент доступен всем ролям (галочки ролей игнорируются)
     - Если default_access=False, проверяется доступ по конкретным ролям
-    - SUPERADMIN всегда имеет доступ ко всем кнопкам
+    - SUPERADMIN всегда имеет доступ ко всем элементам
+
+    Типы доступа:
+    - 'button': Глобальная настройка для кнопок (company=NULL)
+    - 'page': Настройка доступа к странице для конкретной компании
     """
 
-    # Основная информация о кнопке
+    # Тип доступа и привязка к компании
+    access_type = models.CharField(
+        max_length=20,
+        choices=[('button', 'Кнопка'), ('page', 'Страница')],
+        default='button',
+        verbose_name='Тип доступа',
+        help_text='Кнопка (глобально) или Страница (для компании)'
+    )
+    company = models.ForeignKey(
+        'users.Company',
+        on_delete=models.CASCADE,
+        related_name='access_controls',
+        verbose_name='Компания',
+        null=True,
+        blank=True,
+        help_text='Для страниц - обязательно. Для кнопок - должно быть NULL (глобальная настройка)'
+    )
+
+    # Основная информация о кнопке/странице
     page = models.CharField(
         max_length=100,
         verbose_name='Страница',
@@ -84,17 +106,17 @@ class ButtonAccess(models.Model):
     button_key = models.CharField(
         max_length=100,
         verbose_name='Ключ кнопки',
-        help_text='Уникальный ключ кнопки (create, edit, delete, и т.д.)'
+        help_text='Уникальный ключ кнопки (create, edit, delete, и т.д.) или "view" для страниц'
     )
     button_name = models.CharField(
         max_length=200,
         verbose_name='Название кнопки',
-        help_text='Отображаемое название кнопки'
+        help_text='Отображаемое название кнопки или страницы'
     )
     description = models.TextField(
         blank=True,
         verbose_name='Описание',
-        help_text='Описание функционала кнопки'
+        help_text='Описание функционала кнопки или страницы'
     )
 
     # Доступ по умолчанию
@@ -125,11 +147,29 @@ class ButtonAccess(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлено')
 
     class Meta:
-        unique_together = ('page', 'button_key')
-        verbose_name = 'Доступ к кнопке'
-        verbose_name_plural = 'Матрица доступа к кнопкам'
-        ordering = ['page', 'button_key']
+        # Уникальность:
+        # - Для кнопок (access_type='button', company=NULL): page + button_key
+        # - Для страниц (access_type='page'): company + page + button_key
+        constraints = [
+            models.UniqueConstraint(
+                fields=['page', 'button_key'],
+                condition=models.Q(access_type='button', company__isnull=True),
+                name='unique_button_access'
+            ),
+            models.UniqueConstraint(
+                fields=['company', 'page', 'button_key'],
+                condition=models.Q(access_type='page'),
+                name='unique_page_access'
+            ),
+        ]
+        verbose_name = 'Доступ к кнопке/странице'
+        verbose_name_plural = 'Матрица доступа (кнопки и страницы)'
+        ordering = ['access_type', 'page', 'button_key']
         db_table = 'core_button_access'
+        indexes = [
+            models.Index(fields=['access_type', 'page']),
+            models.Index(fields=['company', 'page']),
+        ]
 
     def __str__(self):
         return f"{self.page} - {self.button_name} ({self.button_key})"

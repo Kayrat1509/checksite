@@ -1,35 +1,26 @@
 from rest_framework import permissions
+from apps.core.access_helpers import has_button_access
 
 
 class CanManageTenders(permissions.BasePermission):
     """
     Право на управление тендерами.
-    Доступно: ИТР (ENGINEER, SITE_MANAGER, FOREMAN, MASTER) и Руководство (PROJECT_MANAGER, CHIEF_ENGINEER, DIRECTOR)
+
+    Проверяет доступ через ButtonAccess (кнопки на странице 'tenders').
     """
 
     def has_permission(self, request, view):
-        # Суперадмин всегда имеет доступ
-        if request.user and request.user.is_superuser:
-            return True
-
         # Проверяем аутентификацию
         if not request.user or not request.user.is_authenticated:
             return False
 
-        # Разрешенные роли
-        allowed_roles = [
-            # ИТР
-            'ENGINEER',           # Инженер ПТО
-            'SITE_MANAGER',       # Начальник участка
-            'FOREMAN',            # Прораб
-            'MASTER',             # Мастер
-            # Руководство
-            'PROJECT_MANAGER',    # Руководитель проекта
-            'CHIEF_ENGINEER',     # Главный инженер
-            'DIRECTOR'            # Директор
-        ]
-
-        return request.user.role in allowed_roles
+        # Проверяем базовый доступ к странице тендеров через ButtonAccess
+        # Достаточно иметь доступ хотя бы к одной из кнопок: create, edit, delete
+        return (
+            has_button_access(request.user, 'create', 'tenders') or
+            has_button_access(request.user, 'edit', 'tenders') or
+            has_button_access(request.user, 'delete', 'tenders')
+        )
 
     def has_object_permission(self, request, view, obj):
         # Суперадмин всегда имеет доступ
@@ -40,10 +31,16 @@ class CanManageTenders(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return self.has_permission(request, view)
 
-        # Для изменения/удаления - автор, ответственный или руководство
+        # Для изменения/удаления - автор, ответственный или те у кого есть доступ к кнопке edit
         if request.user == obj.created_by or request.user == obj.responsible:
             return True
 
-        # Руководство всегда может редактировать
-        management_roles = ['PROJECT_MANAGER', 'CHIEF_ENGINEER', 'DIRECTOR']
-        return request.user.role in management_roles
+        # Проверяем доступ к редактированию через ButtonAccess
+        if request.method in ['PUT', 'PATCH']:
+            return has_button_access(request.user, 'edit', 'tenders')
+
+        # Проверяем доступ к удалению через ButtonAccess
+        if request.method == 'DELETE':
+            return has_button_access(request.user, 'delete', 'tenders')
+
+        return False

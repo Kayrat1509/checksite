@@ -17,103 +17,77 @@ class IsManagementOrSuperAdmin(permissions.BasePermission):
 class CanAccessSettings(permissions.BasePermission):
     """
     Permission для доступа к настройкам системы и матрице доступа.
-    Доступно только для: Суперадмин, Директор, Главный инженер, Руководитель проекта, Начальник участка.
+
+    Проверяет доступ через ButtonAccess (кнопка 'edit' на странице 'settings').
     """
 
     def has_permission(self, request, view):
-        from apps.users.models import User
+        from apps.core.access_helpers import has_button_access
 
-        # Разрешенные роли для доступа к настройкам
-        allowed_roles = [
-            User.Role.SUPERADMIN,         # Суперадмин
-            User.Role.DIRECTOR,           # Директор
-            User.Role.CHIEF_ENGINEER,     # Главный инженер
-            User.Role.PROJECT_MANAGER,    # Руководитель проекта
-            User.Role.SITE_MANAGER,       # Начальник участка
-        ]
+        if not request.user or not request.user.is_authenticated:
+            return False
 
-        return (
-            request.user and
-            request.user.is_authenticated and
-            (
-                request.user.is_superuser or
-                request.user.role in allowed_roles
-            )
-        )
+        return has_button_access(request.user, 'edit', 'settings')
 
 
 class CanManageProjects(permissions.BasePermission):
     """
     Permission to check if user can manage projects.
-    Project Managers and above can manage projects.
+
+    Проверяет доступ через ButtonAccess (кнопка 'create' на странице 'projects').
     """
 
     def has_permission(self, request, view):
-        from apps.users.models import User
+        from apps.core.access_helpers import has_button_access
+
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        # Проверяем доступ хотя бы к одной из кнопок: create, edit, delete
         return (
-            request.user and
-            request.user.is_authenticated and
-            (
-                request.user.is_superuser or
-                request.user.is_management or
-                request.user.role == User.Role.PROJECT_MANAGER
-            )
+            has_button_access(request.user, 'create', 'projects') or
+            has_button_access(request.user, 'edit', 'projects') or
+            has_button_access(request.user, 'delete', 'projects')
         )
 
 
 class CanManageProjectsAndDrawings(permissions.BasePermission):
     """
     Permission для управления объектами и чертежами.
-    Доступно только для: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер ПТО.
+
+    Проверяет доступ через ButtonAccess (кнопки на странице 'projects').
     """
 
     def has_permission(self, request, view):
-        from apps.users.models import User
+        from apps.core.access_helpers import has_button_access
 
-        # Разрешенные роли для создания/редактирования/удаления
-        allowed_roles = [
-            User.Role.DIRECTOR,           # Директор
-            User.Role.CHIEF_ENGINEER,     # Главный инженер
-            User.Role.PROJECT_MANAGER,    # Руководитель проекта
-            User.Role.SITE_MANAGER,       # Начальник участка
-            User.Role.ENGINEER,           # Инженер ПТО
-        ]
+        if not request.user or not request.user.is_authenticated:
+            return False
 
+        # Проверяем доступ хотя бы к одной из кнопок управления проектами
         return (
-            request.user and
-            request.user.is_authenticated and
-            (
-                request.user.is_superuser or
-                request.user.role in allowed_roles
-            )
+            has_button_access(request.user, 'create', 'projects') or
+            has_button_access(request.user, 'edit', 'projects')
         )
 
 
 class CanManageUsers(permissions.BasePermission):
     """
     Permission для управления пользователями.
-    Доступно для: Директор, Главный инженер, Руководитель проекта, Начальник участка, Инженер ПТО.
+
+    Проверяет доступ через ButtonAccess (кнопки на странице 'users').
     """
 
     def has_permission(self, request, view):
-        from apps.users.models import User
+        from apps.core.access_helpers import has_button_access
 
-        # Разрешенные роли для управления пользователями
-        allowed_roles = [
-            User.Role.DIRECTOR,           # Директор
-            User.Role.CHIEF_ENGINEER,     # Главный инженер
-            User.Role.PROJECT_MANAGER,    # Руководитель проекта
-            User.Role.SITE_MANAGER,       # Начальник участка
-            User.Role.ENGINEER,           # Инженер ПТО
-        ]
+        if not request.user or not request.user.is_authenticated:
+            return False
 
+        # Проверяем доступ хотя бы к одной из кнопок управления пользователями
         return (
-            request.user and
-            request.user.is_authenticated and
-            (
-                request.user.is_superuser or
-                request.user.role in allowed_roles
-            )
+            has_button_access(request.user, 'create', 'users') or
+            has_button_access(request.user, 'edit', 'users')
         )
 
 
@@ -158,8 +132,8 @@ class CanVerifyIssues(permissions.BasePermission):
 
 class HasPageAccess(permissions.BasePermission):
     """
-    Динамическая проверка доступа к странице на основе матрицы доступа в БД.
-    Проверяет, есть ли у пользователя доступ к конкретной странице в его компании.
+    Динамическая проверка доступа к странице на основе глобальной матрицы доступа в БД.
+    Проверяет, есть ли у пользователя доступ к конкретной странице (единая настройка для всех компаний).
 
     Использование:
         permission_classes = [HasPageAccess]
@@ -183,20 +157,19 @@ class HasPageAccess(permissions.BasePermission):
             # Если page_name не указан, разрешаем доступ (backward compatibility)
             return True
 
-        # Проверяем наличие компании
-        if not user.company:
+        # Проверяем доступ в глобальной матрице ButtonAccess
+        from apps.core.models import ButtonAccess
+        try:
+            page_access = ButtonAccess.objects.get(
+                access_type='page',
+                page=page_name,
+                company__isnull=True  # Глобальная настройка для всех компаний
+            )
+            # Проверяем, есть ли доступ для роли пользователя
+            return page_access.has_access(user.role)
+        except ButtonAccess.DoesNotExist:
+            # Если настройка не найдена, запрещаем доступ
             return False
-
-        # Проверяем доступ в БД
-        from apps.settings.models import PageAccess
-        has_access = PageAccess.objects.filter(
-            company=user.company,
-            page=page_name,
-            role=user.role,
-            has_access=True
-        ).exists()
-
-        return has_access
 
 
 class IsSameCompany(permissions.BasePermission):
@@ -231,26 +204,11 @@ class CanManagePersonnelExcel(permissions.BasePermission):
     """
     Permission для управления импортом/экспортом персонала через Excel.
 
-    Разрешено:
-    - SUPERADMIN — всегда
-    - Категория MANAGEMENT:
-        - DIRECTOR — всегда
-        - CHIEF_ENGINEER — всегда
-        - PROJECT_MANAGER — всегда
-        - SITE_MANAGER — только если approved_by_director=True
-        - FOREMAN — только если approved_by_director=True
-    - Остальные — запрещено
-
-    Логика проверки:
-    1. Если суперадмин — разрешить
-    2. Если категория MANAGEMENT:
-       a. Для высшего руководства (DIRECTOR, CHIEF_ENGINEER, PROJECT_MANAGER) — разрешить
-       b. Для среднего менеджмента (SITE_MANAGER, FOREMAN) — проверить одобрение директора
-    3. Для всех остальных — запретить
+    Проверяет доступ через ButtonAccess + дополнительная проверка approved_by_director.
     """
 
     def has_permission(self, request, view):
-        from apps.users.models import User
+        from apps.core.access_helpers import has_button_access
 
         user = request.user
 
@@ -258,50 +216,29 @@ class CanManagePersonnelExcel(permissions.BasePermission):
         if not user or not user.is_authenticated:
             return False
 
-        # 1. Суперадмин — всегда разрешено
-        if user.is_superuser:
-            return True
+        # Проверяем базовый доступ к импорту персонала через ButtonAccess
+        has_import_access = has_button_access(user, 'import', 'users')
 
-        # 2. Проверяем категорию MANAGEMENT
-        if user.role_category == 'MANAGEMENT':
-            # Высшее руководство — всегда разрешено
-            if user.role in [
-                User.Role.DIRECTOR,
-                User.Role.CHIEF_ENGINEER,
-                User.Role.PROJECT_MANAGER
-            ]:
-                return True
+        if not has_import_access:
+            return False
 
-            # Средний менеджмент — требуется одобрение директора
-            if user.role in [User.Role.SITE_MANAGER, User.Role.FOREMAN]:
-                return user.approved_by_director
+        # Дополнительная проверка: для среднего менеджмента требуется одобрение директора
+        from apps.users.models import User
+        if user.role in [User.Role.SITE_MANAGER, User.Role.FOREMAN]:
+            return user.approved_by_director
 
-        # 3. Для всех остальных — запрещено
-        return False
+        return True
 
 
 class CanManageContractorsExcel(permissions.BasePermission):
     """
     Permission для управления импортом/экспортом подрядчиков через Excel.
 
-    Доступно для ролей от Прораба до Директора:
-    - FOREMAN (Прораб)
-    - SITE_MANAGER (Начальник участка)
-    - ENGINEER (Инженер ПТО)
-    - PROJECT_MANAGER (Руководитель проекта)
-    - CHIEF_ENGINEER (Главный инженер)
-    - DIRECTOR (Директор)
-    - SUPERADMIN (всегда)
-
-    Требования:
-    - Пользователь должен быть аутентифицирован
-    - Пользователь должен иметь привязку к компании
-    - Пользователь должен быть одобрен (approved=True)
-    - Роль пользователя должна быть из списка разрешенных
+    Проверяет доступ через ButtonAccess + дополнительные проверки (company, approved).
     """
 
     def has_permission(self, request, view):
-        from apps.users.models import User
+        from apps.core.access_helpers import has_button_access
 
         user = request.user
 
@@ -309,50 +246,29 @@ class CanManageContractorsExcel(permissions.BasePermission):
         if not user or not user.is_authenticated:
             return False
 
-        # Суперадмин — всегда разрешено
-        if user.is_superuser:
-            return True
-
         # Проверяем наличие компании
         if not user.company:
             return False
 
-        # Роли с доступом к управлению подрядчиками
-        allowed_roles = [
-            User.Role.FOREMAN,           # Прораб
-            User.Role.SITE_MANAGER,      # Начальник участка
-            User.Role.ENGINEER,          # Инженер ПТО
-            User.Role.PROJECT_MANAGER,   # Руководитель проекта
-            User.Role.CHIEF_ENGINEER,    # Главный инженер
-            User.Role.DIRECTOR           # Директор
-        ]
+        # Проверяем базовый доступ к импорту подрядчиков через ButtonAccess
+        has_import_access = has_button_access(user, 'import', 'contractors')
 
-        # Проверяем роль и статус одобрения
-        return user.role in allowed_roles and user.approved
+        if not has_import_access:
+            return False
+
+        # Дополнительная проверка: пользователь должен быть одобрен
+        return user.approved
 
 
 class CanManageSupervisionExcel(permissions.BasePermission):
     """
     Permission для управления импортом/экспортом надзоров (Технадзор и Авторский надзор) через Excel.
 
-    Доступно для ролей от Прораба до Директора:
-    - FOREMAN (Прораб)
-    - SITE_MANAGER (Начальник участка)
-    - ENGINEER (Инженер ПТО)
-    - PROJECT_MANAGER (Руководитель проекта)
-    - CHIEF_ENGINEER (Главный инженер)
-    - DIRECTOR (Директор)
-    - SUPERADMIN (всегда)
-
-    Требования:
-    - Пользователь должен быть аутентифицирован
-    - Пользователь должен иметь привязку к компании
-    - Пользователь должен быть одобрен (approved=True)
-    - Роль пользователя должна быть из списка разрешенных
+    Проверяет доступ через ButtonAccess + дополнительные проверки (company, approved).
     """
 
     def has_permission(self, request, view):
-        from apps.users.models import User
+        from apps.core.access_helpers import has_button_access
 
         user = request.user
 
@@ -360,23 +276,15 @@ class CanManageSupervisionExcel(permissions.BasePermission):
         if not user or not user.is_authenticated:
             return False
 
-        # Суперадмин — всегда разрешено
-        if user.is_superuser:
-            return True
-
         # Проверяем наличие компании
         if not user.company:
             return False
 
-        # Роли с доступом к управлению надзорами
-        allowed_roles = [
-            User.Role.FOREMAN,           # Прораб
-            User.Role.SITE_MANAGER,      # Начальник участка
-            User.Role.ENGINEER,          # Инженер ПТО
-            User.Role.PROJECT_MANAGER,   # Руководитель проекта
-            User.Role.CHIEF_ENGINEER,    # Главный инженер
-            User.Role.DIRECTOR           # Директор
-        ]
+        # Проверяем базовый доступ к импорту надзоров через ButtonAccess
+        has_import_access = has_button_access(user, 'import', 'supervisions')
 
-        # Проверяем роль и статус одобрения
-        return user.role in allowed_roles and user.approved
+        if not has_import_access:
+            return False
+
+        # Дополнительная проверка: пользователь должен быть одобрен
+        return user.approved

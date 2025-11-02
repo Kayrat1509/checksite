@@ -51,8 +51,7 @@ def set_first_user_as_owner(sender, instance, created, **kwargs):
                 'role_category', 'approved', 'is_verified'
             ])
 
-            # Создаем дефолтную матрицу доступа для всех ролей компании
-            create_default_page_access_for_company(instance.company)
+            # Матрица доступа теперь глобальная - не требуется создание записей по компаниям
 
 
 @receiver(post_save, sender=User)
@@ -63,7 +62,9 @@ def update_full_access_for_management(sender, instance, created, **kwargs):
     Логика:
     1. Если роль относится к категории Руководство
     2. То установить has_full_access=True и role_category='MANAGEMENT'
-    3. Создать права доступа ко всем страницам
+
+    ВАЖНО: Матрица доступа к страницам теперь глобальная (ButtonAccess с company=NULL),
+    поэтому создание записей PageAccess по компаниям больше не требуется.
     """
     # Пропускаем, если это создание нового пользователя (обработает другой сигнал)
     if created:
@@ -77,18 +78,8 @@ def update_full_access_for_management(sender, instance, created, **kwargs):
             instance.has_full_access = True
             instance.role_category = 'MANAGEMENT'
             instance.save(update_fields=['has_full_access', 'role_category'])
+            # Права доступа к страницам определяются глобальной матрицей ButtonAccess
 
-            # Создаем права доступа ко всем страницам
-            if instance.company:
-                from apps.settings.models import PageAccess
-                all_pages = [choice[0] for choice in PageAccess.PageChoices.choices]
-                for page in all_pages:
-                    PageAccess.objects.get_or_create(
-                        company=instance.company,
-                        role=instance.role,
-                        page=page,
-                        defaults={'has_access': True}
-                    )
     elif instance.is_itr_supply_category:
         # Если роль относится к ИТР и снабжению
         if instance.has_full_access or instance.role_category != 'ITR_SUPPLY':
@@ -97,65 +88,6 @@ def update_full_access_for_management(sender, instance, created, **kwargs):
             instance.has_full_access = False
             instance.role_category = 'ITR_SUPPLY'
             instance.save(update_fields=['has_full_access', 'role_category'])
-
-
-def create_default_page_access_for_company(company):
-    """
-    Создать дефолтную матрицу доступа для всех ролей компании.
-
-    Для категории Руководство - полный доступ ко всем страницам.
-    Для категории ИТР и снабжение - минимальный доступ (дашборд и профиль).
-    """
-    from apps.settings.models import PageAccess
-
-    logger.info(f'Создание дефолтной матрицы доступа для компании {company.name}')
-
-    # Дефолтные права для категории "Руководство"
-    # ОБНОВЛЕНО: Удален 'technical-conditions' из списка доступных страниц
-    management_pages = [
-        'dashboard', 'projects', 'issues', 'users', 'contractors',
-        'supervisions', 'material-requests', 'warehouse',
-        'tenders', 'reports', 'profile', 'settings'
-    ]
-
-    management_roles = [
-        'DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER',
-        'SITE_MANAGER', 'FOREMAN'
-    ]
-
-    created_count = 0
-    for role in management_roles:
-        for page in management_pages:
-            _, created = PageAccess.objects.get_or_create(
-                company=company,
-                role=role,
-                page=page,
-                defaults={'has_access': True}
-            )
-            if created:
-                created_count += 1
-
-    # Дефолтные права для категории "ИТР и снабжение"
-    # Минимальный доступ: только дашборд и профиль
-    itr_pages = ['dashboard', 'profile']
-
-    itr_roles = [
-        'ENGINEER', 'MASTER', 'SUPPLY_MANAGER',
-        'WAREHOUSE_HEAD', 'SITE_WAREHOUSE_MANAGER'
-    ]
-
-    for role in itr_roles:
-        for page in itr_pages:
-            _, created = PageAccess.objects.get_or_create(
-                company=company,
-                role=role,
-                page=page,
-                defaults={'has_access': True}
-            )
-            if created:
-                created_count += 1
-
-    logger.info(f'Создано {created_count} записей PageAccess для компании {company.name}')
 
 
 @receiver(user_logged_in)

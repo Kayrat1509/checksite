@@ -463,24 +463,24 @@
 {% block content %}
 <div class="matrix-container">
     <div class="page-header">
-        <h1>Матрица доступа к кнопкам</h1>
+        <h1>Унифицированная матрица доступа</h1>
         <a href="{% url 'admin:core_buttonaccess_add' %}" class="add-button">
-            + Добавить кнопку
+            + Добавить элемент
         </a>
     </div>
 
     <div class="stats-row">
         <div class="stat-card">
             <div class="stat-number">{{ total_buttons }}</div>
-            <div class="stat-label">Всего кнопок</div>
+            <div class="stat-label">Кнопок</div>
         </div>
         <div class="stat-card">
             <div class="stat-number">{{ total_pages }}</div>
-            <div class="stat-label">Страниц</div>
+            <div class="stat-label">Страниц (по компаниям)</div>
         </div>
         <div class="stat-card">
-            <div class="stat-number">13</div>
-            <div class="stat-label">Ролей</div>
+            <div class="stat-number">{{ total_items }}</div>
+            <div class="stat-label">Всего записей</div>
         </div>
     </div>
 
@@ -497,10 +497,11 @@
             </div>
 
             <div class="description-section">
-                <div class="description-title">Управление правами доступа к кнопкам</div>
+                <div class="description-title">Управление правами доступа</div>
                 <div class="description-text">
-                    Настройте права доступа для различных кнопок и действий в системе.
-                    Галочка означает, что роль имеет доступ к данной кнопке.
+                    <strong>🔘 Кнопки:</strong> Глобальные настройки доступа к кнопкам (действиям) в системе.<br>
+                    <strong>📄 Страницы:</strong> Настройки доступа к страницам для каждой компании отдельно.<br>
+                    Галочка означает, что роль имеет доступ к элементу.
                 </div>
             </div>
 
@@ -520,7 +521,14 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for page, buttons in pages.items %}
+                                    <!-- Секция: Кнопки (глобальные) -->
+                                    {% if buttons_by_page %}
+                                    <tr class="page-group-header">
+                                        <td colspan="{{ roles|length|add:1 }}" style="background: #52c41a !important; color: white;">
+                                            🔘 КНОПКИ (глобальные настройки)
+                                        </td>
+                                    </tr>
+                                    {% for page, buttons in buttons_by_page.items %}
                                     <tr class="page-group-header" data-page="{{ page }}">
                                         <td colspan="{{ roles|length|add:1 }}">
                                             📄 {{ page|upper }}
@@ -554,6 +562,43 @@
                                     </tr>
                                     {% endfor %}
                                     {% endfor %}
+                                    {% endif %}
+
+                                    <!-- Секция: Страницы (глобальные настройки) -->
+                                    {% if pages_list %}
+                                    <tr class="page-group-header">
+                                        <td colspan="{{ roles|length|add:1 }}" style="background: #1890ff !important; color: white;">
+                                            📄 СТРАНИЦЫ (глобальные настройки для всех компаний)
+                                        </td>
+                                    </tr>
+                                    {% for page_item in pages_list %}
+                                    <tr class="button-row" data-page="{{ page_item.page }}">
+                                        <td>
+                                            <strong>{{ page_item.button_name }}</strong>
+                                            <span class="button-key">{{ page_item.page }}</span>
+                                            {% if page_item.default_access %}
+                                            <span class="default-access-badge">Всем ролям</span>
+                                            {% endif %}
+                                        </td>
+                                        {% for role_key, role_name in roles %}
+                                        <td>
+                                            <label class="ant-checkbox-wrapper">
+                                                <span class="ant-checkbox">
+                                                    <input
+                                                        type="checkbox"
+                                                        class="ant-checkbox-input"
+                                                        name="button_{{ page_item.id }}_{{ role_key }}"
+                                                        {% if page_item.default_access or page_item|get_role_access:role_key %}checked{% endif %}
+                                                        onchange="markChanged()"
+                                                    />
+                                                    <span class="ant-checkbox-inner"></span>
+                                                </span>
+                                            </label>
+                                        </td>
+                                        {% endfor %}
+                                    </tr>
+                                    {% endfor %}
+                                    {% endif %}
                                 </tbody>
                             </table>
                         </div>
@@ -579,12 +624,16 @@
 
             <div class="info-card">
                 <p class="info-card-text">
-                    <strong>Примечание:</strong> Роль "Суперадмин" имеет полный доступ ко всем кнопкам и не отображается в матрице.
-                    Бейдж "Всем ролям" означает, что кнопка доступна всем пользователям независимо от роли.
+                    <strong>Примечание:</strong> Роль "Суперадмин" имеет полный доступ ко всем элементам и не отображается в матрице.
+                    Бейдж "Всем ролям" означает, что элемент доступен всем пользователям независимо от роли.
                 </p>
                 <p class="info-card-text" style="margin-top: 8px;">
                     <strong>⏱ Время вступления в силу:</strong> Пользователи увидят изменения в течение 10 секунд
                     (обновление происходит автоматически при возвращении на вкладку или по таймеру каждые 10 секунд).
+                </p>
+                <p class="info-card-text" style="margin-top: 8px;">
+                    <strong>ℹ️ Структура:</strong> Модель <code>PageAccess</code> удалена и объединена с <code>ButtonAccess</code>.
+                    Теперь одна модель управляет доступом к кнопкам (глобально) и страницам (по компаниям).
                 </p>
             </div>
         </div>

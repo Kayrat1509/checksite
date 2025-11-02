@@ -36,6 +36,24 @@ export type AllPagesButtons = {
 }
 
 /**
+ * Интерфейс для доступа к странице
+ */
+export interface PageAccessInfo {
+  has_access: boolean
+  page_name: string
+}
+
+/**
+ * Тип для ответа с доступом к страницам
+ */
+export interface PageAccessResponse {
+  accessible_pages: string[]
+  all_pages: {
+    [page: string]: PageAccessInfo
+  }
+}
+
+/**
  * API для работы с матрицей доступа к кнопкам
  */
 export const buttonAccessAPI = {
@@ -92,6 +110,28 @@ export const buttonAccessAPI = {
    */
   getAllPages: async (): Promise<AllPagesButtons> => {
     const response = await apiClient.get<AllPagesButtons>('/button-access/all_pages/')
+    return response.data
+  },
+
+  /**
+   * Получить доступные страницы для текущего пользователя
+   * Использует новый унифицированный ButtonAccess с поддержкой страниц
+   *
+   * @returns Объект с доступными страницами и информацией о каждой
+   *
+   * @example
+   * const pageAccess = await buttonAccessAPI.getPageAccess()
+   * // pageAccess = {
+   * //   accessible_pages: ['dashboard', 'projects', 'issues'],
+   * //   all_pages: {
+   * //     dashboard: { has_access: true, page_name: 'Дашборд' },
+   * //     projects: { has_access: true, page_name: 'Проекты' },
+   * //     ...
+   * //   }
+   * // }
+   */
+  getPageAccess: async (): Promise<PageAccessResponse> => {
+    const response = await apiClient.get<PageAccessResponse>('/button-access/page_access/')
     return response.data
   },
 }

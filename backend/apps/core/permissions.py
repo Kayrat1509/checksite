@@ -1,92 +1,53 @@
 """
 Permissions для работы с корзиной (Recycle Bin).
+
+Переписано на использование ButtonAccess вместо хардкода ролей.
 """
 
 from rest_framework import permissions
+from apps.core.access_helpers import has_button_access
 
 
 class CanAccessRecycleBin(permissions.BasePermission):
     """
     Право доступа к корзине.
 
-    Доступно для ролей:
-    - SUPERADMIN
-    - DIRECTOR
-    - CHIEF_ENGINEER
-    - PROJECT_MANAGER
-    - SITE_MANAGER
+    Проверяет доступ через ButtonAccess (кнопка 'recycle_bin_access').
     """
 
     def has_permission(self, request, view):
-        """Проверка прав доступа к корзине."""
+        """Проверка прав доступа к корзине через ButtonAccess."""
         if not request.user or not request.user.is_authenticated:
             return False
 
-        # Суперадмин имеет полный доступ
-        if request.user.is_superuser:
-            return True
-
-        # Роли с доступом к корзине
-        allowed_roles = [
-            'SUPERADMIN',
-            'DIRECTOR',
-            'CHIEF_ENGINEER',
-            'PROJECT_MANAGER',
-            'SITE_MANAGER',
-        ]
-
-        return request.user.role in allowed_roles
+        return has_button_access(request.user, 'recycle_bin_access', 'dashboard')
 
 
 class CanRestoreFromRecycleBin(permissions.BasePermission):
     """
     Право на восстановление из корзины.
 
-    Доступно для ролей:
-    - SUPERADMIN
-    - DIRECTOR
-    - CHIEF_ENGINEER
-    - PROJECT_MANAGER
-    - SITE_MANAGER
+    Проверяет доступ через ButtonAccess (кнопка 'recycle_bin_restore').
     """
 
     def has_permission(self, request, view):
-        """Проверка прав на восстановление."""
+        """Проверка прав на восстановление через ButtonAccess."""
         if not request.user or not request.user.is_authenticated:
             return False
 
-        # Суперадмин имеет полный доступ
-        if request.user.is_superuser:
-            return True
-
-        # Роли с правом восстановления
-        allowed_roles = [
-            'SUPERADMIN',
-            'DIRECTOR',
-            'CHIEF_ENGINEER',
-            'PROJECT_MANAGER',
-            'SITE_MANAGER',
-        ]
-
-        return request.user.role in allowed_roles
+        return has_button_access(request.user, 'recycle_bin_restore', 'dashboard')
 
 
 class CanPermanentlyDelete(permissions.BasePermission):
     """
     Право на окончательное удаление из БД.
 
-    Доступно ТОЛЬКО для:
-    - SUPERADMIN
-    - DIRECTOR
+    Проверяет доступ через ButtonAccess (кнопка 'recycle_bin_delete').
     """
 
     def has_permission(self, request, view):
-        """Проверка прав на окончательное удаление."""
+        """Проверка прав на окончательное удаление через ButtonAccess."""
         if not request.user or not request.user.is_authenticated:
             return False
 
-        # Только суперадмин и директор
-        if request.user.is_superuser:
-            return True
-
-        return request.user.role in ['SUPERADMIN', 'DIRECTOR']
+        return has_button_access(request.user, 'recycle_bin_delete', 'dashboard')

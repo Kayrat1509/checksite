@@ -80,11 +80,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   loadAllowedPages: async () => {
     try {
-      const response = await settingsAPI.getMyPages()
-      set({ allowedPages: response.pages })
+      // Используем новый унифицированный ButtonAccess API
+      const { buttonAccessAPI } = await import('../api/buttonAccess')
+      const response = await buttonAccessAPI.getPageAccess()
+      set({ allowedPages: response.accessible_pages })
     } catch (error) {
       console.error('Ошибка при загрузке разрешенных страниц:', error)
       set({ allowedPages: [] })
+
+      // Fallback на старый endpoint для обратной совместимости
+      try {
+        const response = await settingsAPI.getMyPages()
+        set({ allowedPages: response.pages })
+      } catch (fallbackError) {
+        console.error('Ошибка fallback загрузки страниц:', fallbackError)
+      }
     }
   },
 

@@ -1,804 +1,435 @@
 """
-Management команда для заполнения начальных данных матрицы доступа к кнопкам.
+Management команда для создания записей ButtonAccess для всех кнопок системы.
 
-Использование:
+Запуск:
     python manage.py populate_button_access
-
-Описание:
-    Создает начальные записи ButtonAccess для всех страниц системы.
-    Если запись уже существует (по page + button_key), она будет обновлена.
 """
-
 from django.core.management.base import BaseCommand
 from apps.core.models import ButtonAccess
 
 
 class Command(BaseCommand):
-    help = 'Заполнение начальных данных для матрицы доступа к кнопкам'
+    help = 'Создаёт записи ButtonAccess для всех кнопок и действий в системе'
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.WARNING('Начинаем заполнение матрицы доступа к кнопкам...'))
+        self.stdout.write(self.style.WARNING('\n' + '='*80))
+        self.stdout.write(self.style.WARNING('Создание записей ButtonAccess для кнопок'))
+        self.stdout.write(self.style.WARNING('='*80 + '\n'))
 
-        buttons_data = self.get_buttons_data()
-        created_count = 0
-        updated_count = 0
-
-        for button_data in buttons_data:
-            obj, created = ButtonAccess.objects.update_or_create(
-                page=button_data['page'],
-                button_key=button_data['button_key'],
-                defaults=button_data
-            )
-
-            if created:
-                created_count += 1
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f'  ✓ Создано: {button_data["page"]} - {button_data["button_name"]}'
-                    )
-                )
-            else:
-                updated_count += 1
-                self.stdout.write(
-                    self.style.WARNING(
-                        f'  ↻ Обновлено: {button_data["page"]} - {button_data["button_name"]}'
-                    )
-                )
-
-        self.stdout.write('\n' + '=' * 80)
-        self.stdout.write(
-            self.style.SUCCESS(
-                f'Завершено! Создано: {created_count}, Обновлено: {updated_count}'
-            )
-        )
-        self.stdout.write('=' * 80)
-
-    def get_buttons_data(self):
-        """
-        Возвращает список начальных данных для кнопок.
-
-        Формат:
-        {
-            'page': 'projects',
-            'button_key': 'create',
-            'button_name': 'Создать проект',
-            'description': 'Создание нового проекта',
-            'default_access': False,
-            'DIRECTOR': True,
-            'CHIEF_ENGINEER': True,
-            ...
-        }
-        """
-        return [
-            # ============ ПРОЕКТЫ (projects) ============
-            {
-                'page': 'projects',
-                'button_key': 'create',
-                'button_name': 'Создать проект',
-                'description': 'Создание нового проекта',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-            },
-            {
-                'page': 'projects',
-                'button_key': 'edit',
-                'button_name': 'Редактировать',
-                'description': 'Редактирование проекта',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'SITE_MANAGER': True,
-            },
-            {
-                'page': 'projects',
-                'button_key': 'delete',
-                'button_name': 'Удалить',
-                'description': 'Удаление проекта (в корзину)',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-            },
-            {
-                'page': 'projects',
-                'button_key': 'view_details',
-                'button_name': 'Просмотр деталей',
-                'description': 'Просмотр подробной информации о проекте',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'ENGINEER': True,
-                'SITE_MANAGER': True,
-                'FOREMAN': True,
-                'MASTER': True,
-                'SUPERVISOR': True,
-                'CONTRACTOR': True,
-                'OBSERVER': True,
-                'SUPPLY_MANAGER': True,
-                'WAREHOUSE_HEAD': True,
-                'SITE_WAREHOUSE_MANAGER': True,
-            },
-            {
-                'page': 'projects',
-                'button_key': 'export_excel',
-                'button_name': 'Экспорт Excel',
-                'description': 'Экспорт проектов в Excel',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-            },
-            {
-                'page': 'projects',
-                'button_key': 'import_excel',
-                'button_name': 'Импорт Excel',
-                'description': 'Импорт проектов из Excel',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-            },
-
-            # ============ СОТРУДНИКИ (users) ============
-            {
-                'page': 'users',
-                'button_key': 'create',
-                'button_name': 'Добавить сотрудника',
-                'description': 'Создание нового пользователя',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-            },
-            {
-                'page': 'users',
-                'button_key': 'edit',
-                'button_name': 'Редактировать',
-                'description': 'Редактирование данных сотрудника',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-            },
-            {
-                'page': 'users',
-                'button_key': 'delete',
-                'button_name': 'Удалить',
-                'description': 'Удаление сотрудника (в корзину)',
-                'default_access': False,
-                'DIRECTOR': True,
-            },
-            {
-                'page': 'users',
-                'button_key': 'export_excel',
-                'button_name': 'Экспорт Excel',
-                'description': 'Экспорт сотрудников в Excel',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-            },
-            {
-                'page': 'users',
-                'button_key': 'import_excel',
-                'button_name': 'Импорт Excel',
-                'description': 'Импорт сотрудников из Excel',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-            },
-            {
-                'page': 'users',
-                'button_key': 'reset_password',
-                'button_name': 'Сбросить пароль',
-                'description': 'Сброс пароля пользователя',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-            },
-            {
-                'page': 'users',
-                'button_key': 'view_details',
-                'button_name': 'Просмотр профиля',
-                'description': 'Просмотр профиля сотрудника',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'ENGINEER': True,
-                'SITE_MANAGER': True,
-                'FOREMAN': True,
-                'MASTER': True,
-                'SUPERVISOR': True,
-                'CONTRACTOR': True,
-                'OBSERVER': True,
-                'SUPPLY_MANAGER': True,
-                'WAREHOUSE_HEAD': True,
-                'SITE_WAREHOUSE_MANAGER': True,
-            },
-
-            # ============ ПОДРЯДЧИКИ (contractors) ============
-            {
-                'page': 'contractors',
-                'button_key': 'create',
-                'button_name': 'Добавить подрядчика',
-                'description': 'Создание нового подрядчика',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-            },
-            {
-                'page': 'contractors',
-                'button_key': 'edit',
-                'button_name': 'Редактировать',
-                'description': 'Редактирование данных подрядчика',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-            },
-            {
-                'page': 'contractors',
-                'button_key': 'delete',
-                'button_name': 'Удалить',
-                'description': 'Удаление подрядчика',
-                'default_access': False,
-                'DIRECTOR': True,
-            },
-            {
-                'page': 'contractors',
-                'button_key': 'export_excel',
-                'button_name': 'Экспорт Excel',
-                'description': 'Экспорт подрядчиков в Excel',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-            },
-            {
-                'page': 'contractors',
-                'button_key': 'import_excel',
-                'button_name': 'Импорт Excel',
-                'description': 'Импорт подрядчиков из Excel',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-            },
-            {
-                'page': 'contractors',
-                'button_key': 'view_details',
-                'button_name': 'Просмотр деталей',
-                'description': 'Просмотр информации о подрядчике',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'ENGINEER': True,
-                'SITE_MANAGER': True,
-                'FOREMAN': True,
-                'MASTER': True,
-                'SUPERVISOR': True,
-                'CONTRACTOR': True,
-                'OBSERVER': True,
-                'SUPPLY_MANAGER': True,
-                'WAREHOUSE_HEAD': True,
-                'SITE_WAREHOUSE_MANAGER': True,
-            },
-
-            # ============ ЗАМЕЧАНИЯ (issues) ============
+        # Определяем все кнопки которые нужно создать
+        buttons = [
+            # ========== ISSUES (Замечания) ==========
             {
                 'page': 'issues',
                 'button_key': 'create',
                 'button_name': 'Создать замечание',
-                'description': 'Создание нового замечания',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'ENGINEER': True,
-                'SITE_MANAGER': True,
-                'FOREMAN': True,
-                'MASTER': True,
-                'SUPERVISOR': True,
+                'description': 'Право на создание нового замечания',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 
+                          'FOREMAN', 'SUPERVISOR', 'OBSERVER']
             },
             {
                 'page': 'issues',
                 'button_key': 'edit',
-                'button_name': 'Редактировать',
-                'description': 'Редактирование замечания',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'ENGINEER': True,
-                'SITE_MANAGER': True,
-                'FOREMAN': True,
+                'button_name': 'Редактировать замечание',
+                'description': 'Право на редактирование замечания',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'FOREMAN']
             },
             {
                 'page': 'issues',
                 'button_key': 'delete',
-                'button_name': 'Удалить',
-                'description': 'Удаление замечания',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
+                'button_name': 'Удалить замечание',
+                'description': 'Право на удаление замечания',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER']
             },
             {
                 'page': 'issues',
-                'button_key': 'change_status',
-                'button_name': 'Изменить статус',
-                'description': 'Изменение статуса замечания',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'ENGINEER': True,
-                'SITE_MANAGER': True,
-                'FOREMAN': True,
-                'MASTER': True,
+                'button_key': 'accept',
+                'button_name': 'Принять замечание',
+                'description': 'Право на принятие (завершение) замечания',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 
+                          'FOREMAN', 'SUPERVISOR', 'OBSERVER']
             },
             {
                 'page': 'issues',
-                'button_key': 'assign',
-                'button_name': 'Назначить исполнителя',
-                'description': 'Назначение исполнителя на замечание',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'SITE_MANAGER': True,
-                'FOREMAN': True,
+                'button_key': 'reject',
+                'button_name': 'Отклонить замечание',
+                'description': 'Право на отклонение замечания',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER']
+            },
+            {
+                'page': 'issues',
+                'button_key': 'upload_photo',
+                'button_name': 'Загрузить фото',
+                'description': 'Право на загрузку фотографий к замечанию',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 
+                          'FOREMAN', 'SUPERVISOR', 'OBSERVER', 'CONTRACTOR']
             },
             {
                 'page': 'issues',
                 'button_key': 'add_comment',
                 'button_name': 'Добавить комментарий',
-                'description': 'Добавление комментария к замечанию',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'ENGINEER': True,
-                'SITE_MANAGER': True,
-                'FOREMAN': True,
-                'MASTER': True,
-                'SUPERVISOR': True,
-                'CONTRACTOR': True,
-                'OBSERVER': True,
-                'SUPPLY_MANAGER': True,
-                'WAREHOUSE_HEAD': True,
-                'SITE_WAREHOUSE_MANAGER': True,
-            },
-            {
-                'page': 'issues',
-                'button_key': 'add_photo_before',
-                'button_name': 'Добавить фото ДО',
-                'description': 'Загрузка фотографий "До" к замечанию',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'ENGINEER': True,
-                'SITE_MANAGER': True,
-                'FOREMAN': True,
-                'MASTER': True,
-                'SUPERVISOR': True,
-                'CONTRACTOR': True,
-                'OBSERVER': True,
-                'SUPPLY_MANAGER': True,
-                'WAREHOUSE_HEAD': True,
-                'SITE_WAREHOUSE_MANAGER': True,
-            },
-            {
-                'page': 'issues',
-                'button_key': 'add_photo_after',
-                'button_name': 'Добавить фото ПОСЛЕ',
-                'description': 'Загрузка фотографий "После" к замечанию',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'ENGINEER': True,
-                'SITE_MANAGER': True,
-                'FOREMAN': True,
-                'MASTER': True,
-                'SUPERVISOR': True,
-                'CONTRACTOR': True,
-                'OBSERVER': True,
-                'SUPPLY_MANAGER': True,
-                'WAREHOUSE_HEAD': True,
-                'SITE_WAREHOUSE_MANAGER': True,
-            },
-            {
-                'page': 'issues',
-                'button_key': 'send_to_review',
-                'button_name': 'Отправить на проверку',
-                'description': 'Отправка замечания на проверку ИТР или Надзору',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'ENGINEER': True,
-                'SITE_MANAGER': True,
-                'FOREMAN': True,
-                'MASTER': True,
-                'SUPERVISOR': True,
-                'OBSERVER': True,
-                'CONTRACTOR': True,  # Подрядчик тоже может отправлять на проверку
-            },
-            {
-                'page': 'issues',
-                'button_key': 'accept',
-                'button_name': 'Принять',
-                'description': 'Принятие выполненного замечания (перевод в статус COMPLETED)',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'ENGINEER': True,
-                'SITE_MANAGER': True,
-                'FOREMAN': True,
-                'MASTER': True,
-                'SUPERVISOR': True,
-                'OBSERVER': True,
-            },
-            {
-                'page': 'issues',
-                'button_key': 'view_details',
-                'button_name': 'Просмотр деталей',
-                'description': 'Просмотр подробной информации о замечании',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'ENGINEER': True,
-                'SITE_MANAGER': True,
-                'FOREMAN': True,
-                'MASTER': True,
-                'SUPERVISOR': True,
-                'CONTRACTOR': True,
-                'OBSERVER': True,
-                'SUPPLY_MANAGER': True,
-                'WAREHOUSE_HEAD': True,
-                'SITE_WAREHOUSE_MANAGER': True,
+                'description': 'Право на добавление комментариев к замечанию',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 
+                          'FOREMAN', 'SUPERVISOR', 'OBSERVER', 'CONTRACTOR', 'ENGINEER']
             },
 
-            # ============ СКЛАД (warehouse) ============
+            # ========== PROJECTS (Проекты) ==========
             {
-                'page': 'warehouse',
-                'button_key': 'create_item',
-                'button_name': 'Добавить товар',
-                'description': 'Добавление нового товара на склад',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'SUPPLY_MANAGER': True,
-                'WAREHOUSE_HEAD': True,
-                'SITE_WAREHOUSE_MANAGER': True,
+                'page': 'projects',
+                'button_key': 'create',
+                'button_name': 'Создать проект',
+                'description': 'Право на создание нового проекта',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER']
             },
             {
-                'page': 'warehouse',
-                'button_key': 'edit_item',
-                'button_name': 'Редактировать',
-                'description': 'Редактирование информации о товаре',
-                'default_access': False,
-                'DIRECTOR': True,
-                'SUPPLY_MANAGER': True,
-                'WAREHOUSE_HEAD': True,
-                'SITE_WAREHOUSE_MANAGER': True,
+                'page': 'projects',
+                'button_key': 'edit',
+                'button_name': 'Редактировать проект',
+                'description': 'Право на редактирование проекта',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER']
             },
             {
-                'page': 'warehouse',
-                'button_key': 'delete_item',
-                'button_name': 'Удалить',
-                'description': 'Удаление товара со склада',
-                'default_access': False,
-                'DIRECTOR': True,
-                'WAREHOUSE_HEAD': True,
+                'page': 'projects',
+                'button_key': 'delete',
+                'button_name': 'Удалить проект',
+                'description': 'Право на удаление проекта',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER']
             },
             {
-                'page': 'warehouse',
-                'button_key': 'move_items',
-                'button_name': 'Перемещение',
-                'description': 'Перемещение товаров между складами',
-                'default_access': False,
-                'DIRECTOR': True,
-                'SUPPLY_MANAGER': True,
-                'WAREHOUSE_HEAD': True,
-                'SITE_WAREHOUSE_MANAGER': True,
+                'page': 'projects',
+                'button_key': 'export',
+                'button_name': 'Экспорт проектов',
+                'description': 'Право на экспорт данных проектов в Excel',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER']
             },
             {
-                'page': 'warehouse',
-                'button_key': 'write_off',
-                'button_name': 'Списание',
-                'description': 'Списание товаров',
-                'default_access': False,
-                'DIRECTOR': True,
-                'WAREHOUSE_HEAD': True,
-            },
-            {
-                'page': 'warehouse',
-                'button_key': 'view_details',
-                'button_name': 'Просмотр деталей',
-                'description': 'Просмотр информации о товаре',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'ENGINEER': True,
-                'SITE_MANAGER': True,
-                'FOREMAN': True,
-                'MASTER': True,
-                'SUPERVISOR': True,
-                'CONTRACTOR': True,
-                'OBSERVER': True,
-                'SUPPLY_MANAGER': True,
-                'WAREHOUSE_HEAD': True,
-                'SITE_WAREHOUSE_MANAGER': True,
+                'page': 'projects',
+                'button_key': 'import',
+                'button_name': 'Импорт проектов',
+                'description': 'Право на импорт данных проектов из Excel',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER']
             },
 
-            # ============ ЗАЯВКИ (material-requests) ============
+            # ========== USERS (Сотрудники) ==========
+            {
+                'page': 'users',
+                'button_key': 'create',
+                'button_name': 'Создать сотрудника',
+                'description': 'Право на создание нового сотрудника',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER']
+            },
+            {
+                'page': 'users',
+                'button_key': 'edit',
+                'button_name': 'Редактировать сотрудника',
+                'description': 'Право на редактирование данных сотрудника',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'ENGINEER']
+            },
+            {
+                'page': 'users',
+                'button_key': 'delete',
+                'button_name': 'Удалить сотрудника',
+                'description': 'Право на удаление сотрудника',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER']
+            },
+            {
+                'page': 'users',
+                'button_key': 'export',
+                'button_name': 'Экспорт персонала',
+                'description': 'Право на экспорт данных персонала в Excel',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER']
+            },
+            {
+                'page': 'users',
+                'button_key': 'import',
+                'button_name': 'Импорт персонала',
+                'description': 'Право на импорт данных персонала из Excel',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER']
+            },
+            {
+                'page': 'users',
+                'button_key': 'approve',
+                'button_name': 'Одобрить пользователя',
+                'description': 'Право на одобрение регистрации пользователя',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER']
+            },
+
+            # ========== CONTRACTORS (Подрядчики) ==========
+            {
+                'page': 'contractors',
+                'button_key': 'create',
+                'button_name': 'Создать подрядчика',
+                'description': 'Право на создание нового подрядчика',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 
+                          'FOREMAN', 'ENGINEER']
+            },
+            {
+                'page': 'contractors',
+                'button_key': 'edit',
+                'button_name': 'Редактировать подрядчика',
+                'description': 'Право на редактирование данных подрядчика',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 
+                          'FOREMAN', 'ENGINEER']
+            },
+            {
+                'page': 'contractors',
+                'button_key': 'delete',
+                'button_name': 'Удалить подрядчика',
+                'description': 'Право на удаление подрядчика',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER']
+            },
+            {
+                'page': 'contractors',
+                'button_key': 'export',
+                'button_name': 'Экспорт подрядчиков',
+                'description': 'Право на экспорт данных подрядчиков в Excel',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 
+                          'FOREMAN', 'ENGINEER']
+            },
+            {
+                'page': 'contractors',
+                'button_key': 'import',
+                'button_name': 'Импорт подрядчиков',
+                'description': 'Право на импорт данных подрядчиков из Excel',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 
+                          'FOREMAN', 'ENGINEER']
+            },
+
+            # ========== SUPERVISIONS (Надзоры) ==========
+            {
+                'page': 'supervisions',
+                'button_key': 'create',
+                'button_name': 'Создать надзор',
+                'description': 'Право на создание нового надзора',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 
+                          'FOREMAN', 'ENGINEER']
+            },
+            {
+                'page': 'supervisions',
+                'button_key': 'edit',
+                'button_name': 'Редактировать надзор',
+                'description': 'Право на редактирование данных надзора',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 
+                          'FOREMAN', 'ENGINEER']
+            },
+            {
+                'page': 'supervisions',
+                'button_key': 'delete',
+                'button_name': 'Удалить надзор',
+                'description': 'Право на удаление надзора',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER']
+            },
+            {
+                'page': 'supervisions',
+                'button_key': 'export',
+                'button_name': 'Экспорт надзоров',
+                'description': 'Право на экспорт данных надзоров в Excel',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 
+                          'FOREMAN', 'ENGINEER']
+            },
+            {
+                'page': 'supervisions',
+                'button_key': 'import',
+                'button_name': 'Импорт надзоров',
+                'description': 'Право на импорт данных надзоров из Excel',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 
+                          'FOREMAN', 'ENGINEER']
+            },
+
+            # ========== MATERIAL REQUESTS (Заявки) ==========
             {
                 'page': 'material-requests',
                 'button_key': 'create',
                 'button_name': 'Создать заявку',
-                'description': 'Создание новой заявки на материалы',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'ENGINEER': True,
-                'SITE_MANAGER': True,
-                'FOREMAN': True,
-                'MASTER': True,
+                'description': 'Право на создание заявки на материалы',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 
+                          'FOREMAN', 'MASTER', 'ENGINEER']
             },
             {
                 'page': 'material-requests',
                 'button_key': 'edit',
-                'button_name': 'Редактировать',
-                'description': 'Редактирование заявки',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'SUPPLY_MANAGER': True,
+                'button_name': 'Редактировать заявку',
+                'description': 'Право на редактирование заявки',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SUPPLY_MANAGER']
             },
             {
                 'page': 'material-requests',
                 'button_key': 'delete',
-                'button_name': 'Удалить',
-                'description': 'Удаление заявки',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
+                'button_name': 'Удалить заявку',
+                'description': 'Право на удаление заявки',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'SUPPLY_MANAGER']
             },
             {
                 'page': 'material-requests',
                 'button_key': 'approve',
-                'button_name': 'Согласовать',
-                'description': 'Согласование заявки',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'SUPPLY_MANAGER': True,
+                'button_name': 'Утвердить заявку',
+                'description': 'Право на утверждение заявки',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'SUPPLY_MANAGER']
             },
             {
                 'page': 'material-requests',
                 'button_key': 'reject',
-                'button_name': 'Отклонить',
-                'description': 'Отклонение заявки',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'SUPPLY_MANAGER': True,
-            },
-            {
-                'page': 'material-requests',
-                'button_key': 'view_details',
-                'button_name': 'Просмотр деталей',
-                'description': 'Просмотр подробной информации о заявке',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'ENGINEER': True,
-                'SITE_MANAGER': True,
-                'FOREMAN': True,
-                'MASTER': True,
-                'SUPERVISOR': True,
-                'CONTRACTOR': True,
-                'OBSERVER': True,
-                'SUPPLY_MANAGER': True,
-                'WAREHOUSE_HEAD': True,
-                'SITE_WAREHOUSE_MANAGER': True,
+                'button_name': 'Отклонить заявку',
+                'description': 'Право на отклонение заявки',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'SUPPLY_MANAGER']
             },
 
-            # ============ ТЕНДЕРЫ (tenders) ============
+            # ========== WAREHOUSE (Склад) ==========
+            {
+                'page': 'warehouse',
+                'button_key': 'create',
+                'button_name': 'Добавить на склад',
+                'description': 'Право на добавление товаров на склад',
+                'roles': ['DIRECTOR', 'WAREHOUSE_HEAD', 'SUPPLY_MANAGER']
+            },
+            {
+                'page': 'warehouse',
+                'button_key': 'edit',
+                'button_name': 'Редактировать товар',
+                'description': 'Право на редактирование товара на складе',
+                'roles': ['DIRECTOR', 'WAREHOUSE_HEAD', 'SUPPLY_MANAGER']
+            },
+            {
+                'page': 'warehouse',
+                'button_key': 'delete',
+                'button_name': 'Удалить товар',
+                'description': 'Право на удаление товара со склада',
+                'roles': ['DIRECTOR', 'WAREHOUSE_HEAD']
+            },
+
+            # ========== TENDERS (Тендеры) ==========
             {
                 'page': 'tenders',
                 'button_key': 'create',
                 'button_name': 'Создать тендер',
-                'description': 'Создание нового тендера',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
+                'description': 'Право на создание тендера',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SUPPLY_MANAGER']
             },
             {
                 'page': 'tenders',
                 'button_key': 'edit',
-                'button_name': 'Редактировать',
-                'description': 'Редактирование тендера',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
+                'button_name': 'Редактировать тендер',
+                'description': 'Право на редактирование тендера',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SUPPLY_MANAGER']
             },
             {
                 'page': 'tenders',
                 'button_key': 'delete',
-                'button_name': 'Удалить',
-                'description': 'Удаление тендера',
-                'default_access': False,
-                'DIRECTOR': True,
+                'button_name': 'Удалить тендер',
+                'description': 'Право на удаление тендера',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER']
             },
             {
                 'page': 'tenders',
-                'button_key': 'view_details',
-                'button_name': 'Просмотр деталей',
-                'description': 'Просмотр подробной информации о тендере',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'ENGINEER': True,
-                'SITE_MANAGER': True,
-                'FOREMAN': True,
-                'MASTER': True,
-                'SUPERVISOR': True,
-                'CONTRACTOR': True,
-                'OBSERVER': True,
-                'SUPPLY_MANAGER': True,
-                'WAREHOUSE_HEAD': True,
-                'SITE_WAREHOUSE_MANAGER': True,
-            },
-            {
-                'page': 'tenders',
-                'button_key': 'submit_bid',
-                'button_name': 'Подать заявку',
-                'description': 'Подача заявки на участие в тендере',
-                'default_access': False,
-                'CONTRACTOR': True,
+                'button_key': 'approve',
+                'button_name': 'Утвердить тендер',
+                'description': 'Право на утверждение тендера',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER']
             },
 
-            # ============ НАДЗОРЫ (supervisions) ============
+            # ========== SETTINGS (Настройки) ==========
             {
-                'page': 'supervisions',
-                'button_key': 'create',
-                'button_name': 'Добавить надзор',
-                'description': 'Создание нового надзора',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-            },
-            {
-                'page': 'supervisions',
+                'page': 'settings',
                 'button_key': 'edit',
-                'button_name': 'Редактировать',
-                'description': 'Редактирование данных надзора',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
+                'button_name': 'Изменить настройки',
+                'description': 'Право на изменение настроек системы',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER']
             },
             {
-                'page': 'supervisions',
-                'button_key': 'delete',
-                'button_name': 'Удалить',
-                'description': 'Удаление надзора',
-                'default_access': False,
-                'DIRECTOR': True,
-            },
-            {
-                'page': 'supervisions',
-                'button_key': 'export_excel',
-                'button_name': 'Экспорт Excel',
-                'description': 'Экспорт надзоров в Excel',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-            },
-            {
-                'page': 'supervisions',
-                'button_key': 'import_excel',
-                'button_name': 'Импорт Excel',
-                'description': 'Импорт надзоров из Excel',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-            },
-            {
-                'page': 'supervisions',
-                'button_key': 'view_details',
-                'button_name': 'Просмотр деталей',
-                'description': 'Просмотр информации о надзоре',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'ENGINEER': True,
-                'SITE_MANAGER': True,
-                'FOREMAN': True,
-                'MASTER': True,
-                'SUPERVISOR': True,
-                'CONTRACTOR': True,
-                'OBSERVER': True,
-                'SUPPLY_MANAGER': True,
-                'WAREHOUSE_HEAD': True,
-                'SITE_WAREHOUSE_MANAGER': True,
+                'page': 'settings',
+                'button_key': 'manage_access',
+                'button_name': 'Управление доступом',
+                'description': 'Право на управление матрицей доступа',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER']
             },
 
-            # ============ ОТЧЕТЫ (reports) ============
+            # ========== RECYCLE BIN (Корзина) ==========
             {
-                'page': 'reports',
-                'button_key': 'generate',
-                'button_name': 'Сгенерировать отчет',
-                'description': 'Генерация нового отчета',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'SITE_MANAGER': True,
-                'FOREMAN': True,
+                'page': 'dashboard',
+                'button_key': 'recycle_bin_access',
+                'button_name': 'Доступ к корзине',
+                'description': 'Право на просмотр корзины удалённых элементов',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER']
             },
             {
-                'page': 'reports',
-                'button_key': 'export_pdf',
-                'button_name': 'Экспорт PDF',
-                'description': 'Экспорт отчета в PDF',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'SITE_MANAGER': True,
+                'page': 'dashboard',
+                'button_key': 'recycle_bin_restore',
+                'button_name': 'Восстановить из корзины',
+                'description': 'Право на восстановление элементов из корзины',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER']
             },
             {
-                'page': 'reports',
-                'button_key': 'export_excel',
-                'button_name': 'Экспорт Excel',
-                'description': 'Экспорт отчета в Excel',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'SITE_MANAGER': True,
-            },
-            {
-                'page': 'reports',
-                'button_key': 'view_details',
-                'button_name': 'Просмотр отчета',
-                'description': 'Просмотр детальной информации отчета',
-                'default_access': False,
-                'DIRECTOR': True,
-                'CHIEF_ENGINEER': True,
-                'PROJECT_MANAGER': True,
-                'ENGINEER': True,
-                'SITE_MANAGER': True,
-                'FOREMAN': True,
-                'MASTER': True,
-                'SUPERVISOR': True,
-                'CONTRACTOR': True,
-                'OBSERVER': True,
-                'SUPPLY_MANAGER': True,
-                'WAREHOUSE_HEAD': True,
-                'SITE_WAREHOUSE_MANAGER': True,
+                'page': 'dashboard',
+                'button_key': 'recycle_bin_delete',
+                'button_name': 'Окончательно удалить',
+                'description': 'Право на окончательное удаление элементов из корзины',
+                'roles': ['DIRECTOR', 'CHIEF_ENGINEER']
             },
         ]
+
+        created_count = 0
+        updated_count = 0
+        skipped_count = 0
+
+        for button_data in buttons:
+            page = button_data['page']
+            button_key = button_data['button_key']
+            button_name = button_data['button_name']
+            description = button_data['description']
+            allowed_roles = button_data['roles']
+
+            # Проверяем существует ли уже такая кнопка
+            existing = ButtonAccess.objects.filter(
+                access_type='button',
+                button_key=button_key,
+                page=page,
+                company__isnull=True
+            ).first()
+
+            if existing:
+                # Обновляем существующую кнопку
+                existing.button_name = button_name
+                existing.description = description
+                
+                # Устанавливаем права для всех ролей
+                for role in ['SUPERADMIN', 'DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER',
+                             'SITE_MANAGER', 'FOREMAN', 'MASTER', 'ENGINEER', 'SUPERVISOR',
+                             'OBSERVER', 'CONTRACTOR', 'SUPPLY_MANAGER', 'WAREHOUSE_HEAD',
+                             'SITE_WAREHOUSE_MANAGER']:
+                    setattr(existing, role, role in allowed_roles or role == 'SUPERADMIN')
+                
+                existing.save()
+                updated_count += 1
+                self.stdout.write(self.style.SUCCESS(f'  ✓ Обновлено: {page}/{button_key}'))
+            else:
+                # Создаём новую кнопку
+                button = ButtonAccess(
+                    access_type='button',
+                    company=None,
+                    page=page,
+                    button_key=button_key,
+                    button_name=button_name,
+                    description=description,
+                    default_access=False,
+                    SUPERADMIN=True,
+                )
+                
+                # Устанавливаем права для ролей
+                for role in ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER',
+                             'SITE_MANAGER', 'FOREMAN', 'MASTER', 'ENGINEER', 'SUPERVISOR',
+                             'OBSERVER', 'CONTRACTOR', 'SUPPLY_MANAGER', 'WAREHOUSE_HEAD',
+                             'SITE_WAREHOUSE_MANAGER']:
+                    setattr(button, role, role in allowed_roles)
+                
+                button.save()
+                created_count += 1
+                self.stdout.write(self.style.SUCCESS(f'  + Создано: {page}/{button_key}'))
+
+        self.stdout.write('\n' + '='*80)
+        self.stdout.write(self.style.SUCCESS(f'\n✅ Готово!'))
+        self.stdout.write(self.style.SUCCESS(f'   Создано: {created_count}'))
+        self.stdout.write(self.style.SUCCESS(f'   Обновлено: {updated_count}'))
+        self.stdout.write(self.style.SUCCESS(f'   Пропущено: {skipped_count}'))
+        self.stdout.write(self.style.WARNING('\n📝 Настроить права доступа можно в админке:'))
+        self.stdout.write(self.style.WARNING('   http://localhost:8001/admin/core/buttonaccess/\n'))
+        self.stdout.write('='*80 + '\n')

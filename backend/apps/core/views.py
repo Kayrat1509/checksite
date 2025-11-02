@@ -122,9 +122,10 @@ class RecycleBinViewSet(viewsets.ViewSet):
                 if expires_soon_filter and not expires_soon:
                     continue
 
-                # Проверяем права на восстановление и удаление
-                can_restore = request.user.role in ['SUPERADMIN', 'DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER']
-                can_delete = request.user.role in ['SUPERADMIN', 'DIRECTOR']
+                # Проверяем права на восстановление и удаление через ButtonAccess
+                from apps.core.access_helpers import has_button_access
+                can_restore = has_button_access(request.user, 'recycle_bin_restore', 'dashboard')
+                can_delete = has_button_access(request.user, 'recycle_bin_delete', 'dashboard')
 
                 deleted_items.append({
                     'id': obj.id,
@@ -441,8 +442,12 @@ class ButtonAccessViewSet(viewsets.ReadOnlyModelViewSet):
 
         user_role = request.user.role
 
-        # Получаем все кнопки для данной страницы
-        buttons = ButtonAccess.objects.filter(page=page)
+        # Получаем только кнопки (не страницы) для данной страницы
+        buttons = ButtonAccess.objects.filter(
+            page=page,
+            access_type='button',
+            company__isnull=True  # Кнопки всегда глобальные
+        )
 
         # Фильтруем кнопки по доступу пользователя
         available_buttons = []
@@ -476,8 +481,11 @@ class ButtonAccessViewSet(viewsets.ReadOnlyModelViewSet):
         """
         user_role = request.user.role
 
-        # Получаем все кнопки
-        all_buttons = ButtonAccess.objects.all().order_by('page', 'button_key')
+        # Получаем только кнопки (не страницы)
+        all_buttons = ButtonAccess.objects.filter(
+            access_type='button',
+            company__isnull=True
+        ).order_by('page', 'button_key')
 
         # Группируем по страницам
         pages_dict = {}
@@ -493,3 +501,68 @@ class ButtonAccessViewSet(viewsets.ReadOnlyModelViewSet):
                 })
 
         return Response(pages_dict)
+
+    @action(detail=False, methods=['get'])
+    def page_access(self, request):
+        """
+        Получить доступные страницы для текущего пользователя.
+
+        Проверяет доступ к страницам на основе:
+        - Роли пользователя
+        - Глобальных настроек access_type='page' в ButtonAccess (единые для всех компаний)
+
+        Response:
+        {
+            "accessible_pages": ["dashboard", "projects", "issues", ...],
+            "all_pages": {
+                "dashboard": {
+                    "has_access": true,
+                    "page_name": "Дашборд"
+                },
+                "projects": {
+                    "has_access": true,
+                    "page_name": "Проекты"
+                },
+                ...
+            }
+        }
+
+        Example:
+        GET /api/button-access/page_access/
+        """
+        user = request.user
+        user_role = user.role
+
+        # SUPERADMIN имеет доступ ко всем страницам
+        if user_role == 'SUPERADMIN':
+            all_pages_list = ['dashboard', 'projects', 'issues', 'users', 'contractors',
+                             'supervisions', 'material-requests', 'warehouse', 'tenders',
+                             'reports', 'profile', 'settings']
+            return Response({
+                'accessible_pages': all_pages_list,
+                'all_pages': {page: {'has_access': True, 'page_name': page.title()}
+                             for page in all_pages_list}
+            })
+
+        # Для остальных ролей - проверяем доступ через ButtonAccess (глобальные настройки)
+        page_accesses = ButtonAccess.objects.filter(
+            access_type='page',
+            company__isnull=True  # Глобальные настройки для всех компаний
+        )
+
+        accessible_pages = []
+        all_pages_dict = {}
+
+        for page_access in page_accesses:
+            has_access = page_access.has_access(user_role)
+            all_pages_dict[page_access.page] = {
+                'has_access': has_access,
+                'page_name': page_access.button_name
+            }
+            if has_access:
+                accessible_pages.append(page_access.page)
+
+        return Response({
+            'accessible_pages': accessible_pages,
+            'all_pages': all_pages_dict
+        })

@@ -211,8 +211,16 @@ class IssueStatusUpdateSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=Issue.Status.choices)
     comment = serializers.CharField(required=False, allow_blank=True)
 
+    # validate() метод удалён - использовалась только для отладки
+
     def validate_status(self, value):
-        """Validate status transition."""
+        """
+        Validate status transition.
+
+        Проверяет права доступа через ButtonAccess вместо хардкода ролей.
+        """
+        from apps.core.access_helpers import has_button_access
+
         issue = self.context.get('issue')
         user = self.context['request'].user
 
@@ -229,15 +237,13 @@ class IssueStatusUpdateSerializer(serializers.Serializer):
             pass
 
         elif value == Issue.Status.COMPLETED:
-            # Разрешаем установку статуса COMPLETED из любого статуса при нажатии кнопки "Принято"
-            # Доступно: Главный инженер, Руководитель проекта, Начальник участка, Прораб, Технадзор, Авторский надзор
-            allowed_roles = ['CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER', 'FOREMAN', 'SUPERVISOR', 'OBSERVER']
-            if not user.is_superuser and user.role not in allowed_roles:
+            # Проверяем доступ через ButtonAccess (кнопка "Принято")
+            if not has_button_access(user, 'accept', 'issues'):
                 raise serializers.ValidationError('У вас нет прав для принятия замечаний')
 
         elif value == Issue.Status.REJECTED:
-            allowed_roles = ['SITE_MANAGER', 'PROJECT_MANAGER', 'CHIEF_ENGINEER', 'DIRECTOR']
-            if not user.is_superuser and user.role not in allowed_roles:
+            # Проверяем доступ через ButtonAccess (кнопка "Отклонить")
+            if not has_button_access(user, 'reject', 'issues'):
                 raise serializers.ValidationError('У вас нет прав для отклонения замечаний')
 
         return value
