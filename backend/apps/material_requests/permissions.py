@@ -3,85 +3,98 @@ from rest_framework import permissions
 
 class MaterialRequestPermission(permissions.BasePermission):
     """
-    Права доступа для заявок на материалы согласно ТЗ (раздел 2.6).
+    Права доступа для заявок на материалы.
 
-    Роли и права:
-    - Начальник участка (прораб): создает, редактирует, отправляет заявки
-    - Снабжение: полный доступ ко всем заявкам
-    - Зав. центрального склада: полный доступ
-    - Руководитель: утверждает реестры, подписывает счета
-    - Бухгалтерия: просмотр всех заявок
-    - Кладовщик: просмотр заявок своего объекта, подтверждает приемку
-    - Администратор: полный доступ
+    ✅ НОВАЯ ЛОГИКА: Доступ проверяется через ButtonAccess.
+    Проверка через кнопки на странице material-requests:
+    - view: право просматривать список заявок
+    - view_details: право просматривать детали заявки
+    - create: право создавать заявки
+    - edit: право редактировать заявки
+    - delete: право удалять заявки
+    - approve: право согласовывать заявки
+    - reject: право отклонять заявки
     """
 
     def has_permission(self, request, view):
         """Проверка прав на уровне списка заявок."""
+        from apps.core.access_helpers import has_button_access, has_page_access
+        import logging
+        logger = logging.getLogger(__name__)
+
         # Пользователь должен быть аутентифицирован
         if not request.user or not request.user.is_authenticated:
+            logger.warning('[MaterialRequestPermission] User not authenticated')
             return False
 
+        user = request.user
+        logger.info(f'[MaterialRequestPermission] User: {user.email}, Role: {user.role}, Method: {request.method}')
+
         # Суперадмин имеет полный доступ
-        if request.user.is_superuser or request.user.role == 'SUPERADMIN':
+        if user.is_superuser:
+            logger.info('[MaterialRequestPermission] User is superuser - access granted')
             return True
 
-        # Просмотр доступен всем авторизованным пользователям
+        # Проверяем доступ к странице
+        page_access = has_page_access(user, 'material-requests')
+        logger.info(f'[MaterialRequestPermission] Page access: {page_access}')
+        if not page_access:
+            logger.warning(f'[MaterialRequestPermission] Page access denied for {user.role}')
+            return False
+
+        # Для просмотра (GET) - доступа к странице достаточно
         if request.method in permissions.SAFE_METHODS:
+            logger.info('[MaterialRequestPermission] GET request - page access is sufficient')
             return True
 
-        # Создание заявок доступно:
-        # - Прорабам (FOREMAN, MASTER)
-        # - Начальникам участка (SITE_MANAGER)
-        # - ПТО
-        # - Руководителям
+        # Для создания - проверяем кнопку create
         if request.method == 'POST':
-            return request.user.role in [
-                'FOREMAN',
-                'MASTER',
-                'SITE_MANAGER',
-                'ENGINEER',
-                'PROJECT_MANAGER',
-                'CHIEF_ENGINEER',
-                'DIRECTOR',
-                'SUPERADMIN'
-            ]
+            button_access = has_button_access(user, 'create', 'material-requests')
+            logger.info(f'[MaterialRequestPermission] Button access (create): {button_access}')
+            return button_access
 
         return True
 
     def has_object_permission(self, request, view, obj):
         """Проверка прав на уровне конкретной заявки."""
+        from apps.core.access_helpers import has_button_access
+
         user = request.user
 
         # Суперадмин имеет полный доступ
-        if user.is_superuser or user.role == 'SUPERADMIN':
+        if user.is_superuser:
             return True
 
-        # Просмотр доступен всем кто имеет доступ к проекту
+        # Для просмотра - проверяем кнопку view_details
         if request.method in permissions.SAFE_METHODS:
-            # Проверяем доступ к проекту заявки
-            if hasattr(user, 'projects') and obj.project in user.projects.all():
-                return True
-            # Руководители и снабжение видят все
-            if user.role in ['DIRECTOR', 'CHIEF_ENGINEER', 'SUPPLY_MANAGER', 'WAREHOUSE_HEAD', 'ACCOUNTANT']:
-                return True
             # Автор заявки всегда видит свою заявку
             if obj.author == user:
                 return True
             # Ответственный видит заявку
             if obj.responsible == user:
                 return True
-            return False
+            # ✅ БИЗНЕС-ЛОГИКА: Проверяем доступ к проекту заявки (это фильтрация данных, не контроль доступа)
+            if hasattr(user, 'projects') and obj.project in user.projects.all():
+                return True
+            # Проверяем кнопку view_details
+            return has_button_access(user, 'view_details', 'material-requests')
 
-        # Редактирование и удаление:
-        # - Автор может редактировать свою заявку в статусе DRAFT или если хотя бы одна позиция в статусе RETURNED_FOR_REVISION
-        if request.method in ['PUT', 'PATCH', 'DELETE']:
-            # Проверяем статус заявки и статусы позиций
+        # Для редактирования - проверяем кнопку edit
+        if request.method in ['PUT', 'PATCH']:
+            # ✅ БИЗНЕС-ЛОГИКА: Автор может редактировать свою заявку в определенных статусах
             has_returned_items = obj.items.filter(item_status='RETURNED_FOR_REVISION').exists()
             if obj.author == user and (obj.status == 'DRAFT' or has_returned_items):
                 return True
-            # Руководители и снабжение могут редактировать любые заявки
-            if user.role in ['DIRECTOR', 'CHIEF_ENGINEER', 'SUPERADMIN', 'SUPPLY_MANAGER']:
+            # Проверяем кнопку edit
+            return has_button_access(user, 'edit', 'material-requests')
+
+        # Для удаления - проверяем кнопку delete
+        if request.method == 'DELETE':
+            # ✅ БИЗНЕС-ЛОГИКА: Автор может удалять свою заявку в статусе DRAFT
+            if obj.author == user and obj.status == 'DRAFT':
                 return True
+            # Проверяем кнопку delete
+            return has_button_access(user, 'delete', 'material-requests')
 
         return False
 
@@ -89,10 +102,17 @@ class MaterialRequestPermission(permissions.BasePermission):
 class MaterialRequestStatusChangePermission(permissions.BasePermission):
     """
     Права на изменение статуса заявки.
-    Каждый статус может менять только ответственная роль согласно новой схеме согласования.
+
+    ✅ КОМБИНИРОВАННАЯ ЛОГИКА:
+    1. Контроль доступа через ButtonAccess (кнопка 'edit' на странице material-requests)
+    2. Бизнес-логика workflow через STATUS_ROLE_MAP (какая роль может устанавливать какой статус)
+
+    STATUS_ROLE_MAP - это БИЗНЕС-ЛОГИКА WORKFLOW, определяет переходы между статусами.
+    Эта логика должна остаться как хардкод, так как это правила бизнес-процесса.
     """
 
-    # Маппинг статусов на роли, которые могут их устанавливать
+    # ✅ БИЗНЕС-ЛОГИКА WORKFLOW: Маппинг статусов на роли, которые могут их устанавливать
+    # Это НЕ контроль доступа, а правила перехода между статусами в бизнес-процессе
     STATUS_ROLE_MAP = {
         'DRAFT': ['FOREMAN', 'MASTER', 'SITE_MANAGER', 'ENGINEER', 'PROJECT_MANAGER'],
         'UNDER_REVIEW': ['FOREMAN', 'MASTER', 'SITE_MANAGER'],  # Отправка на проверку снабжения
@@ -116,17 +136,22 @@ class MaterialRequestStatusChangePermission(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         """Проверка прав на изменение статуса конкретной заявки."""
+        from apps.core.access_helpers import has_button_access
+
         user = request.user
 
         # Суперадмин может менять любой статус
-        if user.is_superuser or user.role == 'SUPERADMIN':
+        if user.is_superuser:
             return True
 
-        # Директор и Главный инженер могут менять большинство статусов
-        if user.role in ['DIRECTOR', 'CHIEF_ENGINEER']:
-            return True
+        # ✅ КОНТРОЛЬ ДОСТУПА: Проверяем кнопку edit через ButtonAccess
+        if not has_button_access(user, 'edit', 'material-requests'):
+            # Исключение: автор может редактировать свою заявку в определенных статусах
+            has_returned_items = obj.items.filter(item_status='RETURNED_FOR_REVISION').exists()
+            if not (obj.author == user and (obj.status in ['DRAFT', 'REWORK'] or has_returned_items)):
+                return False
 
-        # Проверяем текущий статус и кто может его менять
+        # ✅ БИЗНЕС-ЛОГИКА WORKFLOW: Проверяем правила перехода между статусами
         new_status = request.data.get('new_status')
         if new_status:
             allowed_roles = self.STATUS_ROLE_MAP.get(new_status, [])
@@ -137,7 +162,7 @@ class MaterialRequestStatusChangePermission(permissions.BasePermission):
         if obj.responsible == user:
             return True
 
-        # Автор заявки может менять статус если заявка в статусе DRAFT или REWORK, или если позиции в статусе RETURNED_FOR_REVISION
+        # Автор заявки может менять статус если заявка в статусе DRAFT или REWORK
         has_returned_items = obj.items.filter(item_status='RETURNED_FOR_REVISION').exists()
         if obj.author == user and (obj.status in ['DRAFT', 'REWORK'] or has_returned_items):
             return True
@@ -146,7 +171,12 @@ class MaterialRequestStatusChangePermission(permissions.BasePermission):
 
 
 class MaterialRequestDocumentPermission(permissions.BasePermission):
-    """Права на загрузку документов к заявке."""
+    """
+    Права на загрузку документов к заявке.
+
+    ✅ НОВАЯ ЛОГИКА: Доступ проверяется через ButtonAccess.
+    Используется кнопка 'edit' на странице material-requests для загрузки документов.
+    """
 
     def has_permission(self, request, view):
         """Базовая проверка."""
@@ -154,10 +184,12 @@ class MaterialRequestDocumentPermission(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         """Проверка прав на загрузку документа к заявке."""
+        from apps.core.access_helpers import has_button_access
+
         user = request.user
 
         # Суперадмин имеет полный доступ
-        if user.is_superuser or user.role == 'SUPERADMIN':
+        if user.is_superuser:
             return True
 
         # Автор заявки может загружать документы
@@ -168,11 +200,8 @@ class MaterialRequestDocumentPermission(permissions.BasePermission):
         if obj.responsible == user:
             return True
 
-        # Руководители и снабжение могут загружать документы
-        if user.role in ['DIRECTOR', 'CHIEF_ENGINEER', 'SUPPLY_MANAGER', 'WAREHOUSE_HEAD', 'ACCOUNTANT']:
-            return True
-
-        return False
+        # Проверяем кнопку edit (загрузка документов = редактирование заявки)
+        return has_button_access(user, 'edit', 'material-requests')
 
 
 class MaterialRequestCommentPermission(permissions.BasePermission):
@@ -199,3 +228,126 @@ class MaterialRequestCommentPermission(permissions.BasePermission):
             return True
 
         return True  # Разрешаем комментарии всем авторизованным
+
+
+# ===== PERMISSIONS ДЛЯ НОВОЙ СИСТЕМЫ СОГЛАСОВАНИЯ =====
+
+
+class CanManageApprovalFlow(permissions.BasePermission):
+    """
+    Permission для управления цепочками согласования.
+
+    ✅ НОВАЯ ЛОГИКА: Доступ проверяется через ButtonAccess.
+    Проверка через кнопки на странице settings/approval-flow:
+    - create: право создавать цепочки
+    - edit: право редактировать цепочки
+    - delete: право удалять этапы
+    """
+
+    def has_permission(self, request, view):
+        """Проверка доступа на уровне view."""
+        from apps.core.access_helpers import has_button_access, has_page_access
+
+        user = request.user
+
+        # Суперадмин имеет полный доступ
+        if user.is_superuser:
+            return True
+
+        # Проверяем доступ к странице
+        if not has_page_access(user, 'settings/approval-flow'):
+            return False
+
+        # Для чтения - проверяем доступ к странице
+        if request.method in permissions.SAFE_METHODS:
+            return True
+
+        # Для создания - проверяем кнопку create
+        if request.method == 'POST':
+            return has_button_access(user, 'create', 'settings/approval-flow')
+
+        # Для изменения - проверяем кнопку edit
+        if request.method in ['PUT', 'PATCH']:
+            return has_button_access(user, 'edit', 'settings/approval-flow')
+
+        # Для удаления - проверяем кнопку delete
+        if request.method == 'DELETE':
+            return has_button_access(user, 'delete', 'settings/approval-flow')
+
+        return False
+
+    def has_object_permission(self, request, view, obj):
+        """Проверка доступа к конкретному объекту."""
+        from apps.core.access_helpers import has_button_access, has_page_access
+
+        user = request.user
+
+        # Суперадмин имеет полный доступ
+        if user.is_superuser:
+            return True
+
+        # Проверяем доступ к странице
+        if not has_page_access(user, 'settings/approval-flow'):
+            return False
+
+        # Определяем компанию объекта (зависит от типа модели)
+        obj_company = None
+        if hasattr(obj, 'company'):
+            obj_company = obj.company
+        elif hasattr(obj, 'flow_template'):
+            obj_company = obj.flow_template.company
+
+        # Пользователь может работать только с цепочками своей компании
+        if obj_company and obj_company != user.company:
+            return False
+
+        # Для чтения - доступ к странице достаточен
+        if request.method in permissions.SAFE_METHODS:
+            return True
+
+        # Для изменения (включая POST на detail actions типа activate) - проверяем кнопку edit
+        if request.method in ['PUT', 'PATCH', 'POST']:
+            return has_button_access(user, 'edit', 'settings/approval-flow')
+
+        # Для удаления - проверяем кнопку delete
+        if request.method == 'DELETE':
+            return has_button_access(user, 'delete', 'settings/approval-flow')
+
+        return False
+
+
+class CanApproveRequest(permissions.BasePermission):
+    """
+    Permission для согласования заявок.
+
+    Пользователь может согласовать заявку, если:
+    1. Он назначен approver в текущем этапе MaterialRequestApproval
+    2. Статус этапа = PENDING
+    """
+
+    def has_object_permission(self, request, view, obj):
+        """Проверка доступа к согласованию конкретной заявки."""
+        from .approval_models import MaterialRequestApproval
+
+        user = request.user
+
+        # Суперадмин может всё
+        if user.is_superuser:
+            return True
+
+        # Проверяем что пользователь назначен согласующим на этом этапе
+        if isinstance(obj, MaterialRequestApproval):
+            return (
+                obj.approver == user and
+                obj.status == MaterialRequestApproval.ApprovalStatus.PENDING
+            )
+
+        return False
+
+
+# ========== УДАЛЕНО: IsSuperuserOrReadOnly ==========
+# ПРИЧИНА: Использовался только для CompanyApprovalSettings, который удален
+# class IsSuperuserOrReadOnly(permissions.BasePermission):
+#     """Permission: только суперадмин может изменять, остальные - только читать."""
+#     ...
+# ========== КОНЕЦ УДАЛЕННОГО КОДА ==========

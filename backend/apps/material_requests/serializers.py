@@ -6,6 +6,12 @@ from .models import (
     MaterialRequestHistory,
     MaterialRequestComment
 )
+from .approval_models import (
+    ApprovalFlowTemplate,
+    ApprovalStep,
+    MaterialRequestApproval,
+    CompanyApprovalSettings
+)
 from apps.projects.models import Project
 from apps.users.models import User
 
@@ -360,3 +366,203 @@ class MaterialRequestStatusChangeSerializer(serializers.Serializer):
         )
 
         return material_request
+
+
+# ===== СЕРИАЛИЗАТОРЫ ДЛЯ НОВОЙ СИСТЕМЫ СОГЛАСОВАНИЯ =====
+
+
+class ApprovalStepSerializer(serializers.ModelSerializer):
+    """Сериализатор для этапа согласования."""
+    role_display = serializers.CharField(source='get_role_display', read_only=True)
+
+    class Meta:
+        model = ApprovalStep
+        fields = [
+            'id',
+            'flow_template',
+            'role',
+            'role_display',
+            'order',
+            'skip_if_empty',
+            'is_mandatory',
+            'description',
+            'created_at'
+        ]
+        # flow_template устанавливается автоматически при создании через parent serializer
+        read_only_fields = ['id', 'flow_template', 'created_at']
+
+    def validate_order(self, value):
+        """Проверка что порядок >= 1."""
+        if value < 1:
+            raise serializers.ValidationError("Порядковый номер должен быть >= 1")
+        return value
+
+
+class ApprovalFlowTemplateListSerializer(serializers.ModelSerializer):
+    """Сериализатор для списка шаблонов цепочек согласования."""
+    company_name = serializers.CharField(source='company.name', read_only=True)
+    created_by_data = UserBasicSerializer(source='created_by', read_only=True)
+    steps_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ApprovalFlowTemplate
+        fields = [
+            'id',
+            'company',
+            'company_name',
+            'name',
+            'description',
+            'is_active',
+            'steps_count',
+            'created_by',
+            'created_by_data',
+            'created_at',
+            'updated_at'
+        ]
+        read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
+
+    def get_steps_count(self, obj):
+        """Количество этапов в цепочке."""
+        return obj.steps.count()
+
+
+class ApprovalFlowTemplateDetailSerializer(serializers.ModelSerializer):
+    """Детальный сериализатор для шаблона цепочки согласования."""
+    company_name = serializers.CharField(source='company.name', read_only=True)
+    created_by_data = UserBasicSerializer(source='created_by', read_only=True)
+    steps = ApprovalStepSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ApprovalFlowTemplate
+        fields = [
+            'id',
+            'company',
+            'company_name',
+            'name',
+            'description',
+            'is_active',
+            'steps',
+            'created_by',
+            'created_by_data',
+            'created_at',
+            'updated_at'
+        ]
+        read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
+
+
+class ApprovalFlowTemplateCreateUpdateSerializer(serializers.ModelSerializer):
+    """Сериализатор для создания/обновления шаблона цепочки."""
+    steps = ApprovalStepSerializer(many=True, required=False)
+
+    class Meta:
+        model = ApprovalFlowTemplate
+        fields = [
+            'company',
+            'name',
+            'description',
+            'is_active',
+            'steps'
+        ]
+
+    def validate_steps(self, value):
+        """Проверка корректности этапов."""
+        if not value:
+            return value
+
+        # Проверяем что порядок начинается с 1 и идет последовательно
+        orders = sorted([step['order'] for step in value])
+        if orders and orders[0] != 1:
+            raise serializers.ValidationError("Порядок этапов должен начинаться с 1")
+
+        # Проверяем отсутствие дубликатов в порядке
+        if len(orders) != len(set(orders)):
+            raise serializers.ValidationError("Порядковые номера этапов не должны повторяться")
+
+        return value
+
+    def create(self, validated_data):
+        """Создание шаблона с этапами."""
+        steps_data = validated_data.pop('steps', [])
+
+        # Создаем шаблон
+        template = ApprovalFlowTemplate.objects.create(**validated_data)
+
+        # Создаем этапы
+        for step_data in steps_data:
+            ApprovalStep.objects.create(flow_template=template, **step_data)
+
+        return template
+
+    def update(self, instance, validated_data):
+        """Обновление шаблона с этапами."""
+        steps_data = validated_data.pop('steps', None)
+
+        # Обновляем основные поля
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Если передали новые этапы - пересоздаем их
+        if steps_data is not None:
+            # Удаляем старые этапы
+            instance.steps.all().delete()
+
+            # Создаем новые
+            for step_data in steps_data:
+                ApprovalStep.objects.create(flow_template=instance, **step_data)
+
+        return instance
+
+
+class MaterialRequestApprovalSerializer(serializers.ModelSerializer):
+    """Сериализатор для отслеживания согласования заявки."""
+    step_data = ApprovalStepSerializer(source='step', read_only=True)
+    approver_data = UserBasicSerializer(source='approver', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    material_request_number = serializers.CharField(source='material_request.request_number', read_only=True)
+
+    class Meta:
+        model = MaterialRequestApproval
+        fields = [
+            'id',
+            'material_request',
+            'material_request_number',
+            'step',
+            'step_data',
+            'approver',
+            'approver_data',
+            'status',
+            'status_display',
+            'comment',
+            'approved_at',
+            'created_at',
+            'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'approved_at']
+
+
+class MaterialRequestApprovalActionSerializer(serializers.Serializer):
+    """Сериализатор для действий согласования (approve/reject)."""
+    comment = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, data):
+        """Валидация."""
+        approval = self.context.get('approval')
+
+        if not approval:
+            raise serializers.ValidationError("Запись согласования не найдена")
+
+        if approval.status != MaterialRequestApproval.ApprovalStatus.PENDING:
+            raise serializers.ValidationError(
+                f"Этап уже обработан со статусом: {approval.get_status_display()}"
+            )
+
+        return data
+
+
+# ========== УДАЛЕНО: CompanyApprovalSettingsSerializer ==========
+# ПРИЧИНА: Старая логика доступа, заменена на ButtonAccess
+# class CompanyApprovalSettingsSerializer(serializers.ModelSerializer):
+#     """Сериализатор для настроек доступа к управлению цепочками."""
+#     ...
+# ========== КОНЕЦ УДАЛЕННОГО КОДА ==========

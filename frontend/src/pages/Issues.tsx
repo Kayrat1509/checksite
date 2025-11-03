@@ -47,7 +47,7 @@ import { tripleConfirm } from '../utils/tripleConfirm'
 dayjs.locale('ru')
 
 const { Title, Text } = Typography
-const { Option } = Select
+const { Option, OptGroup } = Select
 const { TextArea } = Input
 
 // Компонент для отображения комментариев
@@ -351,6 +351,16 @@ const Issues = () => {
     return canUseButton('send_to_review')
   }
 
+  // Проверка доступа к полю "Принято" (для ИТР)
+  const canMarkAccepted = () => {
+    // SUPERADMIN всегда имеет доступ
+    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
+      return true
+    }
+    // Для остальных ролей проверяем через матрицу доступа из админ-панели
+    return canUseButton('mark_accepted')
+  }
+
   // FIXED infinite reload: Загрузка замечаний с оптимизированными настройками
   const { data: issuesData, isLoading, error } = useQuery({
     queryKey: ['issues', statusFilter, priorityFilter, searchTerm],
@@ -388,10 +398,31 @@ const Issues = () => {
 
   const projects = Array.isArray(projectsData) ? projectsData : (projectsData?.results || [])
   const users = Array.isArray(usersData) ? usersData : (usersData?.results || [])
-  const allContractors = users.filter((u: any) => u.role === 'CONTRACTOR')
+
+  // Роли, которые могут быть исполнителями замечаний
+  const EXECUTOR_ROLES = ['CONTRACTOR', 'SITE_MANAGER', 'FOREMAN', 'MASTER']
+
+  // Все пользователи с ролями исполнителей
+  const allExecutors = users.filter((u: any) => EXECUTOR_ROLES.includes(u.role))
+
+  // Формируем список исполнителей в зависимости от выбранного проекта
   const contractors = selectedProjectId && projectContractorsData
-    ? (Array.isArray(projectContractorsData) ? projectContractorsData : [])
-    : allContractors
+    ? [
+        // Подрядчики из проекта
+        ...(Array.isArray(projectContractorsData) ? projectContractorsData : []),
+        // Внутренние исполнители (Начальник участка, Прораб, Мастер) из своей компании
+        ...allExecutors.filter((u: any) =>
+          ['SITE_MANAGER', 'FOREMAN', 'MASTER'].includes(u.role) &&
+          user?.company && u.company === user.company
+        )
+      ]
+    : allExecutors
+
+  // Разделяем исполнителей на группы для отображения
+  const contractorsList = contractors.filter((u: any) => u.role === 'CONTRACTOR')
+  const internalExecutorsList = contractors.filter((u: any) =>
+    ['SITE_MANAGER', 'FOREMAN', 'MASTER'].includes(u.role)
+  )
 
   // Обработка данных (может быть массив или объект с results)
   const issues: Issue[] = Array.isArray(issuesData)
@@ -875,10 +906,10 @@ const Issues = () => {
                   <Text style={{ fontSize: '14px' }}>{issue.project_name}</Text>
                 </div>
 
-                {/* Подрядчик */}
+                {/* Исполнитель */}
                 {issue.assigned_to_name && (
                   <div style={{ marginBottom: '8px' }}>
-                    <Text type="secondary" style={{ fontSize: '12px' }}>Подрядчик:</Text>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>Исполнитель:</Text>
                     <br />
                     <Text style={{ fontSize: '14px' }}>{issue.assigned_to_name}</Text>
                   </div>
@@ -1251,22 +1282,35 @@ const Issues = () => {
             />
           </Form.Item>
 
-          {/* Подрядчик */}
+          {/* Исполнитель */}
           <Form.Item
             name="assigned_to"
-            label="Подрядчик"
+            label="Исполнитель"
           >
-            <Select placeholder="Выберите подрядчика" allowClear>
-              {contractors.map((contractor: any) => (
-                <Option key={contractor.id} value={contractor.id}>
-                  {contractor.last_name} {contractor.first_name}
-                </Option>
-              ))}
+            <Select placeholder="Выберите исполнителя" allowClear>
+              {contractorsList.length > 0 && (
+                <OptGroup label="Подрядчики">
+                  {contractorsList.map((contractor: any) => (
+                    <Option key={contractor.id} value={contractor.id}>
+                      {contractor.last_name} {contractor.first_name}
+                    </Option>
+                  ))}
+                </OptGroup>
+              )}
+              {internalExecutorsList.length > 0 && (
+                <OptGroup label="Внутренние исполнители">
+                  {internalExecutorsList.map((executor: any) => (
+                    <Option key={executor.id} value={executor.id}>
+                      {executor.last_name} {executor.first_name}
+                    </Option>
+                  ))}
+                </OptGroup>
+              )}
             </Select>
           </Form.Item>
 
           {/* Принято (только для ИТР) */}
-          {user && ['ENGINEER', 'SITE_MANAGER', 'MASTER'].includes(user.role) && (
+          {canMarkAccepted() && (
             <Form.Item
               name="accepted"
               valuePropName="checked"
@@ -1423,7 +1467,7 @@ const Issues = () => {
                     borderRadius: '8px',
                     cursor: 'pointer'
                   }}
-                  onClick={() => handleImageClick(uploadPhoto.url)}
+                  onClick={() => uploadPhoto.url && handleImageClick(uploadPhoto.url)}
                 />
                 <Button
                   type="text"
@@ -1508,17 +1552,30 @@ const Issues = () => {
             />
           </Form.Item>
 
-          {/* Подрядчик */}
+          {/* Исполнитель */}
           <Form.Item
             name="assigned_to"
-            label="Подрядчик"
+            label="Исполнитель"
           >
-            <Select placeholder="Выберите подрядчика" allowClear>
-              {contractors.map((contractor: any) => (
-                <Option key={contractor.id} value={contractor.id}>
-                  {contractor.last_name} {contractor.first_name}
-                </Option>
-              ))}
+            <Select placeholder="Выберите исполнителя" allowClear>
+              {contractorsList.length > 0 && (
+                <OptGroup label="Подрядчики">
+                  {contractorsList.map((contractor: any) => (
+                    <Option key={contractor.id} value={contractor.id}>
+                      {contractor.last_name} {contractor.first_name}
+                    </Option>
+                  ))}
+                </OptGroup>
+              )}
+              {internalExecutorsList.length > 0 && (
+                <OptGroup label="Внутренние исполнители">
+                  {internalExecutorsList.map((executor: any) => (
+                    <Option key={executor.id} value={executor.id}>
+                      {executor.last_name} {executor.first_name}
+                    </Option>
+                  ))}
+                </OptGroup>
+              )}
             </Select>
           </Form.Item>
         </Form>

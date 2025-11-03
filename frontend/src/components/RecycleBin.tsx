@@ -29,6 +29,7 @@ import {
 } from '@ant-design/icons'
 import { recycleBinAPI, RecycleBinItem, RecycleBinStats } from '../api/recycleBin'
 import { useAuthStore } from '../stores/authStore'
+import { useButtonAccess } from '../hooks/useButtonAccess'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/ru'
@@ -41,6 +42,7 @@ const { Option } = Select
 
 const RecycleBin = () => {
   const { user } = useAuthStore()
+  const { canUseButton } = useButtonAccess('recycle-bin')
   const [items, setItems] = useState<RecycleBinItem[]>([])
   const [stats, setStats] = useState<RecycleBinStats | null>(null)
   const [loading, setLoading] = useState(false)
@@ -226,7 +228,12 @@ const RecycleBin = () => {
   ]
 
   // Проверка прав на очистку просроченных
-  const canCleanExpired = user?.role === 'SUPERADMIN' || user?.role === 'DIRECTOR'
+  const canCleanExpired = () => {
+    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
+      return true
+    }
+    return canUseButton('clean_expired')
+  }
 
   return (
     <div>
@@ -294,7 +301,7 @@ const RecycleBin = () => {
           {filterExpiresSoon ? 'Все объекты' : 'Только срочные'}
         </Button>
 
-        {canCleanExpired && stats && stats.total_items > 0 && (
+        {canCleanExpired() && stats && stats.total_items > 0 && (
           <Popconfirm
             title="Очистить просроченные объекты?"
             description="Будут удалены все объекты, находящиеся в корзине более 31 дня."

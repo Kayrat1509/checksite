@@ -30,7 +30,13 @@ class TenderViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
     ordering = ['-created_at']
 
     def get_queryset(self):
-        """Возвращаем тендеры в зависимости от роли пользователя"""
+        """
+        Возвращаем тендеры в зависимости от роли пользователя.
+
+        ✅ БИЗНЕС-ЛОГИКА: Фильтрация данных по ролям.
+        Это НЕ контроль доступа к странице (который контролируется через ButtonAccess),
+        а логика того, какие ДАННЫЕ видит пользователь внутри доступной ему страницы.
+        """
         user = self.request.user
 
         # Базовый queryset с оптимизацией запросов
@@ -42,11 +48,11 @@ class TenderViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
         if user.is_superuser:
             return queryset
 
-        # Руководство видит все тендеры
+        # ✅ БИЗНЕС-ЛОГИКА: Руководство видит все тендеры (фильтрация данных)
         if user.role in ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER']:
             return queryset
 
-        # ИТР видят тендеры своих проектов
+        # ✅ БИЗНЕС-ЛОГИКА: ИТР видят тендеры своих проектов (фильтрация данных)
         return queryset.filter(project__team_members=user).distinct()
 
     def get_serializer_class(self):
@@ -152,18 +158,24 @@ class TenderDocumentViewSet(viewsets.ModelViewSet):
     serializer_class = TenderDocumentSerializer
 
     def get_queryset(self):
-        """Возвращаем документы тендеров, к которым есть доступ"""
+        """
+        Возвращаем документы тендеров, к которым есть доступ.
+
+        ✅ БИЗНЕС-ЛОГИКА: Фильтрация данных по ролям.
+        Это НЕ контроль доступа к странице (который контролируется через ButtonAccess),
+        а логика того, какие ДАННЫЕ видит пользователь.
+        """
         user = self.request.user
-        
+
         # Суперадмин видит все
         if user.is_superuser:
             return TenderDocument.objects.all()
-        
-        # Руководство видит все документы
+
+        # ✅ БИЗНЕС-ЛОГИКА: Руководство видит все документы (фильтрация данных)
         if user.role in ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER']:
             return TenderDocument.objects.all()
-        
-        # ИТР видят документы тендеров своих проектов
+
+        # ✅ БИЗНЕС-ЛОГИКА: ИТР видят документы тендеров своих проектов (фильтрация данных)
         return TenderDocument.objects.filter(tender__project__team_members=user).distinct()
 
     def perform_create(self, serializer):
@@ -184,18 +196,24 @@ class TenderBidViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
 
     def get_queryset(self):
-        """Возвращаем заявки тендеров, к которым есть доступ"""
+        """
+        Возвращаем заявки тендеров, к которым есть доступ.
+
+        ✅ БИЗНЕС-ЛОГИКА: Фильтрация данных по ролям.
+        Это НЕ контроль доступа к странице (который контролируется через ButtonAccess),
+        а логика того, какие ДАННЫЕ видит пользователь.
+        """
         user = self.request.user
-        
+
         # Суперадмин видит все
         if user.is_superuser:
             return TenderBid.objects.all()
-        
-        # Руководство видит все заявки
+
+        # ✅ БИЗНЕС-ЛОГИКА: Руководство видит все заявки (фильтрация данных)
         if user.role in ['DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER']:
             return TenderBid.objects.all()
-        
-        # ИТР видят заявки тендеров своих проектов
+
+        # ✅ БИЗНЕС-ЛОГИКА: ИТР видят заявки тендеров своих проектов (фильтрация данных)
         return TenderBid.objects.filter(tender__project__team_members=user).distinct()
 
     def perform_create(self, serializer):

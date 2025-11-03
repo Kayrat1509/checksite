@@ -34,6 +34,92 @@ from .permissions import (
     MaterialRequestDocumentPermission,
     MaterialRequestCommentPermission
 )
+
+
+# ===== БИЗНЕС-ЛОГИКА WORKFLOW ДЛЯ ПОЗИЦИЙ МАТЕРИАЛОВ =====
+# Определяет разрешенные переходы между статусами позиций для каждой роли.
+# Это НЕ контроль доступа (который управляется через ButtonAccess),
+# а правила бизнес-процесса: какая роль может выполнить какой переход.
+#
+# Формат: {
+#     'ROLE_NAME': [
+#         ('FROM_STATUS', 'TO_STATUS'),
+#         ...
+#     ]
+# }
+ITEM_STATUS_TRANSITIONS = {
+    # Прораб/Мастер/Начальник участка
+    'FOREMAN': [
+        ('DRAFT', 'UNDER_REVIEW'),
+        ('REWORK', 'UNDER_REVIEW'),
+        ('RETURNED_FOR_REVISION', 'UNDER_REVIEW'),
+        ('DELIVERY', 'COMPLETED'),
+        ('WAREHOUSE_SHIPPING', 'COMPLETED'),
+    ],
+    'MASTER': [
+        ('DRAFT', 'UNDER_REVIEW'),
+        ('REWORK', 'UNDER_REVIEW'),
+        ('RETURNED_FOR_REVISION', 'UNDER_REVIEW'),
+        ('DELIVERY', 'COMPLETED'),
+        ('WAREHOUSE_SHIPPING', 'COMPLETED'),
+    ],
+    'SITE_MANAGER': [
+        ('DRAFT', 'UNDER_REVIEW'),
+        ('REWORK', 'UNDER_REVIEW'),
+        ('RETURNED_FOR_REVISION', 'UNDER_REVIEW'),
+        ('DELIVERY', 'COMPLETED'),
+        ('WAREHOUSE_SHIPPING', 'COMPLETED'),
+    ],
+
+    # Снабженец
+    'SUPPLY_MANAGER': [
+        ('UNDER_REVIEW', 'WAREHOUSE_CHECK'),
+        ('BACK_TO_SUPPLY', 'ENGINEER_APPROVAL'),
+        ('BACK_TO_SUPPLY_AFTER_ENGINEER', 'PROJECT_MANAGER_APPROVAL'),
+        ('BACK_TO_SUPPLY_AFTER_PM', 'DIRECTOR_APPROVAL'),
+        ('BACK_TO_SUPPLY_AFTER_DIRECTOR', 'PAYMENT'),
+        ('BACK_TO_SUPPLY_AFTER_DIRECTOR', 'SENT_TO_SITE'),
+        ('PAYMENT', 'PAID'),
+        ('PAID', 'DELIVERY'),
+    ],
+
+    # Зав.склада
+    'WAREHOUSE_HEAD': [
+        ('WAREHOUSE_CHECK', 'BACK_TO_SUPPLY'),
+        ('SENT_TO_SITE', 'WAREHOUSE_SHIPPING'),
+    ],
+
+    # Инженер ПТО
+    'ENGINEER': [
+        ('ENGINEER_APPROVAL', 'BACK_TO_SUPPLY_AFTER_ENGINEER'),
+        ('ENGINEER_APPROVAL', 'RETURNED_FOR_REVISION'),  # Отправка на доработку автору
+    ],
+
+    # Руководитель проекта
+    'PROJECT_MANAGER': [
+        ('PROJECT_MANAGER_APPROVAL', 'BACK_TO_SUPPLY_AFTER_PM'),
+        ('PROJECT_MANAGER_APPROVAL', 'RETURNED_FOR_REVISION'),  # Отправка на доработку автору
+    ],
+
+    # Директор
+    'DIRECTOR': [
+        # Директор может создавать и отправлять заявки на согласование (как автор)
+        ('DRAFT', 'UNDER_REVIEW'),
+        ('REWORK', 'UNDER_REVIEW'),
+        ('RETURNED_FOR_REVISION', 'UNDER_REVIEW'),
+        ('DELIVERY', 'COMPLETED'),
+        ('WAREHOUSE_SHIPPING', 'COMPLETED'),
+        # Директор может согласовывать заявки на своем этапе
+        ('DIRECTOR_APPROVAL', 'BACK_TO_SUPPLY_AFTER_DIRECTOR'),
+        ('DIRECTOR_APPROVAL', 'RETURNED_FOR_REVISION'),  # Отправка на доработку автору
+    ],
+
+    # Главный инженер
+    'CHIEF_ENGINEER': [
+        ('DIRECTOR_APPROVAL', 'BACK_TO_SUPPLY_AFTER_DIRECTOR'),
+        ('DIRECTOR_APPROVAL', 'RETURNED_FOR_REVISION'),  # Отправка на доработку автору
+    ],
+}
 from apps.core.viewsets import SoftDeleteViewSetMixin
 
 
@@ -63,10 +149,14 @@ class MaterialRequestViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
         """
         Получение списка заявок с учетом прав доступа.
         Согласно ТЗ: каждый сотрудник видит заявки своих объектов.
+
+        ✅ БИЗНЕС-ЛОГИКА: Фильтрация данных по ролям.
+        Это НЕ контроль доступа к странице (который контролируется через ButtonAccess),
+        а логика того, какие ДАННЫЕ видит пользователь внутри доступной ему страницы.
         """
         user = self.request.user
 
-        # Суперадмин и руководители видят все заявки
+        # ✅ БИЗНЕС-ЛОГИКА: Суперадмин и руководители видят все заявки (фильтрация данных)
         if user.is_superuser or user.role in ['SUPERADMIN', 'DIRECTOR', 'CHIEF_ENGINEER']:
             return MaterialRequest.objects.all().select_related(
                 'project',
@@ -74,7 +164,7 @@ class MaterialRequestViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
                 'responsible'
             ).prefetch_related('items', 'documents', 'history', 'comments')
 
-        # Остальные видят заявки своих проектов
+        # ✅ БИЗНЕС-ЛОГИКА: Остальные видят заявки своих проектов (фильтрация данных)
         user_projects = user.projects.all() if hasattr(user, 'projects') else []
 
         return MaterialRequest.objects.filter(
@@ -100,8 +190,26 @@ class MaterialRequestViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
         return MaterialRequestDetailSerializer
 
     def perform_create(self, serializer):
-        """Создание заявки с установкой автора."""
-        serializer.save()
+        """
+        Создание заявки с установкой автора и инициализацией цепочки согласования.
+        НОВАЯ СИСТЕМА: Автоматически создает цепочку согласования на основе
+        активного шаблона компании или создает default цепочку.
+        """
+        # Создаем заявку
+        material_request = serializer.save()
+
+        # Инициализируем цепочку согласования
+        material_request.initialize_approval_flow()
+
+        # Логируем создание в истории
+        from .models import MaterialRequestHistory
+        MaterialRequestHistory.objects.create(
+            request=material_request,
+            user=self.request.user,
+            old_status='',
+            new_status=material_request.status,
+            comment='Заявка создана'
+        )
 
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated, MaterialRequestStatusChangePermission])
     def change_status(self, request, pk=None):
@@ -366,6 +474,102 @@ class MaterialRequestViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
 
         wb.save(response)
         return response
+
+    @action(detail=True, methods=['get'], url_path='approvals')
+    def get_approvals(self, request, pk=None):
+        """
+        Получить цепочку согласования для заявки.
+        Endpoint: GET /api/material-requests/{id}/approvals/
+
+        Возвращает все этапы согласования с их статусами.
+        """
+        material_request = self.get_object()
+
+        from .approval_models import MaterialRequestApproval
+        from .serializers import MaterialRequestApprovalSerializer
+
+        approvals = material_request.approvals.all().select_related(
+            'step', 'approver'
+        ).order_by('step__order')
+
+        serializer = MaterialRequestApprovalSerializer(approvals, many=True)
+        return Response({
+            'current_step': material_request.current_step.order if material_request.current_step else None,
+            'current_step_name': material_request.current_step.get_role_display() if material_request.current_step else None,
+            'approvals': serializer.data
+        })
+
+    @action(detail=True, methods=['post'], url_path='approve')
+    def approve_step(self, request, pk=None):
+        """
+        Согласовать текущий этап заявки.
+        Endpoint: POST /api/material-requests/{id}/approve/
+
+        Body: {
+            "comment": "Согласовано" (optional)
+        }
+        """
+        material_request = self.get_object()
+        comment = request.data.get('comment', '')
+
+        try:
+            material_request.approve_current_step(request.user, comment)
+            material_request.refresh_from_db()
+
+            # Возвращаем обновленную заявку
+            serializer = MaterialRequestDetailSerializer(
+                material_request,
+                context={'request': request}
+            )
+            return Response({
+                'message': 'Этап успешно согласован',
+                'material_request': serializer.data
+            }, status=status.HTTP_200_OK)
+
+        except (ValueError, PermissionError) as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    @action(detail=True, methods=['post'], url_path='reject')
+    def reject_request(self, request, pk=None):
+        """
+        Отклонить заявку на текущем этапе.
+        Endpoint: POST /api/material-requests/{id}/reject/
+
+        Body: {
+            "comment": "Причина отклонения" (required)
+        }
+        """
+        material_request = self.get_object()
+        comment = request.data.get('comment', '')
+
+        if not comment:
+            return Response(
+                {'detail': 'Комментарий обязателен при отклонении заявки'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            material_request.reject_request(request.user, comment)
+            material_request.refresh_from_db()
+
+            # Возвращаем обновленную заявку
+            serializer = MaterialRequestDetailSerializer(
+                material_request,
+                context={'request': request}
+            )
+            return Response({
+                'message': 'Заявка отклонена',
+                'material_request': serializer.data
+            }, status=status.HTTP_200_OK)
+
+        except (ValueError, PermissionError) as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class MaterialRequestItemViewSet(viewsets.ModelViewSet):
@@ -697,73 +901,24 @@ class MaterialRequestItemViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Проверяем права доступа в зависимости от текущего и нового статуса
+        # ✅ БИЗНЕС-ЛОГИКА WORKFLOW: Проверяем права доступа на переход между статусами
+        # Это НЕ контроль доступа к функционалу (который контролируется через ButtonAccess),
+        # а правила workflow бизнес-процесса: кто может переводить позицию из статуса A в статус B
         user_role = request.user.role
         current_status = item.item_status
 
-        # Логика проверки прав по новой схеме: Автор → Снабжение → Завсклад → Снабжение → Инженер ПТО → Снабжение → Рук.проекта → Снабжение → Директор → Снабжение
+        # Проверяем разрешен ли переход для данной роли
         allowed = False
 
-        # 1. Прораб/мастер/начальник участка может отправлять из DRAFT, REWORK или RETURNED_FOR_REVISION
-        if user_role in ['FOREMAN', 'MASTER', 'SITE_MANAGER', 'SUPERADMIN']:
-            if current_status in ['DRAFT', 'REWORK', 'RETURNED_FOR_REVISION'] and new_status == 'UNDER_REVIEW':
-                allowed = True
-            elif current_status in ['DELIVERY', 'WAREHOUSE_SHIPPING'] and new_status == 'COMPLETED':
-                allowed = True
+        # SUPERADMIN может выполнять любые переходы
+        if user_role == 'SUPERADMIN' or request.user.is_superuser:
+            allowed = True
+        else:
+            # Получаем разрешенные переходы для роли пользователя
+            allowed_transitions = ITEM_STATUS_TRANSITIONS.get(user_role, [])
 
-        # 2. Снабженец может переводить через множество статусов (новая логика)
-        if user_role in ['SUPPLY_MANAGER', 'SUPERADMIN']:
-            # Снабжение → Завсклад
-            if current_status == 'UNDER_REVIEW' and new_status == 'WAREHOUSE_CHECK':
-                allowed = True
-            # Снабжение (после склада) → Инженер ПТО
-            elif current_status == 'BACK_TO_SUPPLY' and new_status == 'ENGINEER_APPROVAL':
-                allowed = True
-            # Снабжение (после инженера) → Руководитель проекта
-            elif current_status == 'BACK_TO_SUPPLY_AFTER_ENGINEER' and new_status == 'PROJECT_MANAGER_APPROVAL':
-                allowed = True
-            # Снабжение (после рук.проекта) → Директор
-            elif current_status == 'BACK_TO_SUPPLY_AFTER_PM' and new_status == 'DIRECTOR_APPROVAL':
-                allowed = True
-            # Снабжение (после директора) → Отправка на объект / Оплата
-            elif current_status == 'BACK_TO_SUPPLY_AFTER_DIRECTOR' and new_status in ['PAYMENT', 'SENT_TO_SITE']:
-                allowed = True
-            # Оплата → Оплачено
-            elif current_status == 'PAYMENT' and new_status == 'PAID':
-                allowed = True
-            # Оплачено → Доставлено
-            elif current_status == 'PAID' and new_status == 'DELIVERY':
-                allowed = True
-
-        # 3. Зав.склада возвращает снабженцу (после склада)
-        if user_role in ['WAREHOUSE_HEAD', 'SUPERADMIN']:
-            if current_status == 'WAREHOUSE_CHECK' and new_status == 'BACK_TO_SUPPLY':
-                allowed = True
-            elif current_status == 'SENT_TO_SITE' and new_status == 'WAREHOUSE_SHIPPING':
-                allowed = True
-
-        # 4. Инженер ПТО возвращает снабженцу (после инженера) или отправляет на доработку автору
-        if user_role in ['ENGINEER', 'SUPERADMIN']:
-            if current_status == 'ENGINEER_APPROVAL' and new_status == 'BACK_TO_SUPPLY_AFTER_ENGINEER':
-                allowed = True
-            # Инженер ПТО может отправить на доработку автору
-            elif current_status == 'ENGINEER_APPROVAL' and new_status == 'RETURNED_FOR_REVISION':
-                allowed = True
-
-        # 5. Руководитель проекта возвращает снабженцу (после рук.проекта) или отправляет на доработку автору
-        if user_role in ['PROJECT_MANAGER', 'SUPERADMIN']:
-            if current_status == 'PROJECT_MANAGER_APPROVAL' and new_status == 'BACK_TO_SUPPLY_AFTER_PM':
-                allowed = True
-            # Руководитель проекта может отправить на доработку автору
-            elif current_status == 'PROJECT_MANAGER_APPROVAL' and new_status == 'RETURNED_FOR_REVISION':
-                allowed = True
-
-        # 6. Директор и Главный инженер возвращают снабженцу (после директора) или отправляют на доработку автору
-        if user_role in ['DIRECTOR', 'CHIEF_ENGINEER', 'SUPERADMIN']:
-            if current_status == 'DIRECTOR_APPROVAL' and new_status == 'BACK_TO_SUPPLY_AFTER_DIRECTOR':
-                allowed = True
-            # Директор и Главный инженер могут отправить на доработку автору
-            elif current_status == 'DIRECTOR_APPROVAL' and new_status == 'RETURNED_FOR_REVISION':
+            # Проверяем есть ли переход (current_status -> new_status) в списке разрешенных
+            if (current_status, new_status) in allowed_transitions:
                 allowed = True
 
         if not allowed:

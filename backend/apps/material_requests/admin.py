@@ -7,6 +7,12 @@ from .models import (
     MaterialRequestHistory,
     MaterialRequestComment
 )
+from .approval_models import (
+    ApprovalFlowTemplate,
+    ApprovalStep,
+    MaterialRequestApproval,
+    CompanyApprovalSettings
+)
 
 
 class MaterialRequestItemInline(admin.TabularInline):
@@ -293,3 +299,234 @@ class MaterialRequestCommentAdmin(admin.ModelAdmin):
         if not request.user.is_superuser and 'delete_selected' in actions:
             del actions['delete_selected']
         return actions
+
+
+# ===== АДМИН-ПАНЕЛЬ ДЛЯ НОВОЙ СИСТЕМЫ СОГЛАСОВАНИЯ =====
+
+
+class ApprovalStepInline(admin.TabularInline):
+    """Inline для этапов согласования в шаблоне цепочки."""
+    model = ApprovalStep
+    extra = 1
+    fields = ['order', 'role', 'skip_if_empty', 'is_mandatory', 'description']
+    ordering = ['order']
+
+    def has_delete_permission(self, request, obj=None):
+        """Разрешить удаление этапов только суперадмину."""
+        return request.user.is_superuser
+
+
+@admin.register(ApprovalFlowTemplate)
+class ApprovalFlowTemplateAdmin(admin.ModelAdmin):
+    """Админ-панель для шаблонов цепочек согласования."""
+
+    list_display = [
+        'name',
+        'company',
+        'is_active',
+        'get_steps_count',
+        'created_by',
+        'created_at'
+    ]
+
+    list_filter = [
+        'is_active',
+        'company',
+        'created_at'
+    ]
+
+    search_fields = [
+        'name',
+        'company__name',
+        'description'
+    ]
+
+    readonly_fields = [
+        'created_at',
+        'updated_at'
+    ]
+
+    date_hierarchy = 'created_at'
+
+    inlines = [ApprovalStepInline]
+
+    fieldsets = (
+        ('Основная информация', {
+            'fields': (
+                'company',
+                'name',
+                'description',
+                'is_active',
+                'created_by'
+            )
+        }),
+        ('Даты', {
+            'fields': (
+                'created_at',
+                'updated_at'
+            ),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def get_steps_count(self, obj):
+        """Количество этапов в цепочке."""
+        return obj.steps.count()
+    get_steps_count.short_description = 'Этапов'
+
+    def save_model(self, request, obj, form, change):
+        """Автоматическое заполнение created_by при создании."""
+        if not change:  # Если создаем новый объект
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+
+    def has_delete_permission(self, request, obj=None):
+        """Разрешить удаление шаблонов только суперадмину."""
+        return request.user.is_superuser
+
+
+@admin.register(ApprovalStep)
+class ApprovalStepAdmin(admin.ModelAdmin):
+    """Админ-панель для этапов согласования."""
+
+    list_display = [
+        'flow_template',
+        'order',
+        'role',
+        'skip_if_empty',
+        'is_mandatory'
+    ]
+
+    list_filter = [
+        'role',
+        'skip_if_empty',
+        'is_mandatory',
+        'flow_template__company'
+    ]
+
+    search_fields = [
+        'flow_template__name',
+        'description'
+    ]
+
+    ordering = ['flow_template', 'order']
+
+    fieldsets = (
+        ('Основная информация', {
+            'fields': (
+                'flow_template',
+                'role',
+                'order'
+            )
+        }),
+        ('Настройки этапа', {
+            'fields': (
+                'skip_if_empty',
+                'is_mandatory',
+                'description'
+            )
+        }),
+    )
+
+    def has_delete_permission(self, request, obj=None):
+        """Разрешить удаление этапов только суперадмину."""
+        return request.user.is_superuser
+
+
+@admin.register(MaterialRequestApproval)
+class MaterialRequestApprovalAdmin(admin.ModelAdmin):
+    """Админ-панель для отслеживания согласований заявок."""
+
+    list_display = [
+        'material_request',
+        'get_step_info',
+        'approver',
+        'get_status_badge',
+        'approved_at',
+        'created_at'
+    ]
+
+    list_filter = [
+        'status',
+        'step__role',
+        'created_at',
+        'approved_at'
+    ]
+
+    search_fields = [
+        'material_request__request_number',
+        'approver__email',
+        'approver__first_name',
+        'approver__last_name',
+        'comment'
+    ]
+
+    readonly_fields = [
+        'created_at',
+        'updated_at',
+        'approved_at'
+    ]
+
+    date_hierarchy = 'created_at'
+
+    fieldsets = (
+        ('Основная информация', {
+            'fields': (
+                'material_request',
+                'step',
+                'approver',
+                'status'
+            )
+        }),
+        ('Детали согласования', {
+            'fields': (
+                'comment',
+                'approved_at'
+            )
+        }),
+        ('Даты', {
+            'fields': (
+                'created_at',
+                'updated_at'
+            ),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def get_step_info(self, obj):
+        """Информация об этапе согласования."""
+        return f"Этап {obj.step.order}: {obj.step.get_role_display()}"
+    get_step_info.short_description = 'Этап'
+
+    def get_status_badge(self, obj):
+        """Отображение статуса с цветной меткой."""
+        colors = {
+            'PENDING': '#F59E0B',  # Оранжевый - Ожидает
+            'APPROVED': '#10B981',  # Зелёный - Согласовано
+            'REJECTED': '#EF4444',  # Красный - Отклонено
+            'SKIPPED': '#6B7280',  # Серый - Пропущено
+        }
+        color = colors.get(obj.status, '#6B7280')
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 5px 10px; border-radius: 4px; font-weight: bold;">{}</span>',
+            color,
+            obj.get_status_display()
+        )
+    get_status_badge.short_description = 'Статус'
+
+    def has_add_permission(self, request):
+        """Запретить ручное создание записей согласования."""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """Разрешить удаление согласований только суперадмину (при удалении заявки)."""
+        return request.user.is_superuser
+
+
+# ========== УДАЛЕНО: CompanyApprovalSettingsAdmin ==========
+# ПРИЧИНА: Старая логика доступа, заменена на ButtonAccess
+# @admin.register(CompanyApprovalSettings)
+# class CompanyApprovalSettingsAdmin(admin.ModelAdmin):
+#     """Админ-панель для настроек доступа к управлению цепочками согласования."""
+#     ...
+# ========== КОНЕЦ УДАЛЕННОГО КОДА ==========

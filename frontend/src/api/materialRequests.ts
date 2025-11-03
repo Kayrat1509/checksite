@@ -67,6 +67,7 @@ export interface MaterialRequest {
   }
   items_count: number
   items?: MaterialRequestItem[]  // Добавляем массив всех материалов
+  current_step?: number  // Текущий этап согласования (порядковый номер)
   created_at: string
   updated_at: string
 }

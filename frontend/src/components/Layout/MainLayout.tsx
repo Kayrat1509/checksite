@@ -18,6 +18,7 @@ import {
   InboxOutlined,
   SettingOutlined,
   UsergroupAddOutlined, // НОВАЯ ИКОНКА: для меню "Персонал"
+  CheckCircleOutlined, // НОВАЯ ИКОНКА: для цепочки согласования
 } from '@ant-design/icons'
 // УДАЛЕНО: FileProtectOutlined - использовалась для техусловий, больше не нужна
 import { useAuthStore } from '../../stores/authStore'
@@ -138,13 +139,29 @@ const MainLayout = () => {
       visible: hasPageAccess('reports'),
     },
 
-    // 9. Настройки
+    // 9. Настройки (НОВОЕ МЕНЮ с подпунктами)
     {
-      key: '/dashboard/settings',
+      key: 'settings',
       icon: <SettingOutlined />,
-      label: <Link to="/dashboard/settings">Настройки</Link>,
-      page: 'settings',
-      visible: hasPageAccess('settings'),
+      label: 'Настройки',
+      // Показываем меню, если есть доступ хотя бы к одной странице
+      visible: hasPageAccess('settings') || hasPageAccess('settings/approval-flow'),
+      children: [
+        {
+          key: '/dashboard/settings',
+          icon: <SettingOutlined />,
+          label: <Link to="/dashboard/settings">Настройки системы</Link>,
+          page: 'settings',
+          visible: hasPageAccess('settings'),
+        },
+        {
+          key: '/dashboard/settings/approval-flow',
+          icon: <CheckCircleOutlined />,
+          label: <Link to="/dashboard/settings/approval-flow">Цепочка согласования</Link>,
+          page: 'settings/approval-flow',
+          visible: hasPageAccess('settings/approval-flow'),
+        },
+      ],
     },
   ]
 

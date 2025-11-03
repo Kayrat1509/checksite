@@ -26,17 +26,27 @@ def has_button_access(user, button_key, page=None):
         >>> has_button_access(user, 'delete', 'users')
         False
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    logger.info(f'[has_button_access] Called with user.role={user.role}, button_key={button_key}, page={page}')
+
     # SUPERADMIN имеет доступ ко всему
     if user.is_superuser or user.role == 'SUPERADMIN':
+        logger.info('[has_button_access] User is superuser/SUPERADMIN - access granted')
         return True
 
     # Формируем ключ кэша
     cache_key = f'button_access:{user.role}:{button_key}:{page or "global"}'
+    logger.info(f'[has_button_access] Cache key: {cache_key}')
 
     # Проверяем кэш
     cached_result = cache.get(cache_key)
     if cached_result is not None:
+        logger.info(f'[has_button_access] Cache HIT - returning {cached_result}')
         return cached_result
+
+    logger.info('[has_button_access] Cache MISS - querying database')
 
     # Ищем кнопку в БД
     try:
@@ -46,13 +56,19 @@ def has_button_access(user, button_key, page=None):
             page=page,
             company__isnull=True  # Глобальные настройки
         )
+        logger.info(f'[has_button_access] Found ButtonAccess: id={button.id}, default_access={button.default_access}')
+        logger.info(f'[has_button_access] ButtonAccess.{user.role}={getattr(button, user.role, None)}')
+
         result = button.has_access(user.role)
+        logger.info(f'[has_button_access] button.has_access({user.role}) returned: {result}')
     except ButtonAccess.DoesNotExist:
         # Если кнопка не найдена - запрещаем доступ
+        logger.warning(f'[has_button_access] ButtonAccess NOT FOUND for button_key={button_key}, page={page}')
         result = False
 
     # Кэшируем результат на 10 секунд
     cache.set(cache_key, result, 10)
+    logger.info(f'[has_button_access] Final result: {result} (cached)')
 
     return result
 

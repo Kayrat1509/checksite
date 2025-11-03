@@ -216,13 +216,14 @@ class CanManagePersonnelExcel(permissions.BasePermission):
         if not user or not user.is_authenticated:
             return False
 
-        # Проверяем базовый доступ к импорту персонала через ButtonAccess
+        # ✅ КОНТРОЛЬ ДОСТУПА: Проверяем базовый доступ к импорту персонала через ButtonAccess
         has_import_access = has_button_access(user, 'import', 'users')
 
         if not has_import_access:
             return False
 
-        # Дополнительная проверка: для среднего менеджмента требуется одобрение директора
+        # ✅ БИЗНЕС-ЛОГИКА: Дополнительная проверка - для среднего менеджмента требуется одобрение директора
+        # Это не контроль доступа к функционалу, а дополнительное бизнес-правило
         from apps.users.models import User
         if user.role in [User.Role.SITE_MANAGER, User.Role.FOREMAN]:
             return user.approved_by_director

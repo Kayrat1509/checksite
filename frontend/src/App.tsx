@@ -24,6 +24,7 @@ import Warehouse from './pages/Warehouse'
 import Reports from './pages/Reports'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
+import ApprovalFlowSettings from './pages/ApprovalFlowSettings'
 import NotFound from './pages/NotFound'
 
 // Публичные тендеры (для внешних пользователей)
@@ -116,6 +117,7 @@ function App() {
             <Route path="reports" element={<Reports />} />
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="settings/approval-flow" element={<ApprovalFlowSettings />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

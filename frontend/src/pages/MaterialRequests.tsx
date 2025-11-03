@@ -6,6 +6,8 @@ import { projectsAPI } from '../api/projects';
 import { useAuthStore } from '../stores/authStore';
 import { useButtonAccess } from '../hooks/useButtonAccess';
 import { useQueryClient } from '@tanstack/react-query';
+import ApprovalFlowTimeline from '../components/ApprovalFlow/ApprovalFlowTimeline';
+import { approvalFlowsAPI, type MaterialRequestApproval } from '../api/approvalFlows';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -59,6 +61,10 @@ const MaterialRequests = () => {
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
   const [editItemForm] = Form.useForm();
+
+  // Состояние для цепочек согласования
+  const [approvalsByRequest, setApprovalsByRequest] = useState<Record<number, MaterialRequestApproval[]>>({});
+  const [loadingApprovals, setLoadingApprovals] = useState<Record<number, boolean>>({});
 
   // Загрузка данных
   useEffect(() => {
@@ -277,6 +283,24 @@ const MaterialRequests = () => {
                           'Ошибка при отмене позиции';
       message.error({ content: errorMessage, key: 'cancel' });
       console.error('Cancel error:', error?.response?.data);
+    }
+  };
+
+  // Загрузка цепочки согласования для заявки
+  const fetchApprovals = async (requestId: number) => {
+    if (approvalsByRequest[requestId]) {
+      // Уже загружены
+      return;
+    }
+
+    setLoadingApprovals(prev => ({ ...prev, [requestId]: true }));
+    try {
+      const data = await approvalFlowsAPI.getMaterialRequestApprovals(requestId);
+      setApprovalsByRequest(prev => ({ ...prev, [requestId]: data.approvals || [] }));
+    } catch (error) {
+      console.error('Ошибка загрузки цепочки согласования:', error);
+    } finally {
+      setLoadingApprovals(prev => ({ ...prev, [requestId]: false }));
     }
   };
 
@@ -751,7 +775,7 @@ const MaterialRequests = () => {
             )}
 
             {/* Кнопки для зав.центрскладом при статусе WAREHOUSE_CHECK */}
-            {material.item_status === 'WAREHOUSE_CHECK' && ['WAREHOUSE_HEAD', 'SUPERADMIN'].includes(userRole || '') && (
+            {material.item_status === 'WAREHOUSE_CHECK' && canUseWarehouseWorkflow() && (
               <Space direction="vertical" size="small" style={{ width: '100%', marginTop: 8 }}>
                 <Button
                   type="primary"
@@ -815,12 +839,11 @@ const MaterialRequests = () => {
         if (!record.material) return '-';
 
         const material = record.material;
-        const userRole = user?.role;
         const isAuthor = record.request.author_data?.id === user?.id;
 
         // Проверяем, может ли пользователь редактировать это поле
-        // Разрешаем редактировать автору (прораб, мастер, начальник участка)
-        const canEdit = isAuthor && ['FOREMAN', 'MASTER', 'SITE_MANAGER', 'SUPERADMIN'].includes(userRole || '');
+        // Разрешаем редактировать автору с правами редактирования (проверка через ButtonAccess)
+        const canEdit = isAuthor && (canEditRequest() || user?.is_superuser);
 
         // Если позиция отменена, отображаем прочерк
         if (material.status === 'CANCELLED') {
@@ -926,7 +949,7 @@ const MaterialRequests = () => {
             )}
 
             {/* 0. RETURNED_FOR_REVISION → Автор может редактировать позицию и повторно отправлять на согласование */}
-            {itemStatus === 'RETURNED_FOR_REVISION' && ['FOREMAN', 'MASTER', 'SITE_MANAGER'].includes(userRole || '') && !isCancelled && record.material && (
+            {itemStatus === 'RETURNED_FOR_REVISION' && canSubmitForApproval() && !isCancelled && record.material && (
               <Space direction="vertical" size="small" style={{ width: '100%' }}>
                 <Button
                   type="default"
@@ -950,8 +973,8 @@ const MaterialRequests = () => {
               </Space>
             )}
 
-            {/* 1. DRAFT → Прораб отправляет на согласование */}
-            {itemStatus === 'DRAFT' && ['FOREMAN', 'MASTER', 'SITE_MANAGER'].includes(userRole || '') && !isCancelled && record.material && (
+            {/* 1. DRAFT → Отправка на согласование (проверка через ButtonAccess) */}
+            {itemStatus === 'DRAFT' && canSubmitForApproval() && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<SendOutlined />}
@@ -964,7 +987,7 @@ const MaterialRequests = () => {
             )}
 
             {/* 2. UNDER_REVIEW → Снабженец отправляет на склад */}
-            {itemStatus === 'UNDER_REVIEW' && ['SUPPLY_MANAGER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && record.material && (
+            {itemStatus === 'UNDER_REVIEW' && canUseSupplyWorkflow() && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<SendOutlined />}
@@ -990,7 +1013,7 @@ const MaterialRequests = () => {
             )}
 
             {/* 4. BACK_TO_SUPPLY → Снабженец отправляет Инженеру ПТО */}
-            {itemStatus === 'BACK_TO_SUPPLY' && ['SUPPLY_MANAGER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && record.material && (
+            {itemStatus === 'BACK_TO_SUPPLY' && canUseSupplyWorkflow() && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<SendOutlined />}
@@ -1027,7 +1050,7 @@ const MaterialRequests = () => {
             )}
 
             {/* 6. BACK_TO_SUPPLY_AFTER_ENGINEER → Снабженец отправляет Руководителю проекта */}
-            {itemStatus === 'BACK_TO_SUPPLY_AFTER_ENGINEER' && ['SUPPLY_MANAGER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && record.material && (
+            {itemStatus === 'BACK_TO_SUPPLY_AFTER_ENGINEER' && canUseSupplyWorkflow() && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<SendOutlined />}
@@ -1064,7 +1087,7 @@ const MaterialRequests = () => {
             )}
 
             {/* 8. BACK_TO_SUPPLY_AFTER_PM → Снабженец отправляет Директору */}
-            {itemStatus === 'BACK_TO_SUPPLY_AFTER_PM' && ['SUPPLY_MANAGER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && record.material && (
+            {itemStatus === 'BACK_TO_SUPPLY_AFTER_PM' && canUseSupplyWorkflow() && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<SendOutlined />}
@@ -1077,7 +1100,7 @@ const MaterialRequests = () => {
             )}
 
             {/* 9. DIRECTOR_APPROVAL → Директор/Главный инженер возвращают снабженцу или отправляют на доработку */}
-            {itemStatus === 'DIRECTOR_APPROVAL' && ['DIRECTOR', 'CHIEF_ENGINEER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && record.material && (
+            {itemStatus === 'DIRECTOR_APPROVAL' && canUseDirectorWorkflow() && !isCancelled && record.material && (
               <Space direction="vertical" size="small" style={{ width: '100%' }}>
                 <Button
                   type="primary"
@@ -1101,7 +1124,7 @@ const MaterialRequests = () => {
             )}
 
             {/* 10. BACK_TO_SUPPLY_AFTER_DIRECTOR → Снабженец переводит в процесс оплаты/доставки */}
-            {itemStatus === 'BACK_TO_SUPPLY_AFTER_DIRECTOR' && ['SUPPLY_MANAGER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && record.material && (
+            {itemStatus === 'BACK_TO_SUPPLY_AFTER_DIRECTOR' && canUseSupplyWorkflow() && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<SendOutlined />}
@@ -1113,8 +1136,8 @@ const MaterialRequests = () => {
               </Button>
             )}
 
-            {/* 11. REWORK → Автор отправляет повторно */}
-            {itemStatus === 'REWORK' && ['FOREMAN', 'MASTER', 'SITE_MANAGER'].includes(userRole || '') && !isCancelled && record.material && (
+            {/* 11. REWORK → Автор отправляет повторно (проверка через ButtonAccess) */}
+            {itemStatus === 'REWORK' && canSubmitForApproval() && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<SendOutlined />}
@@ -1127,7 +1150,7 @@ const MaterialRequests = () => {
             )}
 
             {/* 12. PAYMENT → Снабженец отмечает оплачено */}
-            {itemStatus === 'PAYMENT' && ['SUPPLY_MANAGER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && record.material && (
+            {itemStatus === 'PAYMENT' && canUseSupplyWorkflow() && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<CheckOutlined />}
@@ -1140,7 +1163,7 @@ const MaterialRequests = () => {
             )}
 
             {/* 13. PAID → Снабженец отмечает доставлено */}
-            {itemStatus === 'PAID' && ['SUPPLY_MANAGER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && record.material && (
+            {itemStatus === 'PAID' && canUseSupplyWorkflow() && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<CheckOutlined />}
@@ -1152,8 +1175,8 @@ const MaterialRequests = () => {
               </Button>
             )}
 
-            {/* 14. DELIVERY → Прораб/Мастер/Начальник отмечает отработано */}
-            {itemStatus === 'DELIVERY' && ['FOREMAN', 'MASTER', 'SITE_MANAGER'].includes(userRole || '') && !isCancelled && record.material && (
+            {/* 14. DELIVERY → Прораб/Мастер/Начальник отмечает отработано (проверка через ButtonAccess) */}
+            {itemStatus === 'DELIVERY' && canSubmitForApproval() && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<CheckOutlined />}
@@ -1166,7 +1189,7 @@ const MaterialRequests = () => {
             )}
 
             {/* 15. SENT_TO_SITE → Зав.склада подтверждает отправку */}
-            {itemStatus === 'SENT_TO_SITE' && ['WAREHOUSE_HEAD', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && record.material && (
+            {itemStatus === 'SENT_TO_SITE' && canUseWarehouseWorkflow() && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<CheckOutlined />}
@@ -1178,8 +1201,8 @@ const MaterialRequests = () => {
               </Button>
             )}
 
-            {/* 16. WAREHOUSE_SHIPPING → Автор принимает на объекте */}
-            {itemStatus === 'WAREHOUSE_SHIPPING' && ['FOREMAN', 'MASTER', 'SITE_MANAGER', 'SUPERADMIN'].includes(userRole || '') && !isCancelled && record.material && (
+            {/* 16. WAREHOUSE_SHIPPING → Автор принимает на объекте (проверка через ButtonAccess) */}
+            {itemStatus === 'WAREHOUSE_SHIPPING' && canSubmitForApproval() && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<CheckOutlined />}
@@ -1331,6 +1354,98 @@ const MaterialRequests = () => {
     return canUseButton('approve');
   };
 
+  // Проверка доступа к отправке на согласование
+  const canSubmitForApproval = () => {
+    // SUPERADMIN всегда имеет доступ
+    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
+      return true;
+    }
+    // Для остальных ролей проверяем через матрицу доступа из админ-панели
+    return canUseButton('submit');
+  };
+
+  // Проверка доступа к workflow-действиям для разных ролей
+  const canUseWarehouseWorkflow = () => {
+    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
+      return true;
+    }
+    return canUseButton('warehouse_workflow');
+  };
+
+  const canUseSupplyWorkflow = () => {
+    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
+      return true;
+    }
+    return canUseButton('supply_workflow');
+  };
+
+  const canUseDirectorWorkflow = () => {
+    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
+      return true;
+    }
+    return canUseButton('director_workflow');
+  };
+
+  const canUseEngineerWorkflow = () => {
+    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
+      return true;
+    }
+    return canUseButton('engineer_workflow');
+  };
+
+  const canUsePMWorkflow = () => {
+    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
+      return true;
+    }
+    return canUseButton('pm_workflow');
+  };
+
+  // Функция для отображения расширенной строки с цепочкой согласования
+  const expandedRowRender = (record: FlatMaterialRow) => {
+    // Показываем цепочку согласования только для первой строки заявки
+    if (!record.isFirstRowOfRequest) {
+      return null;
+    }
+
+    const requestId = record.request.id;
+    const approvals = approvalsByRequest[requestId] || [];
+    const isLoading = loadingApprovals[requestId];
+
+    // Получаем current_step из заявки
+    const currentStep = record.request.current_step;
+
+    if (isLoading) {
+      return <div style={{ padding: 16 }}>Загрузка цепочки согласования...</div>;
+    }
+
+    if (approvals.length === 0) {
+      return (
+        <div style={{ padding: 16, color: '#999' }}>
+          Цепочка согласования не настроена для этой заявки
+        </div>
+      );
+    }
+
+    return (
+      <ApprovalFlowTimeline
+        approvals={approvals}
+        currentStep={currentStep}
+        materialRequestId={requestId}
+        onApprovalAction={() => {
+          // После действия обновляем список заявок и цепочку согласования
+          fetchRequests();
+          setApprovalsByRequest(prev => {
+            const updated = { ...prev };
+            delete updated[requestId]; // Удаляем, чтобы перезагрузить
+            return updated;
+          });
+          // Перезагружаем цепочку
+          fetchApprovals(requestId);
+        }}
+      />
+    );
+  };
+
   return (
     <div style={{ padding: '24px' }}>
       <Title level={2}>Заявки на материалы</Title>
@@ -1421,6 +1536,16 @@ const MaterialRequests = () => {
             rowClassName={(record: FlatMaterialRow) =>
               record.isFirstRowOfRequest ? 'request-separator' : ''
             }
+            expandable={{
+              expandedRowRender,
+              onExpand: (expanded, record) => {
+                if (expanded && record.isFirstRowOfRequest) {
+                  // Загружаем цепочку согласования при раскрытии строки
+                  fetchApprovals(record.request.id);
+                }
+              },
+              rowExpandable: (record) => record.isFirstRowOfRequest, // Только первая строка каждой заявки может раскрываться
+            }}
           />
         </Card>
       )}

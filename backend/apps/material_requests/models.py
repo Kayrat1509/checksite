@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
 from apps.projects.models import Project
 from apps.core.mixins import SoftDeleteMixin, SoftDeleteManager
 
@@ -14,24 +15,17 @@ class MaterialRequest(SoftDeleteMixin, models.Model):
     - При удалении заявка перемещается в корзину на 31 день
     - Можно восстановить в течение 31 дней
     - После 31 дня удаляется автоматически навсегда
+
+    НОВАЯ СИСТЕМА: Упрощенные статусы + настраиваемая цепочка согласования
     """
 
     class Status(models.TextChoices):
-        # Статусы согласно новой схеме согласования
+        """Упрощенные статусы заявки (вместо hardcoded цепочки)"""
         DRAFT = 'DRAFT', _('Черновик')
-        UNDER_REVIEW = 'UNDER_REVIEW', _('На проверке снабжения')
-        WAREHOUSE_CHECK = 'WAREHOUSE_CHECK', _('Центр склад')
-        BACK_TO_SUPPLY = 'BACK_TO_SUPPLY', _('Снабжение')
-        PROJECT_MANAGER_APPROVAL = 'PROJECT_MANAGER_APPROVAL', _('У руководителя проекта')
-        DIRECTOR_APPROVAL = 'DIRECTOR_APPROVAL', _('У директора')
-        REWORK = 'REWORK', _('На доработке')
+        IN_PROGRESS = 'IN_PROGRESS', _('На согласовании')
         APPROVED = 'APPROVED', _('Согласовано')
-        SENT_TO_SITE = 'SENT_TO_SITE', _('Отправить на объект (у зав.склада)')
-        WAREHOUSE_SHIPPING = 'WAREHOUSE_SHIPPING', _('Отправлено на объект (у автора)')
-        PAYMENT = 'PAYMENT', _('На оплате')
-        PAID = 'PAID', _('Оплачено')
-        DELIVERY = 'DELIVERY', _('Доставлено')
-        COMPLETED = 'COMPLETED', _('Отработано')
+        REJECTED = 'REJECTED', _('Отклонено')
+        COMPLETED = 'COMPLETED', _('Выполнено')
 
     # Основные поля заявки
     project = models.ForeignKey(
@@ -66,7 +60,18 @@ class MaterialRequest(SoftDeleteMixin, models.Model):
         default=Status.DRAFT
     )
 
-    # Ответственный за текущий этап
+    # НОВАЯ СИСТЕМА: Текущий этап согласования
+    current_step = models.ForeignKey(
+        'material_requests.ApprovalStep',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='current_material_requests',
+        verbose_name=_('Текущий этап согласования'),
+        help_text=_('На каком этапе цепочки согласования находится заявка')
+    )
+
+    # Ответственный за текущий этап (автоматически устанавливается из current_step)
     responsible = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -163,6 +168,234 @@ class MaterialRequest(SoftDeleteMixin, models.Model):
             self.request_number = f'З-{project_id}-{new_number:03d}/{year:02d}'
 
         super().save(*args, **kwargs)
+
+    def initialize_approval_flow(self):
+        """
+        Инициализация процесса согласования при создании заявки.
+        Создает записи MaterialRequestApproval для каждого этапа активной цепочки компании.
+        """
+        from .approval_models import ApprovalFlowTemplate, MaterialRequestApproval
+
+        # Получаем активную цепочку согласования компании
+        try:
+            flow = ApprovalFlowTemplate.objects.get(
+                company=self.project.company,
+                is_active=True
+            )
+        except ApprovalFlowTemplate.DoesNotExist:
+            # Если нет активной цепочки - создаем default
+            flow = self._create_default_approval_flow()
+
+        # Создаем записи согласования для каждого этапа
+        for step in flow.steps.all():
+            MaterialRequestApproval.objects.create(
+                material_request=self,
+                step=step,
+                status='PENDING'
+            )
+
+        # Переходим на первый этап
+        self.move_to_next_step()
+
+    def _create_default_approval_flow(self):
+        """Создает default цепочку согласования если её нет"""
+        from .approval_models import ApprovalFlowTemplate, ApprovalStep
+
+        flow = ApprovalFlowTemplate.objects.create(
+            company=self.project.company,
+            name="Default схема согласования",
+            is_active=True,
+            created_by=self.author
+        )
+
+        # Default цепочка: Снабженец → Завсклад → Руководитель проекта → Директор
+        default_steps = [
+            {'role': 'SUPPLY_MANAGER', 'order': 1},
+            {'role': 'WAREHOUSE_HEAD', 'order': 2},
+            {'role': 'PROJECT_MANAGER', 'order': 3},
+            {'role': 'DIRECTOR', 'order': 4},
+        ]
+
+        for step_data in default_steps:
+            ApprovalStep.objects.create(
+                flow_template=flow,
+                **step_data,
+                skip_if_empty=True
+            )
+
+        return flow
+
+    def move_to_next_step(self):
+        """
+        Переход к следующему этапу согласования.
+        Автоматически пропускает этапы, если нет пользователя с нужной ролью.
+        """
+        from .approval_models import MaterialRequestApproval
+
+        # Получаем следующий этап с статусом PENDING
+        next_approval = self.approvals.filter(
+            status='PENDING'
+        ).order_by('step__order').first()
+
+        if not next_approval:
+            # Все этапы пройдены - заявка согласована
+            self.status = self.Status.APPROVED
+            self.current_step = None
+            self.responsible = None
+            self.save(update_fields=['status', 'current_step', 'responsible'])
+            return
+
+        step = next_approval.step
+
+        # Ищем пользователя с нужной ролью в проекте/компании
+        approver = self._find_approver_for_step(step)
+
+        if not approver and step.skip_if_empty:
+            # Пропускаем этап автоматически
+            next_approval.status = 'SKIPPED'
+            next_approval.save(update_fields=['status'])
+
+            # Логируем пропуск
+            self._log_history(
+                user=None,
+                old_status=f"Этап {step.order}",
+                new_status="Пропущено (нет согласующего)",
+                comment=f"Автоматически пропущен этап: {step.get_role_display()}"
+            )
+
+            # Переходим к следующему этапу рекурсивно
+            return self.move_to_next_step()
+
+        # Устанавливаем текущий этап и ответственного
+        next_approval.approver = approver
+        next_approval.save(update_fields=['approver'])
+
+        self.current_step = step
+        self.responsible = approver
+        self.status = self.Status.IN_PROGRESS
+        self.save(update_fields=['current_step', 'responsible', 'status'])
+
+    def _find_approver_for_step(self, step):
+        """
+        Поиск пользователя с нужной ролью для этапа согласования.
+        Ищет среди участников проекта и сотрудников компании.
+        """
+        from apps.users.models import User
+
+        # Сначала ищем среди участников проекта
+        approver = self.project.team_members.filter(role=step.role).first()
+
+        if not approver:
+            # Если не найден в проекте - ищем среди всех сотрудников компании
+            approver = User.objects.filter(
+                company=self.project.company,
+                role=step.role,
+                is_active=True
+            ).first()
+
+        return approver
+
+    def approve_current_step(self, user, comment=''):
+        """
+        Утверждение текущего этапа согласования.
+
+        Args:
+            user: Пользователь, который утверждает
+            comment: Комментарий при утверждении
+        """
+        from .approval_models import MaterialRequestApproval
+
+        if not self.current_step:
+            raise ValueError("Заявка не находится на этапе согласования")
+
+        # Получаем текущее согласование
+        approval = self.approvals.get(
+            step=self.current_step,
+            status='PENDING'
+        )
+
+        # Проверка прав
+        if approval.approver and approval.approver != user:
+            raise PermissionError(
+                f"Вы не являетесь утверждающим на этом этапе. "
+                f"Ожидается: {approval.approver.get_full_name()}"
+            )
+
+        # Утверждаем
+        approval.status = 'APPROVED'
+        approval.comment = comment
+        approval.approved_at = timezone.now()
+        approval.save(update_fields=['status', 'comment', 'approved_at'])
+
+        # Логируем
+        self._log_history(
+            user=user,
+            old_status=f"Этап {self.current_step.order}",
+            new_status="Утверждено",
+            comment=comment
+        )
+
+        # Переходим к следующему этапу
+        self.move_to_next_step()
+
+    def reject_request(self, user, comment):
+        """
+        Отклонение заявки на текущем этапе.
+
+        Args:
+            user: Пользователь, который отклоняет
+            comment: Причина отклонения (обязательно)
+        """
+        from .approval_models import MaterialRequestApproval
+
+        if not comment:
+            raise ValueError("Необходимо указать причину отклонения")
+
+        if not self.current_step:
+            raise ValueError("Заявка не находится на этапе согласования")
+
+        # Получаем текущее согласование
+        approval = self.approvals.get(
+            step=self.current_step,
+            status='PENDING'
+        )
+
+        # Проверка прав
+        if approval.approver and approval.approver != user:
+            raise PermissionError(
+                f"Вы не можете отклонить эту заявку. "
+                f"Ожидается: {approval.approver.get_full_name()}"
+            )
+
+        # Отклоняем
+        approval.status = 'REJECTED'
+        approval.comment = comment
+        approval.approved_at = timezone.now()
+        approval.save(update_fields=['status', 'comment', 'approved_at'])
+
+        # Меняем статус заявки
+        self.status = self.Status.REJECTED
+        self.current_step = None
+        self.responsible = None
+        self.save(update_fields=['status', 'current_step', 'responsible'])
+
+        # Логируем
+        self._log_history(
+            user=user,
+            old_status=f"Этап {approval.step.order}",
+            new_status="Отклонено",
+            comment=comment
+        )
+
+    def _log_history(self, user, old_status, new_status, comment=''):
+        """Добавление записи в историю заявки"""
+        MaterialRequestHistory.objects.create(
+            request=self,
+            user=user,
+            old_status=old_status,
+            new_status=new_status,
+            comment=comment
+        )
 
 
 class MaterialRequestItem(models.Model):

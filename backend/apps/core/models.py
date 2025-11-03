@@ -75,8 +75,11 @@ class ButtonAccess(models.Model):
     - SUPERADMIN всегда имеет доступ ко всем элементам
 
     Типы доступа:
-    - 'button': Глобальная настройка для кнопок (company=NULL)
-    - 'page': Настройка доступа к странице для конкретной компании
+    - 'button': Настройка доступа к кнопкам (company должен быть NULL)
+    - 'page': Настройка доступа к страницам (company должен быть NULL)
+
+    ВАЖНО: Все настройки ГЛОБАЛЬНЫЕ (company=NULL).
+    Логика с привязкой к компаниям НЕ ИСПОЛЬЗУЕТСЯ и будет удалена в будущем.
     """
 
     # Тип доступа и привязка к компании
@@ -85,7 +88,7 @@ class ButtonAccess(models.Model):
         choices=[('button', 'Кнопка'), ('page', 'Страница')],
         default='button',
         verbose_name='Тип доступа',
-        help_text='Кнопка (глобально) или Страница (для компании)'
+        help_text='Кнопка или Страница (оба типа - глобальные настройки)'
     )
     company = models.ForeignKey(
         'users.Company',
@@ -94,7 +97,7 @@ class ButtonAccess(models.Model):
         verbose_name='Компания',
         null=True,
         blank=True,
-        help_text='Для страниц - обязательно. Для кнопок - должно быть NULL (глобальная настройка)'
+        help_text='DEPRECATED: Должно быть NULL. Все настройки - глобальные.'
     )
 
     # Основная информация о кнопке/странице
@@ -148,18 +151,13 @@ class ButtonAccess(models.Model):
 
     class Meta:
         # Уникальность:
-        # - Для кнопок (access_type='button', company=NULL): page + button_key
-        # - Для страниц (access_type='page'): company + page + button_key
+        # ВСЕ записи (кнопки и страницы) должны иметь company=NULL
+        # Уникальность определяется по: page + button_key
         constraints = [
             models.UniqueConstraint(
                 fields=['page', 'button_key'],
-                condition=models.Q(access_type='button', company__isnull=True),
-                name='unique_button_access'
-            ),
-            models.UniqueConstraint(
-                fields=['company', 'page', 'button_key'],
-                condition=models.Q(access_type='page'),
-                name='unique_page_access'
+                condition=models.Q(company__isnull=True),
+                name='unique_global_access'
             ),
         ]
         verbose_name = 'Доступ к кнопке/странице'
