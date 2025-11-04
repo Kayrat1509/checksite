@@ -125,7 +125,7 @@ class MaterialRequestStatusChangePermission(permissions.BasePermission):
         'SENT_TO_SITE': ['SUPPLY_MANAGER'],  # Снабженец отправляет материалы со склада на объект
         'WAREHOUSE_SHIPPING': ['WAREHOUSE_HEAD'],  # Зав.склада подтверждает отправку на объект
         'PAYMENT': ['SUPPLY_MANAGER'],  # Снабженец ставит на оплату
-        'PAID': ['SUPPLY_MANAGER', 'ACCOUNTANT'],  # Снабженец или Бухгалтер отмечает оплачено
+        'PAID': ['SUPPLY_MANAGER'],  # Снабженец отмечает оплачено
         'DELIVERY': ['SUPPLY_MANAGER'],  # Снабженец отмечает доставлено
         'COMPLETED': ['FOREMAN', 'MASTER', 'SITE_MANAGER'],  # Прораб/Мастер/Начальник отмечает отработано
     }

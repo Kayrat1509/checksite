@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Table, Button, Tag, Space, Modal, Form, Input, Select, InputNumber, message, Card, Typography, Tooltip, Popconfirm } from 'antd';
-import { PlusOutlined, DownloadOutlined, EditOutlined, CloseCircleOutlined, SendOutlined, CheckOutlined, RollbackOutlined, UndoOutlined } from '@ant-design/icons';
+import { PlusOutlined, DownloadOutlined, EditOutlined, CloseCircleOutlined, SendOutlined, CheckOutlined, RollbackOutlined, UndoOutlined, FileTextOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { materialRequestsAPI, MaterialRequest, CreateMaterialRequestData } from '../api/materialRequests';
 import { projectsAPI } from '../api/projects';
 import { useAuthStore } from '../stores/authStore';
@@ -47,6 +48,7 @@ const getStatusColor = (status: string): string => {
 
 const MaterialRequests = () => {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const queryClient = useQueryClient(); // Для инвалидации кеша страницы Склад
   const { canUseButton } = useButtonAccess('material-requests'); // Проверка доступа к кнопкам
   const [requests, setRequests] = useState<MaterialRequest[]>([]);
@@ -609,39 +611,30 @@ const MaterialRequests = () => {
   }
 
   // Преобразуем данные в плоскую структуру для таблицы
+  // ОБНОВЛЕНО: Исключаем согласованные (APPROVED) и отработанные (COMPLETED) позиции
   const flattenData = (): FlatMaterialRow[] => {
     const flatData: FlatMaterialRow[] = [];
+    const excludedStatuses = ['APPROVED', 'SENT_TO_SITE', 'WAREHOUSE_SHIPPING', 'PAYMENT', 'PAID', 'DELIVERY', 'COMPLETED'];
 
     requests.forEach((request) => {
-      // Фильтруем по статусам позиций, а не по статусу заявки
-      // Показываем заявку, если хотя бы одна позиция не в DRAFT или пользователь - автор
-      const hasNonDraftItems = request.items?.some(item => item.item_status !== 'DRAFT') || false;
-      const isAuthor = request.author_data?.id === user?.id;
-
-      // Если все позиции в DRAFT и пользователь не автор - скрываем
-      if (!hasNonDraftItems && !isAuthor) {
-        return; // Пропускаем эту заявку
-      }
-
       if (request.items && request.items.length > 0) {
-        request.items.forEach((item, index) => {
-          flatData.push({
-            key: `${request.id}-${item.id}`,
-            request: request,
-            material: item,
-            materialIndex: index + 1,
-            isFirstRowOfRequest: index === 0, // Первая позиция в заявке
+        // Фильтруем позиции: исключаем согласованные и отработанные
+        const activeItems = request.items.filter(
+          item => !excludedStatuses.includes(item.item_status || '')
+        );
+
+        // Если есть активные позиции, показываем их
+        if (activeItems.length > 0) {
+          activeItems.forEach((item, index) => {
+            flatData.push({
+              key: `${request.id}-${item.id}`,
+              request: request,
+              material: item,
+              materialIndex: index + 1,
+              isFirstRowOfRequest: index === 0,
+            });
           });
-        });
-      } else {
-        // Если нет материалов, все равно показываем заявку
-        flatData.push({
-          key: `${request.id}-empty`,
-          request: request,
-          material: null,
-          materialIndex: 0,
-          isFirstRowOfRequest: true,
-        });
+        }
       }
     });
 
@@ -1175,8 +1168,8 @@ const MaterialRequests = () => {
               </Button>
             )}
 
-            {/* 14. DELIVERY → Прораб/Мастер/Начальник отмечает отработано (проверка через ButtonAccess) */}
-            {itemStatus === 'DELIVERY' && canSubmitForApproval() && !isCancelled && record.material && (
+            {/* 14. DELIVERY → Прораб/Мастер/Начальник/Директор-автор отмечает отработано */}
+            {itemStatus === 'DELIVERY' && canMarkAsCompleted(record.request) && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<CheckOutlined />}
@@ -1201,8 +1194,8 @@ const MaterialRequests = () => {
               </Button>
             )}
 
-            {/* 16. WAREHOUSE_SHIPPING → Автор принимает на объекте (проверка через ButtonAccess) */}
-            {itemStatus === 'WAREHOUSE_SHIPPING' && canSubmitForApproval() && !isCancelled && record.material && (
+            {/* 16. WAREHOUSE_SHIPPING → Прораб/Мастер/Начальник/Завсклад/Директор-автор принимает на объекте */}
+            {itemStatus === 'WAREHOUSE_SHIPPING' && canMarkAsCompleted(record.request) && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<CheckOutlined />}
@@ -1400,6 +1393,25 @@ const MaterialRequests = () => {
     return canUseButton('pm_workflow');
   };
 
+  // Проверка доступа к кнопке "Принято на объекте"
+  const canMarkAsCompleted = (request: MaterialRequest) => {
+    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
+      return true;
+    }
+
+    // Прораб, Мастер, Начальник участка, Завсклад - всегда могут
+    if (['FOREMAN', 'MASTER', 'SITE_MANAGER', 'WAREHOUSE_HEAD'].includes(user?.role || '')) {
+      return true;
+    }
+
+    // Директор - только если он автор заявки
+    if (user?.role === 'DIRECTOR') {
+      return request.author_data?.id === user?.id;
+    }
+
+    return false;
+  };
+
   // Функция для отображения расширенной строки с цепочкой согласования
   const expandedRowRender = (record: FlatMaterialRow) => {
     // Показываем цепочку согласования только для первой строки заявки
@@ -1476,16 +1488,32 @@ const MaterialRequests = () => {
               </span>
             )}
           </Space>
-          {canCreateRequest() && selectedProjectId && (
+          <Space>
+            {canCreateRequest() && selectedProjectId && (
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setIsModalVisible(true)}
+                size="large"
+              >
+                Создать заявку
+              </Button>
+            )}
             <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setIsModalVisible(true)}
+              icon={<FileTextOutlined />}
+              onClick={() => navigate('/dashboard/material-requests/approved')}
               size="large"
             >
-              Создать заявку
+              Согласованные заявки
             </Button>
-          )}
+            <Button
+              icon={<CheckOutlined />}
+              onClick={() => navigate('/dashboard/material-requests/completed')}
+              size="large"
+            >
+              Отработанные заявки
+            </Button>
+          </Space>
         </Space>
       </Card>
 

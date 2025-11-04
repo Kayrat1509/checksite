@@ -77,16 +77,19 @@ ITEM_STATUS_TRANSITIONS = {
         ('BACK_TO_SUPPLY', 'ENGINEER_APPROVAL'),
         ('BACK_TO_SUPPLY_AFTER_ENGINEER', 'PROJECT_MANAGER_APPROVAL'),
         ('BACK_TO_SUPPLY_AFTER_PM', 'DIRECTOR_APPROVAL'),
-        ('BACK_TO_SUPPLY_AFTER_DIRECTOR', 'PAYMENT'),
-        ('BACK_TO_SUPPLY_AFTER_DIRECTOR', 'SENT_TO_SITE'),
-        ('PAYMENT', 'PAID'),
-        ('PAID', 'DELIVERY'),
+        ('BACK_TO_SUPPLY_AFTER_DIRECTOR', 'APPROVED'),  # Автоматический переход после согласования Директором
+        ('APPROVED', 'PAYMENT'),  # Снабженец отправляет на оплату
+        ('APPROVED', 'SENT_TO_SITE'),  # Снабженец отправляет на объект
+        ('PAYMENT', 'PAID'),  # Снабженец подтверждает оплату (не бухгалтер!)
+        ('PAID', 'DELIVERY'),  # Снабженец подтверждает доставку
     ],
 
     # Зав.склада
     'WAREHOUSE_HEAD': [
         ('WAREHOUSE_CHECK', 'BACK_TO_SUPPLY'),
         ('SENT_TO_SITE', 'WAREHOUSE_SHIPPING'),
+        ('DELIVERY', 'COMPLETED'),  # Завсклад может отработать позицию
+        ('WAREHOUSE_SHIPPING', 'COMPLETED'),  # Завсклад может отработать позицию
     ],
 
     # Инженер ПТО

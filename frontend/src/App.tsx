@@ -19,6 +19,8 @@ import Contractors from './pages/Contractors'
 import Supervisions from './pages/Supervisions'
 // УДАЛЕНО: import TechnicalConditions - компонент удален из проекта
 import MaterialRequests from './pages/MaterialRequests'
+import ApprovedMaterialRequests from './pages/ApprovedMaterialRequests'
+import CompletedMaterialRequests from './pages/CompletedMaterialRequests'
 import Tenders from './pages/Tenders'
 import Warehouse from './pages/Warehouse'
 import Reports from './pages/Reports'
@@ -49,7 +51,7 @@ function DashboardRedirect() {
   const { user } = useAuthStore()
 
   // Роли снабжения перенаправляются на страницу проектов
-  const supplyRoles = ['SUPPLY_MANAGER', 'WAREHOUSE_HEAD', 'ACCOUNTANT']
+  const supplyRoles = ['SUPPLY_MANAGER', 'WAREHOUSE_HEAD']
   if (user && supplyRoles.includes(user.role)) {
     return <Navigate to="/dashboard/projects" replace />
   }
@@ -112,6 +114,8 @@ function App() {
             <Route path="supervisions" element={<Supervisions />} />
             {/* УДАЛЕНО: <Route path="technical-conditions" /> - функционал удален из системы */}
             <Route path="material-requests" element={<MaterialRequests />} />
+            <Route path="material-requests/approved" element={<ApprovedMaterialRequests />} />
+            <Route path="material-requests/completed" element={<CompletedMaterialRequests />} />
             <Route path="tenders" element={<Tenders />} />
             <Route path="warehouse" element={<Warehouse />} />
             <Route path="reports" element={<Reports />} />
