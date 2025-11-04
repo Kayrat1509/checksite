@@ -126,7 +126,7 @@ class ContractorExcelHandler:
             ("   ФИО: Иванов Иван Иванович", 11, False),
             ("   Компания подрядчика: ТОО \"СтройСервис\"", 11, False),
             ("   Вид работ: Электромонтажные работы", 11, False),
-            ("   Телефон: +7 777 123 45 67", 11, False),
+            ("   Телефон: +7 777 632 36 16", 11, False),
             ("   Объекты: Жилой комплекс \"Север\", ТЦ \"Запад\"", 11, False),
             ("", 11, False),
             (f"Дата создания шаблона: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", 10, False),
@@ -214,7 +214,7 @@ class ContractorExcelHandler:
                 'full_name': 'Иванов Иван Иванович',
                 'contractor_company': 'ТОО "СтройСервис"',
                 'work_type': 'Электромонтажные работы',
-                'phone': '+7 777 123 45 67',
+                'phone': '+7 777 632 36 16',
                 'projects': '' if not company_projects else list(company_projects)[0] if len(company_projects) == 1 else f"{list(company_projects)[0]}, {list(company_projects)[1] if len(company_projects) > 1 else ''}"
             },
             {

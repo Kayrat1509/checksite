@@ -322,7 +322,7 @@ const AboutServicePage = () => {
               Присоединяйтесь к профессионалам
             </Title>
             <Paragraph className="about-cta-description">
-              Попробуйте Check Site бесплатно 90 дней. Без банковских карт.
+              Попробуйте Check Site бесплатно 60 дней. Без банковских карт.
               Просто зарегистрируйтесь и начните работать системно.
             </Paragraph>
             <Space size="large">

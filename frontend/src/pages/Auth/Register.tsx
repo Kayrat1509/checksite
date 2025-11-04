@@ -89,7 +89,7 @@ const Register = () => {
             name="company_phone"
             label="Телефон компании"
           >
-            <Input prefix={<PhoneOutlined />} placeholder="+7 (777) 123-45-67" />
+            <Input prefix={<PhoneOutlined />} placeholder="+7 (777) 632-36-16" />
           </Form.Item>
 
           <Form.Item

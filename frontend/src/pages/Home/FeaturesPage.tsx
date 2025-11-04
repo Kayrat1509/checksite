@@ -8,7 +8,6 @@ import {
   UserOutlined,
   TeamOutlined,
   SafetyOutlined,
-  FileProtectOutlined,
   ShoppingCartOutlined,
   DollarOutlined,
   BarChartOutlined,
@@ -19,7 +18,8 @@ import {
   BellOutlined,
   CameraOutlined,
   FilePdfOutlined,
-  CloudUploadOutlined
+  InboxOutlined,
+  ShopOutlined
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import './FeaturesPage.css'
@@ -101,7 +101,7 @@ const FeaturesPage = () => {
                   выберите роль и название компании.
                 </Paragraph>
                 <Paragraph className="large-text">
-                  После регистрации вы получаете <strong>90 дней бесплатного доступа</strong> ко всем функциям системы.
+                  После регистрации вы получаете <strong>60 дней бесплатного доступа</strong> ко всем функциям системы.
                 </Paragraph>
               </Card>
             </Col>
@@ -293,7 +293,7 @@ const FeaturesPage = () => {
                   <Card className="step-mini-card" style={{ background: '#fff1f0', border: '1px solid #ffa39e' }}>
                     <CameraOutlined style={{ fontSize: 32, color: '#f5222d', marginBottom: 12 }} />
                     <Title level={5}>1. Фото "До"</Title>
-                    <Paragraph>Сфотографируйте дефект прямо в приложении</Paragraph>
+                    <Paragraph>Загрузи дефект в приложении</Paragraph>
                   </Card>
 
                   <Card className="step-mini-card" style={{ background: '#fff1f0', border: '1px solid #ffa39e' }}>
@@ -311,7 +311,7 @@ const FeaturesPage = () => {
                   <Card className="step-mini-card" style={{ background: '#fff1f0', border: '1px solid #ffa39e' }}>
                     <BellOutlined style={{ fontSize: 32, color: '#f5222d', marginBottom: 12 }} />
                     <Title level={5}>4. Уведомление</Title>
-                    <Paragraph>Подрядчик мгновенно получает Push-уведомление в мобильное приложение</Paragraph>
+                    <Paragraph>Подрядчик мгновенно получает email уведомление в приложение</Paragraph>
                   </Card>
                 </Space>
               </Card>
@@ -362,7 +362,7 @@ const FeaturesPage = () => {
                 <UserOutlined style={{ fontSize: 48, color: '#13c2c2', marginBottom: 24 }} />
                 <Title level={3}>Ролевая система доступа</Title>
                 <Paragraph className="large-text">
-                  В системе реализовано <strong>13 ролей</strong> с разными уровнями доступа:
+                  В системе реализовано <strong>14 ролей</strong> с разными уровнями доступа:
                 </Paragraph>
                 <Paragraph className="large-text" style={{ color: '#52c41a', fontWeight: 600 }}>
                   (По просьбе можем добавить еще роли БЕСПЛАТНО)
@@ -380,6 +380,7 @@ const FeaturesPage = () => {
                   <Col span={12}>
                     <div className="role-badge">Снабженец</div>
                     <div className="role-badge">Зав. Центрсклада</div>
+                    <div className="role-badge">Завсклад объекта</div>
                     <div className="role-badge">Технадзор</div>
                     <div className="role-badge">Авторский надзор</div>
                     <div className="role-badge">Наблюдатель</div>
@@ -531,61 +532,10 @@ const FeaturesPage = () => {
           </Row>
         </div>
 
-        {/* Шаг 8: Техусловия */}
+        {/* Шаг 8: Заявки на материалы */}
         <div className="feature-section">
           <div className="section-header">
-            <Badge count="8" style={{ backgroundColor: '#722ed1' }} />
-            <Title level={2} style={{ marginLeft: 16 }}>Техусловия — База знаний</Title>
-          </div>
-
-          <Row gutter={[48, 48]} align="middle">
-            <Col xs={24} lg={12}>
-              <Card className="feature-card">
-                <FileProtectOutlined style={{ fontSize: 48, color: '#722ed1', marginBottom: 24 }} />
-                <Title level={3}>Централизованное хранилище документов</Title>
-                <Paragraph className="large-text">
-                  Все технические условия, СНиПы, регламенты и инструкции в одном месте:
-                </Paragraph>
-                <Space direction="vertical" size="middle" style={{ width: '100%', marginTop: 16 }}>
-                  <div className="metric-item">
-                    <CloudUploadOutlined style={{ color: '#722ed1', marginRight: 8 }} />
-                    <Text strong>Загрузка документов PDF</Text>
-                  </div>
-                  <div className="metric-item">
-                    <CloudUploadOutlined style={{ color: '#722ed1', marginRight: 8 }} />
-                    <Text strong>Категоризация по типам работ</Text>
-                  </div>
-                  <div className="metric-item">
-                    <CloudUploadOutlined style={{ color: '#722ed1', marginRight: 8 }} />
-                    <Text strong>Привязка к проектам</Text>
-                  </div>
-                  <div className="metric-item">
-                    <CloudUploadOutlined style={{ color: '#722ed1', marginRight: 8 }} />
-                    <Text strong>Быстрый поиск по названию</Text>
-                  </div>
-                </Space>
-              </Card>
-            </Col>
-
-            <Col xs={24} lg={12}>
-              <Card className="feature-highlight" style={{ background: '#f9f0ff', border: '2px solid #722ed1' }}>
-                <Title level={4} style={{ color: '#722ed1' }}>Всегда под рукой</Title>
-                <Paragraph className="large-text">
-                  Больше не нужно искать техусловия в папках на компьютере или в архивах.
-                </Paragraph>
-                <Paragraph className="large-text">
-                  Вся команда проекта имеет мгновенный доступ к актуальной документации
-                  с любого устройства — компьютера, планшета или смартфона.
-                </Paragraph>
-              </Card>
-            </Col>
-          </Row>
-        </div>
-
-        {/* Шаг 9: Заявки на материалы */}
-        <div className="feature-section">
-          <div className="section-header">
-            <Badge count="9" style={{ backgroundColor: '#fa8c16' }} />
+            <Badge count="8" style={{ backgroundColor: '#fa8c16' }} />
             <Title level={2} style={{ marginLeft: 16 }}>Заявки на материалы — Контроль закупок</Title>
           </div>
 
@@ -593,32 +543,150 @@ const FeaturesPage = () => {
             <Col xs={24} lg={14}>
               <Card className="feature-card">
                 <ShoppingCartOutlined style={{ fontSize: 48, color: '#fa8c16', marginBottom: 24 }} />
-                <Title level={3}>Поэтапное согласование заявок</Title>
+                <Title level={3}>Гибкая цепочка согласования</Title>
                 <Paragraph className="large-text">
-                  Система контролирует весь процесс от создания заявки прорабом, начальником участка до приема на объекте.
+                  <strong>Настройте свою индивидуальную цепочку согласования!</strong> Каждая компания работает
+                  по-своему — кому-то нужны 3 этапа, кому-то 7. Выбирайте, кто и в каком порядке
+                  согласовывает заявки.
                 </Paragraph>
+                <Paragraph className="large-text" style={{ marginTop: 16 }}>
+                  Система контролирует весь процесс от создания заявки прорабом, начальником участка
+                  через согласование ИТР, руководителя проекта, главного инженера до снабженца и приема на объекте.
+                </Paragraph>
+                <Space direction="vertical" size="middle" style={{ width: '100%', marginTop: 16 }}>
+                  <div className="metric-item">
+                    <CheckCircleOutlined style={{ color: '#fa8c16', marginRight: 8 }} />
+                    <Text strong>Настройка цепочки в 3 клика через интерфейс</Text>
+                  </div>
+                  <div className="metric-item">
+                    <CheckCircleOutlined style={{ color: '#fa8c16', marginRight: 8 }} />
+                    <Text strong>17 статусов от "Черновик" до "Принято"</Text>
+                  </div>
+                  <div className="metric-item">
+                    <CheckCircleOutlined style={{ color: '#fa8c16', marginRight: 8 }} />
+                    <Text strong>Автоматический переход между этапами</Text>
+                  </div>
+                  <div className="metric-item">
+                    <CheckCircleOutlined style={{ color: '#fa8c16', marginRight: 8 }} />
+                    <Text strong>Возврат на доработку с комментарием</Text>
+                  </div>
+                </Space>
               </Card>
             </Col>
 
             <Col xs={24} lg={10}>
               <Card className="feature-highlight" style={{ background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)', border: 'none' }}>
                 <div style={{ textAlign: 'center', color: '#fff' }}>
+                  <FormOutlined style={{ fontSize: 60, marginBottom: 16 }} />
                   <Title level={3} style={{ color: '#fff' }}>Полный контроль</Title>
                   <Paragraph style={{ color: '#fff', fontSize: 16, lineHeight: 1.8 }}>
                     Каждый участник видит статус заявки и может отклонить её на любом этапе с комментарием.
                   </Paragraph>
                   <Paragraph style={{ color: '#fff', fontSize: 16, lineHeight: 1.8 }}>
                     Все действия записываются в историю. Руководство всегда знает,
-                    на каком этапе находится каждая заявка.
+                    на каком этапе находится каждая заявка и кто её задерживает.
                   </Paragraph>
                 </div>
               </Card>
 
               <Card className="feature-highlight" style={{ background: '#fff7e6', border: '2px solid #fa8c16', marginTop: 24 }}>
-                <Title level={4} style={{ color: '#fa8c16' }}>Уведомления</Title>
+                <BellOutlined style={{ fontSize: 32, color: '#fa8c16', marginBottom: 12 }} />
+                <Title level={4} style={{ color: '#fa8c16' }}>Уведомления в реальном времени</Title>
                 <Paragraph>
-                  Каждый участник получает Push-уведомление, когда заявка доходит до него.
-                  Никто не пропустит свою очередь согласования.
+                  Каждый участник получает email уведомление, когда заявка доходит до него.
+                  Никто не пропустит свою очередь согласования. Нет задержек из-за "не видел письмо"!
+                </Paragraph>
+              </Card>
+            </Col>
+          </Row>
+        </div>
+
+        {/* Шаг 9: Склад */}
+        <div className="feature-section">
+          <div className="section-header">
+            <Badge count="9" style={{ backgroundColor: '#52c41a' }} />
+            <Title level={2} style={{ marginLeft: 16 }}>Склад — Учет материалов на объекте</Title>
+          </div>
+
+          <Row gutter={[48, 48]} align="middle">
+            <Col xs={24} lg={12}>
+              <Card className="feature-card">
+                <InboxOutlined style={{ fontSize: 48, color: '#52c41a', marginBottom: 24 }} />
+                <Title level={3}>Полный контроль складских операций</Title>
+                <Paragraph className="large-text">
+                  Забудьте о бумажных накладных и потерянных материалах! Система автоматизирует
+                  весь процесс приемки, хранения и выдачи материалов:
+                </Paragraph>
+                <Space direction="vertical" size="middle" style={{ width: '100%', marginTop: 16 }}>
+                  <div className="metric-item">
+                    <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
+                    <Text strong>Приемка материалов — сканирование QR-кода, фото</Text>
+                  </div>
+                  <div className="metric-item">
+                    <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
+                    <Text strong>Актуальные остатки в реальном времени</Text>
+                  </div>
+                  <div className="metric-item">
+                    <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
+                    <Text strong>Выдача материалов прорабам с подписью</Text>
+                  </div>
+                  <div className="metric-item">
+                    <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
+                    <Text strong>История перемещений и списаний</Text>
+                  </div>
+                  <div className="metric-item">
+                    <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
+                    <Text strong>Инвентаризация за 15 минут вместо 2 дней</Text>
+                  </div>
+                </Space>
+              </Card>
+            </Col>
+
+            <Col xs={24} lg={12}>
+              <Card className="preview-card" style={{ background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)', border: 'none' }}>
+                <div style={{ textAlign: 'center', color: '#fff' }}>
+                  <ShopOutlined style={{ fontSize: 80, marginBottom: 24 }} />
+                  <Title level={3} style={{ color: '#fff' }}>Экономия времени и денег</Title>
+                  <Paragraph style={{ color: '#fff', fontSize: 16, lineHeight: 1.8 }}>
+                    Завсклад освобождается от рутинной работы с Excel и бумагами.
+                    Все операции выполняются в приложении за секунды.
+                  </Paragraph>
+                  <Paragraph style={{ color: '#fff', fontSize: 16, lineHeight: 1.8 }}>
+                    Руководство в любой момент видит, какие материалы есть на складе,
+                    кому выданы, сколько осталось. Никаких "потерявшихся" материалов!
+                  </Paragraph>
+                </div>
+              </Card>
+            </Col>
+          </Row>
+
+          <Row gutter={[24, 24]} style={{ marginTop: 32 }}>
+            <Col xs={24} md={8}>
+              <Card className="feature-highlight" style={{ background: '#f6ffed', border: '2px solid #52c41a', textAlign: 'center' }}>
+                <InboxOutlined style={{ fontSize: 40, color: '#52c41a', marginBottom: 16 }} />
+                <Title level={4} style={{ color: '#52c41a' }}>Приемка за 60 секунд</Title>
+                <Paragraph>
+                  Отсканировали QR-код → указали количество → сфотографировали → готово!
+                  Товар автоматически появился на складе.
+                </Paragraph>
+              </Card>
+            </Col>
+            <Col xs={24} md={8}>
+              <Card className="feature-highlight" style={{ background: '#f6ffed', border: '2px solid #52c41a', textAlign: 'center' }}>
+                <BellOutlined style={{ fontSize: 40, color: '#52c41a', marginBottom: 16 }} />
+                <Title level={4} style={{ color: '#52c41a' }}>Уведомления о минимумах</Title>
+                <Paragraph>
+                  Система предупреждает, когда материал заканчивается. Успеете заказать до простоя!
+                </Paragraph>
+              </Card>
+            </Col>
+            <Col xs={24} md={8}>
+              <Card className="feature-highlight" style={{ background: '#f6ffed', border: '2px solid #52c41a', textAlign: 'center' }}>
+                <BarChartOutlined style={{ fontSize: 40, color: '#52c41a', marginBottom: 16 }} />
+                <Title level={4} style={{ color: '#52c41a' }}>Аналитика расхода</Title>
+                <Paragraph>
+                  Смотрите, какие материалы расходуются быстрее всего, кто больше берет,
+                  планируйте закупки точнее.
                 </Paragraph>
               </Card>
             </Col>
@@ -754,33 +822,47 @@ const FeaturesPage = () => {
           </div>
 
           <Card className="final-workflow-card" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', border: 'none' }}>
-            <Row gutter={[32, 32]}>
-              <Col xs={24} md={12} lg={6}>
+            <Row gutter={[24, 24]} justify="center">
+              <Col xs={12} sm={8} lg={4}>
                 <div className="workflow-module">
                   <ProjectOutlined style={{ fontSize: 48, color: '#fff', marginBottom: 16 }} />
-                  <Title level={4} style={{ color: '#fff' }}>Проекты</Title>
-                  <Text style={{ color: '#fff' }}>Создание структуры</Text>
+                  <Title level={4} style={{ color: '#fff', fontSize: 16 }}>Проекты</Title>
+                  <Text style={{ color: '#fff', fontSize: 13 }}>Структура объектов</Text>
                 </div>
               </Col>
-              <Col xs={24} md={12} lg={6}>
+              <Col xs={12} sm={8} lg={4}>
                 <div className="workflow-module">
                   <FileTextOutlined style={{ fontSize: 48, color: '#fff', marginBottom: 16 }} />
-                  <Title level={4} style={{ color: '#fff' }}>Замечания</Title>
-                  <Text style={{ color: '#fff' }}>Фиксация дефектов</Text>
+                  <Title level={4} style={{ color: '#fff', fontSize: 16 }}>Замечания</Title>
+                  <Text style={{ color: '#fff', fontSize: 13 }}>Контроль дефектов</Text>
                 </div>
               </Col>
-              <Col xs={24} md={12} lg={6}>
+              <Col xs={12} sm={8} lg={4}>
                 <div className="workflow-module">
                   <ShoppingCartOutlined style={{ fontSize: 48, color: '#fff', marginBottom: 16 }} />
-                  <Title level={4} style={{ color: '#fff' }}>Заявки</Title>
-                  <Text style={{ color: '#fff' }}>Контроль закупок</Text>
+                  <Title level={4} style={{ color: '#fff', fontSize: 16 }}>Заявки</Title>
+                  <Text style={{ color: '#fff', fontSize: 13 }}>Согласование</Text>
                 </div>
               </Col>
-              <Col xs={24} md={12} lg={6}>
+              <Col xs={12} sm={8} lg={4}>
+                <div className="workflow-module">
+                  <InboxOutlined style={{ fontSize: 48, color: '#fff', marginBottom: 16 }} />
+                  <Title level={4} style={{ color: '#fff', fontSize: 16 }}>Склад</Title>
+                  <Text style={{ color: '#fff', fontSize: 13 }}>Учет материалов</Text>
+                </div>
+              </Col>
+              <Col xs={12} sm={8} lg={4}>
+                <div className="workflow-module">
+                  <DollarOutlined style={{ fontSize: 48, color: '#fff', marginBottom: 16 }} />
+                  <Title level={4} style={{ color: '#fff', fontSize: 16 }}>Тендеры</Title>
+                  <Text style={{ color: '#fff', fontSize: 13 }}>Поиск поставщиков</Text>
+                </div>
+              </Col>
+              <Col xs={12} sm={8} lg={4}>
                 <div className="workflow-module">
                   <BarChartOutlined style={{ fontSize: 48, color: '#fff', marginBottom: 16 }} />
-                  <Title level={4} style={{ color: '#fff' }}>Отчеты</Title>
-                  <Text style={{ color: '#fff' }}>Анализ и экспорт</Text>
+                  <Title level={4} style={{ color: '#fff', fontSize: 16 }}>Отчеты</Title>
+                  <Text style={{ color: '#fff', fontSize: 13 }}>Аналитика</Text>
                 </div>
               </Col>
             </Row>
@@ -789,6 +871,9 @@ const FeaturesPage = () => {
               <Title level={3} style={{ color: '#fff' }}>
                 = Полный цифровой контроль вашего строительства
               </Title>
+              <Paragraph style={{ color: '#fff', fontSize: 18, marginTop: 16, opacity: 0.9 }}>
+                От планирования до отчетности — всё в одной системе
+              </Paragraph>
             </div>
           </Card>
         </div>
@@ -797,13 +882,17 @@ const FeaturesPage = () => {
         <div className="features-cta-section">
           <div className="features-cta-content">
             <Title level={2} className="features-cta-title">
-              Готовы попробовать?
+              Готовы перевести строительство на новый уровень?
             </Title>
             <Paragraph className="features-cta-description">
-              Зарегистрируйтесь сейчас и получите 90 дней бесплатного доступа ко всем функциям.
+              Зарегистрируйтесь сейчас и получите <strong>60 дней бесплатного доступа</strong> ко всем функциям.
               Без банковских карт. Просто email и пароль.
             </Paragraph>
-            <Space size="large">
+            <Paragraph className="features-cta-description" style={{ fontSize: 18, marginTop: 16 }}>
+              После пробного периода — <strong>всего 30 000 ₸ в месяц за один проект</strong> с неограниченным
+              количеством пользователей! Подключайте всю команду — от директора до прораба.
+            </Paragraph>
+            <Space size="large" style={{ marginTop: 32 }}>
               <Button
                 type="primary"
                 size="large"
@@ -821,6 +910,9 @@ const FeaturesPage = () => {
                 Посмотреть тарифы
               </Button>
             </Space>
+            <Paragraph style={{ marginTop: 24, color: '#999', fontSize: 14 }}>
+              Больше проектов? Скидки до 20% при подключении от 5 объектов!
+            </Paragraph>
           </div>
         </div>
       </Content>

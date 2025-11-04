@@ -32,7 +32,7 @@ const PricingPage = () => {
     {
       icon: <ProjectOutlined />,
       title: 'Управление проектами',
-      description: 'Неограниченное количество проектов и объектов'
+      description: 'Полный контроль над вашими строительными объектами'
     },
     {
       icon: <BugOutlined />,
@@ -41,13 +41,13 @@ const PricingPage = () => {
     },
     {
       icon: <TeamOutlined />,
-      title: 'Команда без ограничений',
-      description: 'Добавляйте сколько угодно сотрудников и подрядчиков'
+      title: 'Неограниченное количество пользователей',
+      description: 'Добавляйте всю команду: сотрудников, подрядчиков, инженеров без доп. платы'
     },
     {
       icon: <ShoppingCartOutlined />,
       title: 'Заявки на материалы',
-      description: 'Поэтапная система согласование, от мастера до директора'
+      description: 'Поэтапная система согласования, от мастера до директора'
     },
     {
       icon: <DollarOutlined />,
@@ -56,8 +56,8 @@ const PricingPage = () => {
     },
     {
       icon: <FileTextOutlined />,
-      title: 'Техусловия и документация',
-      description: 'Централизованное хранилище всех документов'
+      title: 'Документооборот',
+      description: 'Централизованное хранилище всех проектных документов'
     },
     {
       icon: <BarChartOutlined />,
@@ -140,12 +140,12 @@ const PricingPage = () => {
 
             <Paragraph className="pricing-hero-description">
               Никаких скрытых платежей, никаких ограничений по функциям.
-              Платите только за количество активных пользователей.
+              Один проект — одна цена. Неограниченное количество пользователей!
             </Paragraph>
 
             <div className="pricing-highlight">
               <Text className="pricing-highlight-text">
-                🎁 Все функции включены в любой тариф
+                🎁 Неограниченное количество пользователей на каждый проект
               </Text>
             </div>
           </div>
@@ -163,32 +163,32 @@ const PricingPage = () => {
                     Месячная подписка
                   </Title>
                   <Paragraph className="pricing-card-subtitle">
-                    Подходит для небольших проектов и тестирования
+                    Подходит для краткосрочных проектов и тестирования
                   </Paragraph>
                 </div>
 
                 <div className="pricing-card-price">
                   <div className="price-amount">
-                    <span className="price-number">500</span>
+                    <span className="price-number">30 000</span>
                     <span className="price-currency">₸</span>
                   </div>
-                  <div className="price-period">за пользователя в месяц</div>
+                  <div className="price-period">за один проект в месяц</div>
                 </div>
 
                 <div className="pricing-card-calculation">
                   <Text type="secondary">Пример расчета:</Text>
                   <Space direction="vertical" size="small" style={{ width: '100%', marginTop: 12 }}>
                     <div className="calculation-item">
-                      <Text>5 пользователей</Text>
-                      <Text strong>2 500 ₸/мес</Text>
+                      <Text>1 проект</Text>
+                      <Text strong>30 000 ₸/мес</Text>
                     </div>
                     <div className="calculation-item">
-                      <Text>10 пользователей</Text>
-                      <Text strong>5 000 ₸/мес</Text>
+                      <Text>3 проекта</Text>
+                      <Text strong>90 000 ₸/мес</Text>
                     </div>
                     <div className="calculation-item">
-                      <Text>20 пользователей</Text>
-                      <Text strong>10 000 ₸/мес</Text>
+                      <Text>5 проектов</Text>
+                      <Text strong>150 000 ₸/мес</Text>
                     </div>
                   </Space>
                 </div>
@@ -211,9 +211,9 @@ const PricingPage = () => {
                   <List
                     size="small"
                     dataSource={[
+                      'Неограниченное количество пользователей',
                       'Оплата каждый месяц',
                       'Можно отменить в любой момент',
-                      'Идеально для краткосрочных проектов',
                       'Без долгосрочных обязательств'
                     ]}
                     renderItem={(item) => (
@@ -240,18 +240,18 @@ const PricingPage = () => {
                     Годовая подписка
                   </Title>
                   <Paragraph className="pricing-card-subtitle">
-                    Максимальная выгода для постоянного использования
+                    Максимальная выгода для долгосрочных проектов
                   </Paragraph>
                 </div>
 
                 <div className="pricing-card-price">
                   <div className="price-amount">
-                    <span className="price-number">5 000</span>
+                    <span className="price-number">300 000</span>
                     <span className="price-currency">₸</span>
                   </div>
-                  <div className="price-period">за пользователя (одноразовая оплата за год)</div>
+                  <div className="price-period">за один проект (одноразовая оплата за год)</div>
                   <div className="price-savings">
-                    2 месяца в подарок! Экономия 17%
+                    2 месяца в подарок! Экономия 60 000 ₸ (17%)
                   </div>
                 </div>
 
@@ -259,16 +259,16 @@ const PricingPage = () => {
                   <Text type="secondary">Пример расчета (одноразовый платеж):</Text>
                   <Space direction="vertical" size="small" style={{ width: '100%', marginTop: 12 }}>
                     <div className="calculation-item">
-                      <Text>5 пользователей</Text>
-                      <Text strong style={{ color: '#52c41a' }}>25 000 ₸</Text>
+                      <Text>1 проект</Text>
+                      <Text strong style={{ color: '#52c41a' }}>300 000 ₸</Text>
                     </div>
                     <div className="calculation-item">
-                      <Text>10 пользователей</Text>
-                      <Text strong style={{ color: '#52c41a' }}>50 000 ₸</Text>
+                      <Text>3 проекта</Text>
+                      <Text strong style={{ color: '#52c41a' }}>900 000 ₸</Text>
                     </div>
                     <div className="calculation-item">
-                      <Text>20 пользователей</Text>
-                      <Text strong style={{ color: '#52c41a' }}>100 000 ₸</Text>
+                      <Text>5 проектов</Text>
+                      <Text strong style={{ color: '#52c41a' }}>1 500 000 ₸</Text>
                     </div>
                   </Space>
                 </div>
@@ -291,10 +291,10 @@ const PricingPage = () => {
                   <List
                     size="small"
                     dataSource={[
+                      'Неограниченное количество пользователей',
                       'Платите за 10 месяцев, работаете 12 — экономия 17%',
                       'Приоритетная техподдержка',
-                      'Помощь в настройке системы',
-                      'Обучение команды'
+                      'Помощь в настройке системы и обучение команды'
                     ]}
                     renderItem={(item) => (
                       <List.Item style={{ border: 'none', padding: '6px 0' }}>
@@ -341,30 +341,30 @@ const PricingPage = () => {
         <div className="pricing-benefits-section">
           <Row gutter={[48, 48]} align="middle">
             <Col xs={24} lg={12}>
-              <Title level={2}>Почему единый тариф выгоден?</Title>
+              <Title level={2}>Почему посчетный тариф выгоден?</Title>
               <Space direction="vertical" size="large" style={{ width: '100%' }}>
                 <div className="benefit-item">
                   <div className="benefit-icon">
-                    <CloudOutlined style={{ fontSize: 32, color: '#1890ff' }} />
+                    <TeamOutlined style={{ fontSize: 32, color: '#52c41a' }} />
                   </div>
                   <div>
-                    <Title level={4} style={{ marginTop: 0 }}>Без ограничений</Title>
+                    <Title level={4} style={{ marginTop: 0 }}>Неограниченное количество пользователей</Title>
                     <Paragraph>
-                      Создавайте неограниченное количество проектов, замечаний, документов и заявок.
-                      Храните сколько угодно фотографий и файлов.
+                      Добавляйте в проект сколько угодно сотрудников, подрядчиков, инженеров и мастеров.
+                      Растите команду без дополнительных затрат!
                     </Paragraph>
                   </div>
                 </div>
 
                 <div className="benefit-item">
                   <div className="benefit-icon">
-                    <TeamOutlined style={{ fontSize: 32, color: '#52c41a' }} />
+                    <CloudOutlined style={{ fontSize: 32, color: '#1890ff' }} />
                   </div>
                   <div>
-                    <Title level={4} style={{ marginTop: 0 }}>Масштабируйтесь легко</Title>
+                    <Title level={4} style={{ marginTop: 0 }}>Без ограничений по функциям</Title>
                     <Paragraph>
-                      Добавляйте новых пользователей по мере роста команды. Платите только за активных
-                      сотрудников. Удаляйте неактивных пользователей без потери данных.
+                      Создавайте неограниченное количество замечаний, документов и заявок.
+                      Храните сколько угодно фотографий и файлов на каждом проекте.
                     </Paragraph>
                   </div>
                 </div>
@@ -374,10 +374,10 @@ const PricingPage = () => {
                     <CheckCircleOutlined style={{ fontSize: 32, color: '#722ed1' }} />
                   </div>
                   <div>
-                    <Title level={4} style={{ marginTop: 0 }}>Простой расчет</Title>
+                    <Title level={4} style={{ marginTop: 0 }}>Предсказуемые затраты</Title>
                     <Paragraph>
-                      Никаких сложных формул и скрытых комиссий. Количество пользователей × стоимость тарифа =
-                      ваш платеж. Всё прозрачно и понятно.
+                      Никаких сложных формул и скрытых комиссий. Один проект = фиксированная цена.
+                      Легко планировать бюджет строительства.
                     </Paragraph>
                   </div>
                 </div>
@@ -392,39 +392,39 @@ const PricingPage = () => {
 
                 <div className="comparison-table">
                   <div className="comparison-row header-row">
-                    <div className="comparison-cell">Пользователей</div>
+                    <div className="comparison-cell">Проектов</div>
                     <div className="comparison-cell">Месячный</div>
                     <div className="comparison-cell highlight">Годовой</div>
                   </div>
 
                   <div className="comparison-row">
+                    <div className="comparison-cell"><strong>1</strong></div>
+                    <div className="comparison-cell">30 000 ₸</div>
+                    <div className="comparison-cell highlight"><strong>300 000 ₸</strong></div>
+                  </div>
+
+                  <div className="comparison-row">
+                    <div className="comparison-cell"><strong>3</strong></div>
+                    <div className="comparison-cell">90 000 ₸</div>
+                    <div className="comparison-cell highlight"><strong>900 000 ₸</strong></div>
+                  </div>
+
+                  <div className="comparison-row">
                     <div className="comparison-cell"><strong>5</strong></div>
-                    <div className="comparison-cell">2 500 ₸</div>
-                    <div className="comparison-cell highlight"><strong>25 000 ₸</strong></div>
+                    <div className="comparison-cell">150 000 ₸</div>
+                    <div className="comparison-cell highlight"><strong>1 500 000 ₸</strong></div>
                   </div>
 
                   <div className="comparison-row">
                     <div className="comparison-cell"><strong>10</strong></div>
-                    <div className="comparison-cell">5 000 ₸</div>
-                    <div className="comparison-cell highlight"><strong>50 000 ₸</strong></div>
-                  </div>
-
-                  <div className="comparison-row">
-                    <div className="comparison-cell"><strong>20</strong></div>
-                    <div className="comparison-cell">10 000 ₸</div>
-                    <div className="comparison-cell highlight"><strong>100 000 ₸</strong></div>
-                  </div>
-
-                  <div className="comparison-row">
-                    <div className="comparison-cell"><strong>50</strong></div>
-                    <div className="comparison-cell">25 000 ₸</div>
-                    <div className="comparison-cell highlight"><strong>250 000 ₸</strong></div>
+                    <div className="comparison-cell">300 000 ₸</div>
+                    <div className="comparison-cell highlight"><strong>3 000 000 ₸</strong></div>
                   </div>
                 </div>
 
                 <div style={{ textAlign: 'center', marginTop: 24 }}>
                   <Text strong style={{ fontSize: 18, color: '#52c41a' }}>
-                    💰 Одноразовая оплата годового тарифа — экономия 17%!
+                    💰 Годовой тариф: 2 месяца в подарок — экономия 17%!
                   </Text>
                 </div>
               </Card>
@@ -441,10 +441,20 @@ const PricingPage = () => {
           <Row gutter={[32, 32]}>
             <Col xs={24} lg={12}>
               <Card className="faq-card">
-                <Title level={4}>Что считается активным пользователем?</Title>
+                <Title level={4}>Что входит в стоимость проекта?</Title>
                 <Paragraph>
-                  Активный пользователь — это сотрудник, который имеет доступ к системе и может работать с проектами.
-                  Вы можете деактивировать пользователей в любой момент, и они перестанут учитываться в оплате.
+                  Один проект = одна строительная площадка. В стоимость входит неограниченное количество пользователей,
+                  замечаний, документов, заявок и хранилище для фотографий без лимитов.
+                </Paragraph>
+              </Card>
+            </Col>
+
+            <Col xs={24} lg={12}>
+              <Card className="faq-card">
+                <Title level={4}>Сколько пользователей можно добавить?</Title>
+                <Paragraph>
+                  Неограниченное количество! Добавляйте всех участников проекта: сотрудников, подрядчиков,
+                  инженеров, мастеров и наблюдателей. Цена проекта не изменится.
                 </Paragraph>
               </Card>
             </Col>
@@ -463,7 +473,7 @@ const PricingPage = () => {
               <Card className="faq-card">
                 <Title level={4}>Есть ли пробный период?</Title>
                 <Paragraph>
-                  Да! Мы предоставляем 90 дней бесплатного использования с полным доступом ко всем функциям.
+                  Да! Мы предоставляем 60 дней бесплатного использования с полным доступом ко всем функциям.
                   Не требуется банковская карта для активации пробного периода. Вы просто проходите регистрацию.
                 </Paragraph>
               </Card>
@@ -481,19 +491,9 @@ const PricingPage = () => {
 
             <Col xs={24} lg={12}>
               <Card className="faq-card">
-                <Title level={4}>Что происходит с данными после отмены подписки?</Title>
-                <Paragraph>
-                  Ваши данные хранятся 90 дней после окончания подписки в режиме только для чтения.
-                  Вы можете экспортировать все данные в любой момент. После 90 дней данные удаляются.
-                </Paragraph>
-              </Card>
-            </Col>
-
-            <Col xs={24} lg={12}>
-              <Card className="faq-card">
                 <Title level={4}>Предоставляете ли вы скидки для крупных компаний?</Title>
                 <Paragraph>
-                  Да, для компаний с более чем 100 пользователями мы готовы обсудить индивидуальные условия.
+                  Да, для компаний с более чем 10 активными проектами мы готовы обсудить индивидуальные условия.
                   Свяжитесь с нами для получения персонального предложения.
                 </Paragraph>
               </Card>
@@ -508,7 +508,7 @@ const PricingPage = () => {
               Готовы начать?
             </Title>
             <Paragraph className="pricing-cta-description">
-              Попробуйте Check Site бесплатно в течение 90 дней.
+              Попробуйте Check Site бесплатно в течение 60 дней.
               Полный доступ ко всем функциям без ввода банковской карты.
             </Paragraph>
             <Space size="large">
@@ -549,11 +549,11 @@ const PricingPage = () => {
             <Space direction="vertical" size="small">
               <Space>
                 <MailOutlined />
-                <Text>info@checksite.kz</Text>
+                <Text>stroyka.asia@gmail.com</Text>
               </Space>
               <Space>
                 <PhoneOutlined />
-                <Text>+7 (777) 123-45-67</Text>
+                <Text>+7 (777) 632-36-16</Text>
               </Space>
             </Space>
           </Col>

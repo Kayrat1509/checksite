@@ -9,6 +9,7 @@ import LandingPage from './pages/Home/LandingPage'
 import PricingPage from './pages/Home/PricingPage'
 import AboutServicePage from './pages/Home/AboutServicePage'
 import FeaturesPage from './pages/Home/FeaturesPage'
+import ContactPage from './pages/Home/ContactPage'
 import Login from './pages/Auth/Login'
 import Register from './pages/Auth/Register'
 import Dashboard from './pages/Dashboard'
@@ -92,6 +93,7 @@ function App() {
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/about-service" element={<AboutServicePage />} />
           <Route path="/features" element={<FeaturesPage />} />
+          <Route path="/contact" element={<ContactPage />} />
           <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />} />
           <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Register />} />
 

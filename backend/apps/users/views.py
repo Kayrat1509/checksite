@@ -270,7 +270,7 @@ class UserViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
         dataset.append([
             'Иванов Иван Иванович',
             'ivanov@example.com',
-            '+7 777 123 45 67',
+            '+7 777 632 36 16',
             'Прораб',
             'Прораб',
             'Ваша компания',

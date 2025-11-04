@@ -130,7 +130,7 @@ const LandingPage = () => {
               { key: 'service', label: 'Наша история', onClick: () => navigate('/about-service') },
               { key: 'pricing', label: 'Тариф', onClick: () => navigate('/pricing') },
               { key: 'features', label: 'Функции', onClick: () => navigate('/features') },
-              { key: 'contacts', label: 'Контакты' }
+              { key: 'contacts', label: 'Контакты', onClick: () => navigate('/contact') }
             ]}
           />
 

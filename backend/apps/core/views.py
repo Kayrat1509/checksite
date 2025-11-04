@@ -566,3 +566,105 @@ class ButtonAccessViewSet(viewsets.ReadOnlyModelViewSet):
             'accessible_pages': accessible_pages,
             'all_pages': all_pages_dict
         })
+
+
+class ContactFormViewSet(viewsets.ViewSet):
+    """
+    ViewSet для обработки формы обратной связи с лендинга.
+
+    Endpoints:
+    - POST /api/contact-form/ - отправить сообщение с формы обратной связи
+    """
+
+    permission_classes = []  # Публичный endpoint, авторизация не требуется
+
+    @action(detail=False, methods=['post'])
+    def submit(self, request):
+        """
+        Отправить сообщение с формы обратной связи.
+
+        Body:
+        {
+            "name": "Иван Иванов",
+            "email": "ivan@company.kz",
+            "phone": "+7 (777) 123-45-67",
+            "company": "ООО 'Стройка'",  # опционально
+            "message": "Интересует демонстрация системы"
+        }
+
+        Response:
+        {
+            "success": true,
+            "message": "Сообщение успешно отправлено"
+        }
+        """
+        from django.core.mail import send_mail
+        from django.conf import settings
+
+        # Валидация обязательных полей
+        required_fields = ['name', 'email', 'phone', 'message']
+        for field in required_fields:
+            if not request.data.get(field):
+                return Response(
+                    {'error': f'Поле "{field}" обязательно для заполнения'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        name = request.data.get('name')
+        email = request.data.get('email')
+        phone = request.data.get('phone')
+        company = request.data.get('company', '—')
+        message = request.data.get('message')
+
+        # Формируем тело письма
+        email_subject = f'[Check Site] Новое обращение с сайта от {name}'
+        email_body = f"""
+Получено новое обращение с формы обратной связи на сайте Check Site.
+
+Контактные данные:
+--------------------
+Имя: {name}
+Email: {email}
+Телефон: {phone}
+Компания: {company}
+
+Сообщение:
+--------------------
+{message}
+
+--------------------
+Дата обращения: {timezone.now().strftime('%d.%m.%Y %H:%M')}
+"""
+
+        try:
+            # Отправляем email на адрес компании
+            send_mail(
+                subject=email_subject,
+                message=email_body,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=['stroyka.asia@gmail.com'],
+                fail_silently=True,  # Не падать при ошибках email (для разработки)
+            )
+
+            # Логируем в консоль для разработки
+            print(f"\n{'='*80}")
+            print(f"НОВОЕ ОБРАЩЕНИЕ С ФОРМЫ КОНТАКТОВ")
+            print(f"{'='*80}")
+            print(f"От: {name} ({email})")
+            print(f"Телефон: {phone}")
+            print(f"Компания: {company}")
+            print(f"Сообщение:\n{message}")
+            print(f"{'='*80}\n")
+
+            return Response({
+                'success': True,
+                'message': 'Спасибо за обращение! Мы свяжемся с вами в ближайшее время.'
+            })
+
+        except Exception as e:
+            print(f"Ошибка при отправке email: {str(e)}")
+            # Даже при ошибке отправки email, возвращаем успех, так как данные получены
+            return Response({
+                'success': True,
+                'message': 'Спасибо за обращение! Мы свяжемся с вами в ближайшее время.'
+            })
