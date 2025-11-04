@@ -1,73 +1,20 @@
-import { Button, Layout, Typography, Row, Col, Card, Form, Input, message } from 'antd'
+import { Button, Layout, Typography, Row, Col, Card } from 'antd'
 import {
   CheckCircleOutlined,
   MailOutlined,
   PhoneOutlined,
   EnvironmentOutlined,
-  SendOutlined,
   HomeOutlined,
   RocketOutlined
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import { useState } from 'react'
 import './ContactPage.css'
 
 const { Header, Content, Footer } = Layout
 const { Title, Paragraph, Text } = Typography
-const { TextArea } = Input
 
 const ContactPage = () => {
   const navigate = useNavigate()
-  const [form] = Form.useForm()
-  const [loading, setLoading] = useState(false)
-
-  const handleSubmit = async (values: any) => {
-    setLoading(true)
-    try {
-      // Определяем API URL в зависимости от окружения
-      const getApiUrl = () => {
-        // Если переменная окружения установлена - используем её
-        if (import.meta.env.VITE_API_BASE_URL) {
-          return import.meta.env.VITE_API_BASE_URL
-        }
-        // Если мы на продакшене (stroyka.asia) - используем относительный путь или продакшн API
-        if (window.location.hostname.includes('stroyka.asia')) {
-          return 'https://stroyka.asia'  // Или 'https://api.stroyka.asia' если API на отдельном домене
-        }
-        // Локальная разработка
-        return 'http://localhost:8001'
-      }
-
-      // Отправляем данные на бэкенд
-      const response = await fetch(`${getApiUrl()}/api/contact-form/submit/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: values.name,
-          email: values.email,
-          phone: values.phone,
-          company: values.company || '',
-          message: values.message,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok && data.success) {
-        message.success(data.message || 'Спасибо за обращение! Мы свяжемся с вами в ближайшее время.')
-        form.resetFields()
-      } else {
-        message.error(data.error || 'Произошла ошибка. Пожалуйста, попробуйте позже.')
-      }
-    } catch (error) {
-      console.error('Ошибка при отправке формы:', error)
-      message.error('Произошла ошибка. Пожалуйста, попробуйте позже.')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   return (
     <Layout className="contact-layout">
@@ -117,82 +64,7 @@ const ContactPage = () => {
 
         {/* Основной контент */}
         <div className="contact-main-section">
-          <Row gutter={[48, 48]}>
-            {/* Форма обратной связи */}
-            <Col xs={24} lg={12}>
-              <Card className="contact-form-card">
-                <Title level={3} style={{ marginBottom: 24 }}>
-                  Напишите нам
-                </Title>
-                <Form
-                  form={form}
-                  layout="vertical"
-                  onFinish={handleSubmit}
-                  size="large"
-                >
-                  <Form.Item
-                    label="Ваше имя"
-                    name="name"
-                    rules={[{ required: true, message: 'Пожалуйста, укажите ваше имя' }]}
-                  >
-                    <Input placeholder="Иван Иванов" />
-                  </Form.Item>
-
-                  <Form.Item
-                    label="Email"
-                    name="email"
-                    rules={[
-                      { required: true, message: 'Пожалуйста, укажите email' },
-                      { type: 'email', message: 'Пожалуйста, укажите корректный email' }
-                    ]}
-                  >
-                    <Input placeholder="ivan@company.kz" prefix={<MailOutlined />} />
-                  </Form.Item>
-
-                  <Form.Item
-                    label="Телефон"
-                    name="phone"
-                    rules={[{ required: true, message: 'Пожалуйста, укажите телефон' }]}
-                  >
-                    <Input placeholder="+7 (777) 123-45-67" prefix={<PhoneOutlined />} />
-                  </Form.Item>
-
-                  <Form.Item
-                    label="Компания"
-                    name="company"
-                  >
-                    <Input placeholder="Название вашей компании" />
-                  </Form.Item>
-
-                  <Form.Item
-                    label="Ваше сообщение"
-                    name="message"
-                    rules={[{ required: true, message: 'Пожалуйста, напишите ваше сообщение' }]}
-                  >
-                    <TextArea
-                      rows={5}
-                      placeholder="Расскажите, чем мы можем помочь..."
-                      showCount
-                      maxLength={1000}
-                    />
-                  </Form.Item>
-
-                  <Form.Item>
-                    <Button
-                      type="primary"
-                      htmlType="submit"
-                      size="large"
-                      block
-                      icon={<SendOutlined />}
-                      loading={loading}
-                    >
-                      Отправить сообщение
-                    </Button>
-                  </Form.Item>
-                </Form>
-              </Card>
-            </Col>
-
+          <Row gutter={[48, 48]} justify="center">
             {/* Контактная информация */}
             <Col xs={24} lg={12}>
               <div className="contact-info-section">

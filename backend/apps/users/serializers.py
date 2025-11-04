@@ -70,21 +70,22 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        """Create user with auto-generated password and assign to projects."""
-        import secrets
-        import string
+        """
+        Create user with auto-generated password and assign to projects.
+
+        Использует постоянный пароль и асинхронную отправку через Celery
+        с профессиональными HTML-шаблонами (аналогично импорту Excel).
+        """
+        from .utils.password_generator import generate_and_hash_password
+        from .tasks import send_permanent_credentials_email
+        import logging
+
+        logger = logging.getLogger(__name__)
 
         project_ids = validated_data.pop('project_ids', [])
 
-        # Автоматическая генерация безопасного пароля (12 символов: буквы, цифры, спецсимволы)
-        alphabet = string.ascii_letters + string.digits + '!@#$%^&*'
-        password = ''.join(secrets.choice(alphabet) for i in range(12))
-
-        # Убеждаемся что пароль содержит как минимум одну букву, одну цифру и один спецсимвол
-        while not (any(c.isalpha() for c in password) and
-                   any(c.isdigit() for c in password) and
-                   any(c in '!@#$%^&*' for c in password)):
-            password = ''.join(secrets.choice(alphabet) for i in range(12))
+        # Генерируем постоянный пароль (12 символов: буквы, цифры, спецсимволы)
+        plain_password, hashed_password = generate_and_hash_password(length=12)
 
         # Если компания не указана, используем компанию текущего пользователя
         if 'company' not in validated_data or validated_data.get('company') is None:
@@ -92,56 +93,43 @@ class UserCreateSerializer(serializers.ModelSerializer):
             if request and hasattr(request, 'user') and request.user.company:
                 validated_data['company'] = request.user.company
 
-        # Создаем пользователя с указанным паролем
-        user = User.objects.create_user(password=password, **validated_data)
+        # Определяем категорию роли
+        management_roles = [
+            'DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER',
+            'SITE_MANAGER', 'FOREMAN'
+        ]
+        role = validated_data.get('role')
+        role_category = 'MANAGEMENT' if role in management_roles else 'ITR_SUPPLY'
 
-        # Сохраняем временный пароль для отображения администратору
-        user.temp_password = password
+        # Создаем пользователя с постоянным паролем
+        user = User.objects.create(
+            password=hashed_password,
+            role_category=role_category,
+            is_active=True,
+            approved=True,
+            password_change_required=False,  # Постоянный пароль - НЕ требует смены
+            **validated_data
+        )
+
+        # Сохраняем временный пароль для отображения администратору (для обратной совместимости)
+        user.temp_password = plain_password
         user.save(update_fields=['temp_password'])
 
         # Привязываем пользователя к проектам
         if project_ids:
             from apps.projects.models import Project
             projects = Project.objects.filter(id__in=project_ids, company=user.company)
-            for project in projects:
-                project.team_members.add(user)
+            user.projects.set(projects)
 
-        # Send credentials via email (optional, don't fail if email sending fails)
+        # Асинхронная отправка credentials через Celery с HTML-шаблонами
         try:
-            self.send_credentials_email(user, password)
+            send_permanent_credentials_email.delay(user.id, plain_password)
+            logger.info(f'Celery задача отправки email запланирована для пользователя {user.email}')
         except Exception as e:
-            # Log error but don't fail user creation
-            print(f"Failed to send credentials email: {e}")
+            # Логируем ошибку, но не падаем при создании пользователя
+            logger.error(f'Ошибка при планировании отправки email для {user.email}: {str(e)}')
 
         return user
-
-    def send_credentials_email(self, user, password):
-        """Send login credentials to user's email."""
-        subject = 'Доступ к системе Check Site'
-        message = f"""
-        Здравствуйте, {user.get_full_name()}!
-
-        Для вас создана учетная запись в системе Check Site.
-
-        Данные для входа:
-        Email: {user.email}
-        Пароль: {password}
-
-        Ссылка для входа: {settings.ALLOWED_HOSTS[0]}/login
-
-        Рекомендуем сменить пароль после первого входа.
-
-        С уважением,
-        Команда Check Site
-        """
-
-        send_mail(
-            subject,
-            message,
-            settings.DEFAULT_FROM_EMAIL,
-            [user.email],
-            fail_silently=True,  # Don't fail if email sending fails
-        )
 
 
 class RegisterSerializer(serializers.ModelSerializer):
