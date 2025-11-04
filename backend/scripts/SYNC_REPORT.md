@@ -71,7 +71,7 @@
 
 3. **Проверьте текущее состояние (до применения):**
    ```sql
-   SELECT COUNT(*) FROM core_buttonaccess WHERE company_id IS NULL;
+   SELECT COUNT(*) FROM core_button_access WHERE company_id IS NULL;
    -- Должно показать: 89
    ```
 
@@ -82,16 +82,16 @@
 
 5. **Проверьте результат (после применения):**
    ```sql
-   SELECT COUNT(*) FROM core_buttonaccess WHERE company_id IS NULL;
+   SELECT COUNT(*) FROM core_button_access WHERE company_id IS NULL;
    -- Должно показать: 102
 
-   SELECT COUNT(*) FROM core_buttonaccess WHERE company_id IS NULL AND access_type = 'button';
+   SELECT COUNT(*) FROM core_button_access WHERE company_id IS NULL AND access_type = 'button';
    -- Должно показать: 89
 
-   SELECT COUNT(*) FROM core_buttonaccess WHERE company_id IS NULL AND access_type = 'page';
+   SELECT COUNT(*) FROM core_button_access WHERE company_id IS NULL AND access_type = 'page';
    -- Должно показать: 13
 
-   SELECT * FROM core_buttonaccess WHERE page = 'settings/approval-flow';
+   SELECT * FROM core_button_access WHERE page = 'settings/approval-flow';
    -- Должно показать: 5 записей (1 страница + 4 кнопки)
    ```
 
@@ -146,11 +146,33 @@
 
 После применения скрипта убедитесь, что:
 
-- [x] В продакшн БД стало 102 записи (было 89)
-- [x] Страница `/admin/core/buttonaccess/` показывает "13 Страниц (по компаниям)"
-- [x] Страница `/admin/core/buttonaccess/` показывает "89 Кнопок"
-- [x] В продакшн admin-панели видна страница "settings/approval-flow"
-- [x] Пользователи с правами видят страницу "Настройки цепочки согласования" в меню
+- [ ] В продакшн БД стало 102 записи (было 89)
+- [ ] Страница `/admin/core/buttonaccess/` показывает "13 Страниц (по компаниям)"
+- [ ] Страница `/admin/core/buttonaccess/` показывает "89 Кнопок"
+- [ ] В продакшн admin-панели видна страница "settings/approval-flow"
+- [ ] Пользователи с правами видят страницу "Настройки цепочки согласования" в меню
+
+**Команды для проверки в продакшн:**
+```bash
+# Подключение к продакшн БД
+psql -h <prod-host> -U <prod-user> -d <prod-db>
+
+# Проверка количества записей
+SELECT COUNT(*) FROM core_button_access WHERE company_id IS NULL;
+-- Ожидается: 102
+
+# Проверка кнопок
+SELECT COUNT(*) FROM core_button_access WHERE company_id IS NULL AND access_type = 'button';
+-- Ожидается: 89
+
+# Проверка страниц
+SELECT COUNT(*) FROM core_button_access WHERE company_id IS NULL AND access_type = 'page';
+-- Ожидается: 13
+
+# Проверка settings/approval-flow
+SELECT id, access_type, button_key, button_name FROM core_button_access WHERE page = 'settings/approval-flow';
+-- Ожидается: 5 записей
+```
 
 ---
 
