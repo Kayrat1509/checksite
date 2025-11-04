@@ -24,8 +24,22 @@ const ContactPage = () => {
   const handleSubmit = async (values: any) => {
     setLoading(true)
     try {
+      // Определяем API URL в зависимости от окружения
+      const getApiUrl = () => {
+        // Если переменная окружения установлена - используем её
+        if (import.meta.env.VITE_API_BASE_URL) {
+          return import.meta.env.VITE_API_BASE_URL
+        }
+        // Если мы на продакшене (stroyka.asia) - используем относительный путь или продакшн API
+        if (window.location.hostname.includes('stroyka.asia')) {
+          return 'https://stroyka.asia'  // Или 'https://api.stroyka.asia' если API на отдельном домене
+        }
+        // Локальная разработка
+        return 'http://localhost:8001'
+      }
+
       // Отправляем данные на бэкенд
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'}/api/contact-form/submit/`, {
+      const response = await fetch(`${getApiUrl()}/api/contact-form/submit/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
