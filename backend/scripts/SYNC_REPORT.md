@@ -182,6 +182,7 @@ SELECT id, access_type, button_key, button_name FROM core_button_access WHERE pa
 - `access_type` = 'button' или 'page'
 - `company_id` = NULL (глобальные настройки)
 - `default_access` = FALSE (доступ по ролям)
+- `SUPERADMIN` = TRUE (суперадмин всегда имеет доступ ко всем функциям)
 
 **ID диапазоны:**
 - 140-143: settings/approval-flow (кнопки)
@@ -189,6 +190,19 @@ SELECT id, access_type, button_key, button_name FROM core_button_access WHERE pa
 - 151-156: material-requests (кнопки workflow)
 - 157: issues (кнопка)
 - 158: recycle-bin (кнопка)
+
+**Структура полей в SQL:**
+```sql
+INSERT INTO core_button_access (
+    id, access_type, company_id, page, button_key, button_name, description,
+    default_access, created_at, updated_at,
+    "SUPERADMIN", "DIRECTOR", "CHIEF_ENGINEER", "PROJECT_MANAGER", "ENGINEER", "SITE_MANAGER",
+    "FOREMAN", "MASTER", "SUPERVISOR", "CONTRACTOR", "OBSERVER",
+    "SUPPLY_MANAGER", "WAREHOUSE_HEAD", "SITE_WAREHOUSE_MANAGER"
+)
+```
+
+**Примечание:** Поле `SUPERADMIN` всегда установлено в `TRUE` для всех записей, что означает, что пользователи с ролью SUPERADMIN имеют полный доступ ко всем функциям системы.
 
 ---
 
