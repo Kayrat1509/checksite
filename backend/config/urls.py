@@ -20,6 +20,7 @@ urlpatterns = [
     path('api/auth/', include('apps.users.urls')),
     path('api/projects/', include('apps.projects.urls')),
     path('api/issues/', include('apps.issues.urls')),
+    path('api/', include('apps.tasks.urls')),  # Задачи
     path('api/notifications/', include('apps.notifications.urls')),
     path('api/reports/', include('apps.reports.urls')),
     path('api/', include('apps.technical_conditions.urls')),

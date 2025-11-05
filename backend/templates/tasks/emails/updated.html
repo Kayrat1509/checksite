@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Задача изменена - {{ task.task_number }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f4f4; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 30px auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%); color: white; padding: 30px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
+        .icon { font-size: 48px; margin-bottom: 10px; }
+        .content { padding: 30px; }
+        .task-box { background-color: #f8f9fa; border-left: 4px solid #2196F3; padding: 20px; margin: 25px 0; border-radius: 4px; }
+        .task-box h3 { margin-top: 0; color: #2196F3; font-size: 18px; }
+        .task-info-item { display: flex; margin: 10px 0; padding: 8px 0; border-bottom: 1px solid #e0e0e0; }
+        .task-info-label { font-weight: bold; min-width: 140px; color: #666; }
+        .deadline { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px; }
+        .button { display: inline-block; padding: 12px 30px; background-color: #2196F3; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
+        .footer { background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="icon">✏️</div>
+            <h1>Задача изменена</h1>
+        </div>
+        <div class="content">
+            <p>Здравствуйте, <strong>{{ recipient_name }}</strong>!</p>
+            <p>Задача <strong>{{ task.task_number }}</strong> была изменена.</p>
+            <div class="task-box">
+                <h3>{{ task.title }}</h3>
+                <div class="task-info-item"><span class="task-info-label">Номер задачи:</span><span>{{ task.task_number }}</span></div>
+                <div class="task-info-item"><span class="task-info-label">От кого:</span><span>{{ created_by_name }}</span></div>
+                <div class="task-info-item"><span class="task-info-label">Дата изменения:</span><span>{{ task.updated_at|date:"d.m.Y H:i" }}</span></div>
+            </div>
+            <div class="deadline"><strong>⏰ Новый срок исполнения:</strong> {{ task.deadline|date:"d.m.Y H:i" }}</div>
+            <h4>Описание задачи:</h4>
+            <div style="background:#fff;border:1px solid #e0e0e0;padding:15px;border-radius:4px;white-space:pre-wrap;">{{ task.description }}</div>
+            <div style="text-align:center;"><a href="{{ task_url }}" class="button">Открыть задачу</a></div>
+        </div>
+        <div class="footer">
+            <p>Это автоматическое уведомление из системы <strong>{{ site_name }}</strong></p>
+            <p><a href="{{ site_url }}" style="color:#2196F3;text-decoration:none;">Перейти в систему</a></p>
+        </div>
+    </div>
+</body>
+</html>

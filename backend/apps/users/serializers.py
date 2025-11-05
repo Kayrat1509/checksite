@@ -118,8 +118,22 @@ class UserCreateSerializer(serializers.ModelSerializer):
         # Привязываем пользователя к проектам
         if project_ids:
             from apps.projects.models import Project
+            from apps.projects.tasks import send_project_assignment_notification
+
             projects = Project.objects.filter(id__in=project_ids, company=user.company)
             user.projects.set(projects)
+
+            # Отправляем уведомление о добавлении в каждый проект
+            for project in projects:
+                try:
+                    send_project_assignment_notification.delay(
+                        user_id=user.id,
+                        project_id=project.id,
+                        action='added',
+                        assigned_by_id=None  # Создал себя сам (или админ при создании)
+                    )
+                except Exception as e:
+                    logger.error(f'Ошибка при отправке email о назначении на проект {project.id}: {str(e)}')
 
         # Асинхронная отправка credentials через Celery с HTML-шаблонами
         try:
@@ -300,6 +314,18 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         # Обновляем привязку к проектам если указаны project_ids
         if project_ids is not None:
             from apps.projects.models import Project
+            from apps.projects.tasks import send_project_assignment_notification
+
+            # Получаем старые и новые проекты
+            old_projects = set(instance.projects.all().values_list('id', flat=True))
+            new_projects_ids = set(project_ids)
+
+            # Проекты, из которых пользователь был удален
+            removed_project_ids = old_projects - new_projects_ids
+
+            # Проекты, в которые пользователь был добавлен
+            added_project_ids = new_projects_ids - old_projects
+
             # Удаляем пользователя из всех проектов
             for project in instance.projects.all():
                 project.team_members.remove(instance)
@@ -308,6 +334,30 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             projects = Project.objects.filter(id__in=project_ids, company=instance.company)
             for project in projects:
                 project.team_members.add(instance)
+
+            # Отправляем email уведомления о добавлении в новые проекты
+            for project_id in added_project_ids:
+                try:
+                    send_project_assignment_notification.delay(
+                        user_id=instance.id,
+                        project_id=project_id,
+                        action='added',
+                        assigned_by_id=None
+                    )
+                except Exception as e:
+                    logger.error(f'Ошибка при отправке email о назначении на проект {project_id}: {str(e)}')
+
+            # Отправляем email уведомления об удалении из старых проектов
+            for project_id in removed_project_ids:
+                try:
+                    send_project_assignment_notification.delay(
+                        user_id=instance.id,
+                        project_id=project_id,
+                        action='removed',
+                        assigned_by_id=None
+                    )
+                except Exception as e:
+                    logger.error(f'Ошибка при отправке email об удалении из проекта {project_id}: {str(e)}')
 
         return instance
 

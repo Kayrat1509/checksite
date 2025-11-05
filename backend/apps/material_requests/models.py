@@ -197,6 +197,18 @@ class MaterialRequest(SoftDeleteMixin, models.Model):
         # Переходим на первый этап
         self.move_to_next_step()
 
+        # Отправляем email уведомление первому согласующему
+        from .tasks import send_material_request_notification
+        try:
+            send_material_request_notification.delay(
+                request_id=self.id,
+                notification_type='created'
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'Ошибка при отправке email о создании заявки {self.request_number}: {str(e)}')
+
     def _create_default_approval_flow(self):
         """Создает default цепочку согласования если её нет"""
         from .approval_models import ApprovalFlowTemplate, ApprovalStep
@@ -243,6 +255,19 @@ class MaterialRequest(SoftDeleteMixin, models.Model):
             self.current_step = None
             self.responsible = None
             self.save(update_fields=['status', 'current_step', 'responsible'])
+
+            # Отправляем email автору о полном согласовании
+            from .tasks import send_material_request_notification
+            try:
+                send_material_request_notification.delay(
+                    request_id=self.id,
+                    notification_type='fully_approved'
+                )
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f'Ошибка при отправке email о полном согласовании заявки {self.request_number}: {str(e)}')
+
             return
 
         step = next_approval.step
@@ -274,6 +299,21 @@ class MaterialRequest(SoftDeleteMixin, models.Model):
         self.responsible = approver
         self.status = self.Status.IN_PROGRESS
         self.save(update_fields=['current_step', 'responsible', 'status'])
+
+        # Отправляем email новому согласующему (если это не первый этап - для первого уже отправили в initialize_approval_flow)
+        # Проверяем, есть ли уже согласованные этапы
+        has_approved_steps = self.approvals.filter(status='APPROVED').exists()
+        if has_approved_steps and approver:
+            from .tasks import send_material_request_notification
+            try:
+                send_material_request_notification.delay(
+                    request_id=self.id,
+                    notification_type='step_approved'
+                )
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f'Ошибка при отправке email о новом этапе согласования заявки {self.request_number}: {str(e)}')
 
     def _find_approver_for_step(self, step):
         """
@@ -335,7 +375,7 @@ class MaterialRequest(SoftDeleteMixin, models.Model):
             comment=comment
         )
 
-        # Переходим к следующему этапу
+        # Переходим к следующему этапу (внутри этого метода отправятся email уведомления)
         self.move_to_next_step()
 
     def reject_request(self, user, comment):
@@ -386,6 +426,20 @@ class MaterialRequest(SoftDeleteMixin, models.Model):
             new_status="Отклонено",
             comment=comment
         )
+
+        # Отправляем email автору об отклонении
+        from .tasks import send_material_request_notification
+        try:
+            send_material_request_notification.delay(
+                request_id=self.id,
+                notification_type='rejected',
+                rejection_reason=comment,
+                rejected_by_name=user.get_full_name()
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'Ошибка при отправке email об отклонении заявки {self.request_number}: {str(e)}')
 
     def _log_history(self, user, old_status, new_status, comment=''):
         """Добавление записи в историю заявки"""

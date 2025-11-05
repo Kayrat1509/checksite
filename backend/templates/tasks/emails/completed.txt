@@ -1,0 +1,14 @@
+✅ ЗАДАЧА ВЫПОЛНЕНА
+
+Здравствуйте, {{ recipient_name }}!
+
+Задача {{ task.task_number }}, которую вы назначили, выполнена!
+
+Название:         {{ task.title }}
+Исполнитель:      {{ assignee_name }}
+Дата выполнения:  {{ task.completed_at|date:"d.m.Y H:i" }}
+
+Открыть задачу: {{ task_url }}
+
+---
+{{ site_name }} - {{ site_url }}

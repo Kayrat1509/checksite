@@ -19,6 +19,7 @@ import {
   SettingOutlined,
   UsergroupAddOutlined, // НОВАЯ ИКОНКА: для меню "Персонал"
   CheckCircleOutlined, // НОВАЯ ИКОНКА: для цепочки согласования
+  CheckSquareOutlined, // НОВАЯ ИКОНКА: для задач
 } from '@ant-design/icons'
 // УДАЛЕНО: FileProtectOutlined - использовалась для техусловий, больше не нужна
 import { useAuthStore } from '../../stores/authStore'
@@ -39,9 +40,9 @@ const MainLayout = () => {
   // Список allowedPages загружается из БД при логине через API /settings/page-access/my-pages/
 
   // ===== ОБНОВЛЕННАЯ СТРУКТУРА МЕНЮ =====
-  // Новая последовательность: Дашборд, Проекты, Персонал, Замечания, Заявки, Склад, Тендеры, Отчеты, Настройки
+  // Новая последовательность: Дашборд, Проекты, Персонал, Замечания, Задачи, Заявки, Склад, Тендеры, Отчеты, Настройки
   // "Персонал" объединяет: Сотрудники, Подрядчики, Надзоры
-  // "Настройки" объединяет: Управление доступом, Настройки системы
+  // "Настройки" объединяет: Настройки системы, Цепочка согласования
   // УДАЛЕНО: Техусловия (technical-conditions)
   const allMenuItems = [
     // 1. Дашборд
@@ -103,7 +104,16 @@ const MainLayout = () => {
       visible: hasPageAccess('issues'),
     },
 
-    // 5. Заявки
+    // 5. Задачи
+    {
+      key: '/dashboard/tasks',
+      icon: <CheckSquareOutlined />,
+      label: <Link to="/dashboard/tasks">Задачи</Link>,
+      page: 'tasks',
+      visible: hasPageAccess('tasks'),
+    },
+
+    // 6. Заявки
     {
       key: '/dashboard/material-requests',
       icon: <ShoppingCartOutlined />,
@@ -112,7 +122,7 @@ const MainLayout = () => {
       visible: hasPageAccess('material-requests'),
     },
 
-    // 6. Склад
+    // 7. Склад
     {
       key: '/dashboard/warehouse',
       icon: <InboxOutlined />,
@@ -121,7 +131,7 @@ const MainLayout = () => {
       visible: hasPageAccess('warehouse'),
     },
 
-    // 7. Тендеры
+    // 8. Тендеры
     {
       key: '/dashboard/tenders',
       icon: <DollarOutlined />,
@@ -130,7 +140,7 @@ const MainLayout = () => {
       visible: hasPageAccess('tenders'),
     },
 
-    // 8. Отчеты
+    // 9. Отчеты
     {
       key: '/dashboard/reports',
       icon: <BarChartOutlined />,
@@ -139,7 +149,7 @@ const MainLayout = () => {
       visible: hasPageAccess('reports'),
     },
 
-    // 9. Настройки (НОВОЕ МЕНЮ с подпунктами)
+    // 10. Настройки (НОВОЕ МЕНЮ с подпунктами)
     {
       key: 'settings',
       icon: <SettingOutlined />,

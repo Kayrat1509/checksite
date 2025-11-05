@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'apps.users',
     'apps.projects',
     'apps.issues',
+    'apps.tasks',  # Задачи для сотрудников и подрядчиков
     'apps.notifications',
     'apps.reports',
     'apps.technical_conditions',

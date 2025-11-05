@@ -1,0 +1,17 @@
+❌ ЗАДАЧА ОТМЕНЕНА
+
+Здравствуйте, {{ recipient_name }}!
+
+Задача {{ task.task_number }} была отменена.
+
+Название:      {{ task.title }}
+От кого:       {{ created_by_name }}
+Дата отмены:   {{ task.rejected_at|date:"d.m.Y H:i" }}
+
+{% if task.rejection_reason %}ПРИЧИНА ОТМЕНЫ:
+{{ task.rejection_reason }}{% endif %}
+
+Открыть задачу: {{ task_url }}
+
+---
+{{ site_name }} - {{ site_url }}

@@ -92,7 +92,7 @@ class ProjectViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def add_member(self, request, pk=None):
-        """Add a team member to the project."""
+        """Add a team member to the project and send email notification."""
         project = self.get_object()
         user_id = request.data.get('user_id')
 
@@ -100,11 +100,26 @@ class ProjectViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
             return Response({'error': 'user_id required'}, status=400)
 
         project.team_members.add(user_id)
+
+        # Отправляем email уведомление пользователю
+        from apps.projects.tasks import send_project_assignment_notification
+        try:
+            send_project_assignment_notification.delay(
+                user_id=user_id,
+                project_id=project.id,
+                action='added',
+                assigned_by_id=request.user.id
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'Ошибка при отправке email о добавлении в проект: {str(e)}')
+
         return Response({'message': 'Участник добавлен'})
 
     @action(detail=True, methods=['post'])
     def remove_member(self, request, pk=None):
-        """Remove a team member from the project."""
+        """Remove a team member from the project and send email notification."""
         project = self.get_object()
         user_id = request.data.get('user_id')
 
@@ -112,6 +127,21 @@ class ProjectViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
             return Response({'error': 'user_id required'}, status=400)
 
         project.team_members.remove(user_id)
+
+        # Отправляем email уведомление пользователю
+        from apps.projects.tasks import send_project_assignment_notification
+        try:
+            send_project_assignment_notification.delay(
+                user_id=user_id,
+                project_id=project.id,
+                action='removed',
+                assigned_by_id=request.user.id
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'Ошибка при отправке email об удалении из проекта: {str(e)}')
+
         return Response({'message': 'Участник удален'})
 
     @action(detail=True, methods=['get'])
@@ -322,8 +352,18 @@ class DrawingViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated()]
 
     def perform_create(self, serializer):
-        """Set the uploaded_by field to the current user."""
-        serializer.save(uploaded_by=self.request.user)
+        """Set the uploaded_by field to the current user and send email notification."""
+        drawing = serializer.save(uploaded_by=self.request.user)
+
+        # Отправляем email уведомление всем участникам проекта
+        from apps.projects.tasks import send_drawing_upload_notification
+        try:
+            send_drawing_upload_notification.delay(drawing.id)
+        except Exception as e:
+            # Логируем ошибку, но не прерываем создание чертежа
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'Ошибка при отправке email уведомления о чертеже {drawing.id}: {str(e)}')
 
     def get_queryset(self):
         """Filter drawings based on user's company and project access."""

@@ -1,0 +1,19 @@
+✏️ ЗАДАЧА ИЗМЕНЕНА
+
+Здравствуйте, {{ recipient_name }}!
+
+Задача {{ task.task_number }} была изменена.
+
+Название:         {{ task.title }}
+От кого:          {{ created_by_name }}
+Дата изменения:   {{ task.updated_at|date:"d.m.Y H:i" }}
+
+⏰ НОВЫЙ СРОК ИСПОЛНЕНИЯ: {{ task.deadline|date:"d.m.Y H:i" }}
+
+ОПИСАНИЕ:
+{{ task.description }}
+
+Открыть задачу: {{ task_url }}
+
+---
+{{ site_name }} - {{ site_url }}

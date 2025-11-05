@@ -19,6 +19,7 @@ import Users from './pages/Users'
 import Contractors from './pages/Contractors'
 import Supervisions from './pages/Supervisions'
 // УДАЛЕНО: import TechnicalConditions - компонент удален из проекта
+import Tasks from './pages/Tasks'
 import MaterialRequests from './pages/MaterialRequests'
 import ApprovedMaterialRequests from './pages/ApprovedMaterialRequests'
 import CompletedMaterialRequests from './pages/CompletedMaterialRequests'
@@ -114,7 +115,8 @@ function App() {
             <Route path="users" element={<Users />} />
             <Route path="contractors" element={<Contractors />} />
             <Route path="supervisions" element={<Supervisions />} />
-            {/* УДАЛЕНО: <Route path="technical-conditions" /> - функционал удален из системы */}
+            {/* УДАЛЕНО: <Route path="technical-conditions" /> - функcionал удален из системы */}
+            <Route path="tasks" element={<Tasks />} />
             <Route path="material-requests" element={<MaterialRequests />} />
             <Route path="material-requests/approved" element={<ApprovedMaterialRequests />} />
             <Route path="material-requests/completed" element={<CompletedMaterialRequests />} />

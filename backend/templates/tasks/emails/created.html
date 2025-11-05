@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Новая задача - {{ task.task_number }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 30px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .greeting {
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        .task-box {
+            background-color: #f8f9fa;
+            border-left: 4px solid #4CAF50;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+        }
+        .task-box h3 {
+            margin-top: 0;
+            color: #4CAF50;
+            font-size: 18px;
+        }
+        .task-info {
+            margin: 15px 0;
+        }
+        .task-info-item {
+            display: flex;
+            margin: 10px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .task-info-item:last-child {
+            border-bottom: none;
+        }
+        .task-info-label {
+            font-weight: bold;
+            min-width: 140px;
+            color: #666;
+        }
+        .task-info-value {
+            color: #333;
+        }
+        .task-description {
+            background-color: #fff;
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .deadline {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .deadline strong {
+            color: #856404;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .button:hover {
+            background-color: #45a049;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="icon">🎯</div>
+            <h1>Новая задача</h1>
+        </div>
+
+        <div class="content">
+            <p class="greeting">Здравствуйте, <strong>{{ recipient_name }}</strong>!</p>
+
+            <p>Вам назначена новая задача от <strong>{{ created_by_name }}</strong>.</p>
+
+            <div class="task-box">
+                <h3>{{ task.title }}</h3>
+
+                <div class="task-info">
+                    <div class="task-info-item">
+                        <span class="task-info-label">Номер задачи:</span>
+                        <span class="task-info-value"><strong>{{ task.task_number }}</strong></span>
+                    </div>
+                    <div class="task-info-item">
+                        <span class="task-info-label">От кого:</span>
+                        <span class="task-info-value">{{ created_by_name }}</span>
+                    </div>
+                    <div class="task-info-item">
+                        <span class="task-info-label">Компания:</span>
+                        <span class="task-info-value">{{ company_name }}</span>
+                    </div>
+                    {% if task.project %}
+                    <div class="task-info-item">
+                        <span class="task-info-label">Проект:</span>
+                        <span class="task-info-value">{{ project_name }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="task-info-item">
+                        <span class="task-info-label">Дата создания:</span>
+                        <span class="task-info-value">{{ task.created_at|date:"d.m.Y H:i" }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="deadline">
+                <strong>⏰ Срок исполнения:</strong> {{ task.deadline|date:"d.m.Y H:i" }}
+            </div>
+
+            <h4>Описание задачи:</h4>
+            <div class="task-description">{{ task.description }}</div>
+
+            <div style="text-align: center;">
+                <a href="{{ task_url }}" class="button">Открыть задачу</a>
+            </div>
+
+            <p style="margin-top: 30px; color: #666; font-size: 14px;">
+                Пожалуйста, выполните задачу до указанного срока. При возникновении вопросов обратитесь к {{ created_by_name }}.
+            </p>
+        </div>
+
+        <div class="footer">
+            <p>Это автоматическое уведомление из системы <strong>{{ site_name }}</strong></p>
+            <p>Пожалуйста, не отвечайте на это письмо</p>
+            <p><a href="{{ site_url }}" style="color: #4CAF50; text-decoration: none;">Перейти в систему</a></p>
+        </div>
+    </div>
+</body>
+</html>

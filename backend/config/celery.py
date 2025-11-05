@@ -36,6 +36,10 @@ app.conf.beat_schedule = {
         'task': 'core.clean_recycle_bin',
         'schedule': crontab(hour=3, minute=0),  # Every day at 3:00 AM
     },
+    'check-overdue-tasks': {
+        'task': 'apps.tasks.tasks.check_overdue_tasks',
+        'schedule': crontab(minute=0),  # Every hour at :00
+    },
 }
 
 @app.task(bind=True, ignore_result=True)
