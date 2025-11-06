@@ -141,9 +141,12 @@ class TenderBid(models.Model):
     )
     participant = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='tender_bids',
-        verbose_name='Участник'
+        verbose_name='Участник',
+        help_text='Участник тендера. При удалении участника заявка остается с сохранением company_name'
     )
     company_name = models.CharField('Название компании', max_length=500)
     amount = models.DecimalField('Предложенная сумма', max_digits=15, decimal_places=2)

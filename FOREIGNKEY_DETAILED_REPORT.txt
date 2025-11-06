@@ -1,0 +1,317 @@
+================================================================================
+ПОЛНЫЙ АНАЛИЗ ForeignKey СВЯЗЕЙ В ПРОЕКТЕ CHECK_SITE
+================================================================================
+Дата анализа: 2025-11-06
+Проект: /Users/kairatkhidirboev/Projects/checksite
+
+================================================================================
+КРАТКОЕ РЕЗЮМЕ
+================================================================================
+
+ВСЕГО ПРОВЕРЕНО: 40+ ForeignKey связей
+КРИТИЧЕСКИХ ПРОБЛЕМ: 4 (CASCADE)
+ХОРОШИЕ ПРАКТИКИ: 36+ (SET_NULL или PROTECT)
+
+СТАТУС: ТРЕБУЮТ СРОЧНОГО ИСПРАВЛЕНИЯ ❌
+
+
+================================================================================
+КРИТИЧЕСКИЕ ПРОБЛЕМЫ (CASCADE)
+================================================================================
+
+1. ЗАДАЧИ (Task модель)
+   Файл: /Users/kairatkhidirboev/Projects/checksite/backend/apps/tasks/models.py
+   
+   Проблема 1: created_by (строка 55-61)
+   ─────────────────────────────────────
+   Текущий код:
+   ```python
+   created_by = models.ForeignKey(
+       User,
+       on_delete=models.CASCADE,  # ❌ ПЛОХО
+       related_name='created_tasks',
+   )
+   ```
+   
+   Риск: При удалении пользователя удалятся ВСЕ его созданные задачи.
+   
+   Исправить на:
+   ```python
+   created_by = models.ForeignKey(
+       User,
+       on_delete=models.SET_NULL,  # ✅ ПРАВИЛЬНО
+       null=True,  # Добавить!
+       related_name='created_tasks',
+   )
+   ```
+   
+   ───────────────────────────────────────
+   
+   Проблема 2: assigned_to_user (строка 63-71)
+   ────────────────────────────────────────────
+   Текущий код:
+   ```python
+   assigned_to_user = models.ForeignKey(
+       User,
+       on_delete=models.CASCADE,  # ❌ ПЛОХО
+       related_name='assigned_user_tasks',
+       null=True,
+       blank=True,
+   )
+   ```
+   
+   Риск: При удалении сотрудника удалятся все его назначенные задачи.
+   
+   Исправить на:
+   ```python
+   assigned_to_user = models.ForeignKey(
+       User,
+       on_delete=models.SET_NULL,  # ✅ ПРАВИЛЬНО
+       related_name='assigned_user_tasks',
+       null=True,
+       blank=True,
+   )
+   ```
+   
+   ───────────────────────────────────────
+   
+   Проблема 3: assigned_to_contractor (строка 73-82)
+   ─────────────────────────────────────────────────
+   Текущий код:
+   ```python
+   assigned_to_contractor = models.ForeignKey(
+       'users.User',
+       on_delete=models.CASCADE,  # ❌ ПЛОХО
+       related_name='assigned_contractor_tasks',
+       null=True,
+       blank=True,
+       limit_choices_to={'role': 'CONTRACTOR'},
+   )
+   ```
+   
+   Риск: При удалении подрядчика удалятся все его назначенные задачи.
+   
+   Исправить на:
+   ```python
+   assigned_to_contractor = models.ForeignKey(
+       'users.User',
+       on_delete=models.SET_NULL,  # ✅ ПРАВИЛЬНО
+       related_name='assigned_contractor_tasks',
+       null=True,
+       blank=True,
+       limit_choices_to={'role': 'CONTRACTOR'},
+   )
+   ```
+
+
+2. ЗАЯВКИ НА ТЕНДЕРЫ (TenderBid модель)
+   Файл: /Users/kairatkhidirboev/Projects/checksite/backend/apps/tenders/models.py
+   
+   Проблема: participant (строка 142-147)
+   ────────────────────────────────────────
+   Текущий код:
+   ```python
+   participant = models.ForeignKey(
+       User,
+       on_delete=models.CASCADE,  # ❌ ПЛОХО
+       related_name='tender_bids',
+       verbose_name='Участник'
+   )
+   ```
+   
+   Риск: При удалении участника/подрядчика удалятся все его заявки на тендеры.
+          История участия в тендерах будет потеряна.
+   
+   Исправить на:
+   ```python
+   participant = models.ForeignKey(
+       User,
+       on_delete=models.SET_NULL,  # ✅ ПРАВИЛЬНО
+       null=True,  # Добавить!
+       related_name='tender_bids',
+       verbose_name='Участник'
+   )
+   ```
+
+
+================================================================================
+ХОРОШИЕ ПРАКТИКИ (SET_NULL) ✅
+================================================================================
+
+Следующие модели ПРАВИЛЬНО используют SET_NULL для защиты данных:
+
+✅ Issue модель (apps/issues/models.py)
+   - created_by: SET_NULL
+   - assigned_to: SET_NULL
+   - verified_by: SET_NULL
+   
+✅ MaterialRequest модель (apps/material_requests/models.py)
+   - author: SET_NULL
+   - responsible: SET_NULL
+   
+✅ MaterialRequestItem модель (apps/material_requests/models.py)
+   - issued_by: SET_NULL
+   - cancelled_by: SET_NULL
+   
+✅ MaterialRequestDocument модель (apps/material_requests/models.py)
+   - uploaded_by: SET_NULL
+   
+✅ MaterialRequestHistory модель (apps/material_requests/models.py)
+   - user: SET_NULL
+   
+✅ MaterialRequestComment модель (apps/material_requests/models.py)
+   - author: SET_NULL
+   
+✅ Project модель (apps/projects/models.py)
+   - project_manager: SET_NULL
+   - deleted_by: SET_NULL (из SoftDeleteMixin)
+   
+✅ Site модель (apps/projects/models.py)
+   - site_manager: SET_NULL
+   
+✅ Drawing модель (apps/projects/models.py)
+   - uploaded_by: SET_NULL
+   
+✅ Tender модель (apps/tenders/models.py)
+   - created_by: SET_NULL
+   - responsible: SET_NULL
+   - winner: SET_NULL
+   
+✅ TenderDocument модель (apps/tenders/models.py)
+   - uploaded_by: SET_NULL
+   
+✅ PublicTenderAccess модель (apps/tenders/models.py)
+   - approved_by: SET_NULL
+   
+✅ IssuePhoto модель (apps/issues/models.py)
+   - uploaded_by: SET_NULL
+   
+✅ IssueComment модель (apps/issues/models.py)
+   - author: SET_NULL
+   
+✅ WarehouseReceipt модель (apps/warehouse/models.py)
+   - received_by: SET_NULL
+   
+✅ ApprovalFlowTemplate модель (apps/material_requests/approval_models.py)
+   - created_by: SET_NULL
+   
+✅ MaterialRequestApproval модель (apps/material_requests/approval_models.py)
+   - approver: SET_NULL
+   
+✅ TechnicalCondition модель (apps/technical_conditions/models.py)
+   - created_by: SET_NULL
+   
+✅ SoftDeleteMixin (apps/core/mixins.py)
+   - deleted_by: SET_NULL
+
+
+================================================================================
+ЛОГИКА ПРАВИЛЬНОГО УДАЛЕНИЯ
+================================================================================
+
+При удалении пользователя/подрядчика/надзора должно произойти:
+
+1. CASCADE (УДАЛИТЬ) - используется ТОЛЬКО для:
+   - Уведомления (Notification) - логично удалять вместе с пользователем
+   - Вложенные объекты которые неотделимы от родителя
+   
+2. SET_NULL (УСТАНОВИТЬ NULL) - используется для:
+   - Замечаний (Issue) - замечание остается, но без автора/назначенного
+   - Заявок на материалы (MaterialRequest) - заявка сохраняется
+   - Тендеров (Tender) - тендер сохраняется, но без победителя
+   - Комментариев (Comment) - комментарий остается, но без автора
+   - Истории (History) - история сохраняется
+   - Задач (Task) - ДОЛЖНА БЫТЬ SET_NULL ⚠️
+   
+3. PROTECT (ЗАПРЕТИТЬ) - можно использовать для:
+   - Запрещения удаления если есть связанные записи
+
+
+================================================================================
+ИНСТРУКЦИЯ ПО ИСПРАВЛЕНИЮ
+================================================================================
+
+ШАГИ:
+
+1. Отредактировать модели:
+   - /Users/kairatkhidirboev/Projects/checksite/backend/apps/tasks/models.py
+   - /Users/kairatkhidirboev/Projects/checksite/backend/apps/tenders/models.py
+
+2. Создать миграции:
+   ```bash
+   cd /Users/kairatkhidirboev/Projects/checksite
+   python manage.py makemigrations tasks
+   python manage.py makemigrations tenders
+   ```
+
+3. Применить миграции:
+   ```bash
+   python manage.py migrate
+   ```
+
+4. Проверить данные в БД:
+   - Убедиться что существующие задачи не потеряны
+   - Проверить что заявки на тендеры сохранились
+
+
+================================================================================
+ТЕСТИРОВАНИЕ
+================================================================================
+
+После исправления протестировать:
+
+1. Удаление пользователя (создателя задач)
+   - Задачи должны остаться в БД
+   - created_by должен быть NULL
+   
+2. Удаление сотрудника (назначенного на задачу)
+   - Задача должна остаться в БД
+   - assigned_to_user должен быть NULL
+   
+3. Удаление подрядчика (назначенного на задачу)
+   - Задача должна остаться в БД
+   - assigned_to_contractor должен быть NULL
+   
+4. Удаление участника тендера
+   - Заявка на тендер должна остаться в БД
+   - participant должен быть NULL
+
+
+================================================================================
+ФАЙЛЫ ДЛЯ ИЗМЕНЕНИЯ
+================================================================================
+
+Файл 1: /Users/kairatkhidirboev/Projects/checksite/backend/apps/tasks/models.py
+────────────────────────────────────────────────────────────────────────────────
+
+СТРОКА 55-61: Изменить created_by
+СТРОКА 63-71: Изменить assigned_to_user
+СТРОКА 73-82: Изменить assigned_to_contractor
+
+Всего 3 изменения в этом файле.
+
+
+Файл 2: /Users/kairatkhidirboev/Projects/checksite/backend/apps/tenders/models.py
+────────────────────────────────────────────────────────────────────────────────────
+
+СТРОКА 142-147: Изменить participant
+
+Всего 1 изменение в этом файле.
+
+
+================================================================================
+ЗАКЛЮЧЕНИЕ
+================================================================================
+
+ТЕКУЩЕЕ СОСТОЯНИЕ:
+- 4 критические проблемы (CASCADE где должно быть SET_NULL)
+- 36+ правильно настроенных ForeignKey
+- Успешно используется SET_NULL в 90% других моделей
+
+ДЕЙСТВИЕ:
+Необходимо срочно исправить 4 ForeignKey в 2 файлах.
+
+ПРИМЕЧАНИЕ:
+После исправления модели будут следовать best practices и защищать
+исторические данные от случайного удаления при удалении пользователей.
+

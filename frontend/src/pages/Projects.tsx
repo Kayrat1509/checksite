@@ -86,51 +86,36 @@ const Projects = () => {
 
   // Функция проверки прав на ДОБАВЛЕНИЕ объекта через матрицу доступа
   const canAddProject = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
+    // Все проверки через единую матрицу доступа ButtonAccess
+    // SUPERADMIN также проверяется в ButtonAccess (не хардкодим!)
     return canUseButton('create')
   }
 
   // Функция проверки прав на РЕДАКТИРОВАНИЕ объекта через матрицу доступа
   const canEditProject = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
+    // Все проверки через единую матрицу доступа ButtonAccess
+    // SUPERADMIN также проверяется в ButtonAccess (не хардкодим!)
     return canUseButton('edit')
   }
 
   // Функция проверки прав на УДАЛЕНИЕ объекта через матрицу доступа
   const canDeleteProject = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
+    // Все проверки через единую матрицу доступа ButtonAccess
+    // SUPERADMIN также проверяется в ButtonAccess (не хардкодим!)
     return canUseButton('delete')
   }
 
   // Функция проверки прав на ДОБАВЛЕНИЕ чертежа через матрицу доступа
   const canAddDrawing = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
+    // Все проверки через единую матрицу доступа ButtonAccess
+    // SUPERADMIN также проверяется в ButtonAccess (не хардкодим!)
     return canUseButton('add_drawing')
   }
 
   // Функция проверки прав на УДАЛЕНИЕ чертежа через матрицу доступа
   const canDeleteDrawing = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
+    // Все проверки через единую матрицу доступа ButtonAccess
+    // SUPERADMIN также проверяется в ButtonAccess (не хардкодим!)
     return canUseButton('delete_drawing')
   }
 
@@ -1034,7 +1019,7 @@ const Projects = () => {
                 <Card
                   key={user.id}
                   size="small"
-                  bodyStyle={{ padding: '12px' }}
+                  styles={{ body: { padding: '12px' } }}
                 >
                   <div style={{ marginBottom: '4px' }}>
                     <Text strong>
@@ -1085,7 +1070,7 @@ const Projects = () => {
                 <Card
                   key={contractor.id}
                   size="small"
-                  bodyStyle={{ padding: '12px' }}
+                  styles={{ body: { padding: '12px' } }}
                 >
                   <div style={{ marginBottom: '4px' }}>
                     <Text strong>

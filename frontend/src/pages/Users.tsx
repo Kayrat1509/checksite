@@ -15,7 +15,8 @@ import {
   Row,
   Col,
   Result,
-  Divider
+  Divider,
+  Tabs
 } from 'antd'
 import {
   PlusOutlined,
@@ -23,9 +24,7 @@ import {
   DeleteOutlined,
   EditOutlined,
   CheckCircleOutlined,
-  StopOutlined,
-  UnlockOutlined,
-  LockOutlined
+  StopOutlined
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersAPI, User, CreateUserData } from '../api/users'
@@ -49,6 +48,7 @@ const Users = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [selectedRole, setSelectedRole] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'active' | 'deactivated'>('active')
 
   // Проверка доступа текущего пользователя
   const { data: currentUser, isLoading: isLoadingCurrentUser } = useQuery({
@@ -65,16 +65,6 @@ const Users = () => {
     }
     // Для остальных ролей проверяем через матрицу доступа из админ-панели
     return canUseButton('create')
-  }
-
-  // Функция проверки прав на ОТКРЫТИЕ/ЗАКРЫТИЕ доступа через матрицу доступа
-  const canToggleAccess = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
-    return canUseButton('toggle_access')
   }
 
   // Функция проверки прав на РЕДАКТИРОВАНИЕ пользователей через матрицу доступа
@@ -99,11 +89,7 @@ const Users = () => {
 
   // Функция проверки прав на УДАЛЕНИЕ пользователей через матрицу доступа
   const canDeleteUserAction = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
+    // Проверяем через матрицу доступа из админ-панели (без хардкода ролей)
     return canUseButton('delete')
   }
 
@@ -152,11 +138,18 @@ const Users = () => {
   // Подрядчики (CONTRACTOR), Технадзор (SUPERVISOR) и Авторский надзор (OBSERVER) исключаются из списка обычных пользователей
   // SUPERVISOR и OBSERVER теперь управляются на странице Supervisions
   const allUsers: User[] = Array.isArray(data) ? data : (data?.results || [])
-  const users: User[] = allUsers.filter(user =>
+  const filteredUsers: User[] = allUsers.filter(user =>
     user.role !== 'CONTRACTOR' &&
     user.role !== 'SUPERVISOR' &&
     user.role !== 'OBSERVER'
   )
+
+  // Разделяем пользователей на активных и деактивированных
+  const activeUsers = filteredUsers.filter(user => user.is_active)
+  const deactivatedUsers = filteredUsers.filter(user => !user.is_active)
+
+  // Выбираем какой список показывать в зависимости от активной вкладки
+  const users = activeTab === 'active' ? activeUsers : deactivatedUsers
 
   // Fetch projects for assignment
   const { data: projectsData, isLoading: projectsLoading } = useQuery({
@@ -309,104 +302,6 @@ const Users = () => {
     }
   })
 
-  // Approve user mutation (открыть доступ к /dashboard/users)
-  const approveUserMutation = useMutation({
-    mutationFn: (id: number) => usersAPI.updateUser(id, { approved: true } as any),
-    onMutate: async (id: number) => {
-      // Отменяем исходящие запросы
-      await queryClient.cancelQueries({ queryKey: ['users'] })
-
-      // Сохраняем предыдущее состояние
-      const previousUsers = queryClient.getQueryData(['users'])
-
-      // Оптимистично обновляем кеш
-      queryClient.setQueryData(['users'], (oldData: any) => {
-        if (!oldData) return oldData
-
-        if (Array.isArray(oldData)) {
-          return oldData.map((user: User) =>
-            user.id === id ? { ...user, approved: true } : user
-          )
-        }
-
-        if (oldData.results) {
-          return {
-            ...oldData,
-            results: oldData.results.map((user: User) =>
-              user.id === id ? { ...user, approved: true } : user
-            )
-          }
-        }
-
-        return oldData
-      })
-
-      return { previousUsers }
-    },
-    onSuccess: () => {
-      message.success('Доступ к странице пользователей открыт')
-    },
-    onError: (error: any, _id: number, context: any) => {
-      // Откатываем изменения при ошибке
-      queryClient.setQueryData(['users'], context.previousUsers)
-      console.error('Failed to approve user:', error)
-      message.error('Ошибка при открытии доступа')
-    },
-    onSettled: () => {
-      // Обновляем данные после завершения
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-    }
-  })
-
-  // Revoke access mutation
-  const revokeAccessMutation = useMutation({
-    mutationFn: (id: number) => usersAPI.updateUser(id, { approved: false } as any),
-    onMutate: async (id: number) => {
-      // Отменяем исходящие запросы
-      await queryClient.cancelQueries({ queryKey: ['users'] })
-
-      // Сохраняем предыдущее состояние
-      const previousUsers = queryClient.getQueryData(['users'])
-
-      // Оптимистично обновляем кеш
-      queryClient.setQueryData(['users'], (oldData: any) => {
-        if (!oldData) return oldData
-
-        if (Array.isArray(oldData)) {
-          return oldData.map((user: User) =>
-            user.id === id ? { ...user, approved: false } : user
-          )
-        }
-
-        if (oldData.results) {
-          return {
-            ...oldData,
-            results: oldData.results.map((user: User) =>
-              user.id === id ? { ...user, approved: false } : user
-            )
-          }
-        }
-
-        return oldData
-      })
-
-      return { previousUsers }
-    },
-    onSuccess: () => {
-      message.success('Доступ к странице пользователей закрыт')
-    },
-    onError: (error: any, _id: number, context: any) => {
-      // Откатываем изменения при ошибке
-      queryClient.setQueryData(['users'], context.previousUsers)
-      console.error('Failed to revoke access:', error)
-      message.error('Ошибка при закрытии доступа')
-    },
-    onSettled: () => {
-      // Обновляем данные после завершения
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-    }
-  })
-
   const handleCreateUser = () => {
     setEditingUser(null)
     form.resetFields()
@@ -511,15 +406,6 @@ const Users = () => {
     }
   }
 
-  const handleToggleAccess = (user: User) => {
-    if (user.approved) {
-      revokeAccessMutation.mutate(user.id)
-    } else {
-      approveUserMutation.mutate(user.id)
-    }
-  }
-
-
   const getRoleLabel = (role: string) => {
     const allRoles = [...ROLES.ITR, ...ROLES.MANAGEMENT, ...ROLES.CONTRACTOR, ...ROLES.MATERIAL_REQUESTS]
     const roleObj = allRoles.find(r => r.value === role)
@@ -553,7 +439,9 @@ const Users = () => {
   if (isLoading || isLoadingCurrentUser) {
     return (
       <div style={{ textAlign: 'center', padding: '50px' }}>
-        <Spin size="large" tip="Загрузка пользователей..." />
+        <Spin size="large" tip="Загрузка пользователей...">
+          <div style={{ minHeight: '200px' }} />
+        </Spin>
       </div>
     )
   }
@@ -606,9 +494,144 @@ const Users = () => {
         </Space>
       </div>
 
-      {/* Сетка карточек пользователей 5xN с адаптивной версткой */}
-      <Row gutter={[16, 16]}>
-        {users.map((user) => (
+      {/* Вкладки для переключения между активными и деактивированными сотрудниками */}
+      <Tabs
+        activeKey={activeTab}
+        onChange={(key) => setActiveTab(key as 'active' | 'deactivated')}
+        items={[
+          {
+            key: 'active',
+            label: `Активные (${activeUsers.length})`,
+            children: (
+              <Row gutter={[16, 16]}>
+                {users.map((user) => (
+                  <Col
+                    key={user.id}
+                    xs={24}  // 1 колонка на очень маленьких экранах
+                    sm={12}  // 2 колонки на маленьких экранах
+                    md={8}   // 3 колонки на средних экранах
+                    lg={8}   // 3 колонки на больших экранах
+                    xl={4}   // 5 колонок на очень больших экранах (24/5 ≈ 4.8, используем 4)
+                    xxl={4}  // 5 колонок
+                  >
+                    <Card
+                      hoverable
+                      style={{ height: '100%' }}
+                      styles={{ body: { padding: '16px' } }}
+                    >
+                      {/* ФИО с инициалами */}
+                      <div style={{ marginBottom: '12px' }}>
+                        <Text strong style={{ fontSize: '16px', display: 'block' }}>
+                          <UserOutlined style={{ marginRight: '8px' }} />
+                          {getInitials(user)}
+                        </Text>
+                      </div>
+
+                      <Divider style={{ margin: '12px 0' }} />
+
+                      {/* Email */}
+                      <div style={{ marginBottom: '8px' }}>
+                        <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Email:</Text>
+                        <Text style={{ fontSize: '14px' }}>{user.email}</Text>
+                      </div>
+
+                      {/* Роль */}
+                      <div style={{ marginBottom: '8px' }}>
+                        <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Роль:</Text>
+                        <Tag color="blue">{getRoleLabel(user.role)}</Tag>
+                      </div>
+
+                      {/* Компания */}
+                      <div style={{ marginBottom: '8px' }}>
+                        <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Компания:</Text>
+                        <Text style={{ fontSize: '14px' }}>{user.company_name || '-'}</Text>
+                      </div>
+
+                      {/* Должность */}
+                      <div style={{ marginBottom: '8px' }}>
+                        <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Должность:</Text>
+                        <Text style={{ fontSize: '14px' }}>{user.position || '-'}</Text>
+                      </div>
+
+                      {/* Телефон */}
+                      <div style={{ marginBottom: '8px' }}>
+                        <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Телефон:</Text>
+                        <Text style={{ fontSize: '14px' }}>{formatPhone(user.phone)}</Text>
+                      </div>
+
+                      {/* Объекты */}
+                      <div style={{ marginBottom: '12px' }}>
+                        <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Объекты:</Text>
+                        {user.user_projects && user.user_projects.length > 0 ? (
+                          <div>
+                            {user.user_projects.map((project) => (
+                              <Tag key={project.id} style={{ marginTop: '4px' }}>
+                                {project.name}
+                              </Tag>
+                            ))}
+                          </div>
+                        ) : (
+                          <Text type="secondary" style={{ fontSize: '14px' }}>Не назначены</Text>
+                        )}
+                      </div>
+
+                      <Divider style={{ margin: '12px 0' }} />
+
+                      {/* Действия */}
+                      <Space direction="vertical" style={{ width: '100%' }} size="small">
+                        {/* Редактировать */}
+                        {canEditUser() && (
+                          <Button
+                            type="default"
+                            icon={<EditOutlined />}
+                            onClick={() => handleEditUser(user)}
+                            size="small"
+                            block
+                          >
+                            Редактировать
+                          </Button>
+                        )}
+
+                        {/* Деактивировать/Активировать */}
+                        {canDeactivateUser() && (
+                          <Button
+                            type="default"
+                            icon={user.is_active ? <StopOutlined /> : <CheckCircleOutlined />}
+                            onClick={() => handleToggleActive(user)}
+                            size="small"
+                            block
+                          >
+                            {user.is_active ? 'Деактивировать' : 'Активировать'}
+                          </Button>
+                        )}
+
+                        {/* Удалить */}
+                        {/* Убрали Popconfirm, так как теперь используется тройное подтверждение через tripleConfirm */}
+                        {canDeleteUserAction() && (
+                          <Button
+                            type="default"
+                            danger
+                            icon={<DeleteOutlined />}
+                            size="small"
+                            block
+                            onClick={() => handleDeleteUser(user)}
+                          >
+                            Удалить
+                          </Button>
+                        )}
+                      </Space>
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+            )
+          },
+          {
+            key: 'deactivated',
+            label: `Деактивированные (${deactivatedUsers.length})`,
+            children: (
+              <Row gutter={[16, 16]}>
+                {users.map((user) => (
           <Col
             key={user.id}
             xs={24}  // 1 колонка на очень маленьких экранах
@@ -621,7 +644,7 @@ const Users = () => {
             <Card
               hoverable
               style={{ height: '100%' }}
-              bodyStyle={{ padding: '16px' }}
+              styles={{ body: { padding: '16px' } }}
             >
               {/* ФИО с инициалами */}
               <div style={{ marginBottom: '12px' }}>
@@ -683,19 +706,6 @@ const Users = () => {
 
               {/* Действия */}
               <Space direction="vertical" style={{ width: '100%' }} size="small">
-                {/* Открыть/Закрыть доступ */}
-                {canToggleAccess() && (
-                  <Button
-                    type={user.approved ? 'default' : 'primary'}
-                    icon={user.approved ? <LockOutlined /> : <UnlockOutlined />}
-                    onClick={() => handleToggleAccess(user)}
-                    size="small"
-                    block
-                  >
-                    {user.approved ? 'Закрыть доступ' : 'Открыть доступ'}
-                  </Button>
-                )}
-
                 {/* Редактировать */}
                 {canEditUser() && (
                   <Button
@@ -740,7 +750,11 @@ const Users = () => {
             </Card>
           </Col>
         ))}
-      </Row>
+              </Row>
+            )
+          }
+        ]}
+      />
 
       {/* Modal для создания/редактирования пользователя */}
       <Modal

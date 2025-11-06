@@ -106,11 +106,7 @@ const Contractors = () => {
 
   // Функция проверки прав на УДАЛЕНИЕ подрядчика окончательно через матрицу доступа
   const canDeleteContractor = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
+    // Проверяем через матрицу доступа из админ-панели (без хардкода ролей)
     return canUseButton('delete')
   }
 
@@ -470,7 +466,9 @@ const Contractors = () => {
   if (isLoading || isLoadingCurrentUser) {
     return (
       <div style={{ textAlign: 'center', padding: '50px' }}>
-        <Spin size="large" tip="Загрузка подрядчиков..." />
+        <Spin size="large" tip="Загрузка подрядчиков...">
+          <div style={{ minHeight: '200px' }} />
+        </Spin>
       </div>
     )
   }
@@ -544,7 +542,7 @@ const Contractors = () => {
             <Card
               hoverable
               style={{ height: '100%' }}
-              bodyStyle={{ padding: '16px' }}
+              styles={{ body: { padding: '16px' } }}
             >
               {/* ФИО с инициалами */}
               <div style={{ marginBottom: '12px' }}>

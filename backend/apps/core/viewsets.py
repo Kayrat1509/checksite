@@ -31,9 +31,10 @@ class SoftDeleteViewSetMixin:
         instance.deleted_by = request.user
         instance.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
 
+        # Возвращаем 200 с сообщением вместо 204, так как возвращаем тело ответа
         return Response(
             {'detail': 'Объект перемещен в корзину. Срок хранения: 31 день.'},
-            status=status.HTTP_204_NO_CONTENT
+            status=status.HTTP_200_OK
         )
 
     @action(detail=True, methods=['post'], url_path='restore')

@@ -54,31 +54,33 @@ class Task(models.Model):
     # Участники
     created_by = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='created_tasks',
         verbose_name='От кого',
-        help_text='Пользователь, создавший задачу'
+        help_text='Пользователь, создавший задачу. При удалении создателя задача остается в статусе "В процессе"'
     )
 
     assigned_to_user = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name='assigned_user_tasks',
         verbose_name='Кому (сотрудник)',
         null=True,
         blank=True,
-        help_text='Исполнитель - сотрудник'
+        help_text='Исполнитель - сотрудник. При удалении исполнителя задача переходит в статус "Просрочено"'
     )
 
     assigned_to_contractor = models.ForeignKey(
         'users.User',  # Подрядчики тоже User, но с другой ролью
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name='assigned_contractor_tasks',
         verbose_name='Кому (подрядчик)',
         null=True,
         blank=True,
         limit_choices_to={'role': 'CONTRACTOR'},
-        help_text='Исполнитель - подрядчик'
+        help_text='Исполнитель - подрядчик. При удалении подрядчика задача переходит в статус "Просрочено"'
     )
 
     # Сроки

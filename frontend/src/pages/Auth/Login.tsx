@@ -1,5 +1,5 @@
-import { Form, Input, Button, Card, message } from 'antd'
-import { UserOutlined, LockOutlined } from '@ant-design/icons'
+import { Form, Input, Button, Card, message, Space } from 'antd'
+import { UserOutlined, LockOutlined, HomeOutlined } from '@ant-design/icons'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../stores/authStore'
 
@@ -64,9 +64,19 @@ const Login = () => {
           </Form.Item>
 
           <Form.Item>
-            <Button type="primary" htmlType="submit" block size="large">
-              Войти
-            </Button>
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              <Button type="primary" htmlType="submit" block size="large">
+                Войти
+              </Button>
+              <Button
+                icon={<HomeOutlined />}
+                block
+                size="large"
+                onClick={() => navigate('/')}
+              >
+                Главная страница
+              </Button>
+            </Space>
           </Form.Item>
 
           <div style={{ textAlign: 'center' }}>

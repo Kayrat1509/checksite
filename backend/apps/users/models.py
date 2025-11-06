@@ -94,7 +94,24 @@ class Company(models.Model):
 
 
 class UserManager(BaseUserManager):
-    """Custom user manager for email-based authentication."""
+    """
+    Custom user manager for email-based authentication with soft delete support.
+
+    Комбинирует функциональность BaseUserManager (для создания пользователей)
+    и SoftDeleteManager (для фильтрации удалённых записей).
+    """
+
+    def get_queryset(self):
+        """Возвращает только НЕ удаленные записи."""
+        return super().get_queryset().filter(is_deleted=False)
+
+    def deleted(self):
+        """Возвращает только удаленные записи."""
+        return super().get_queryset().filter(is_deleted=True)
+
+    def all_with_deleted(self):
+        """Возвращает ВСЕ записи (включая удаленные)."""
+        return super().get_queryset()
 
     def create_user(self, email, password=None, **extra_fields):
         """Create and save a regular user with the given email and password."""

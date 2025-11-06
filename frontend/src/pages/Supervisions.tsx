@@ -104,11 +104,7 @@ const Supervisions = () => {
 
   // Функция проверки прав на УДАЛЕНИЕ надзора окончательно через матрицу доступа
   const canDeleteSupervision = () => {
-    // SUPERADMIN всегда имеет доступ
-    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN') {
-      return true
-    }
-    // Для остальных ролей проверяем через матрицу доступа из админ-панели
+    // Проверяем через матрицу доступа из админ-панели (без хардкода ролей)
     return canUseButton('delete')
   }
 

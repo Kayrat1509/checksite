@@ -67,7 +67,10 @@ class CanManageProjectsAndDrawings(permissions.BasePermission):
         # Проверяем доступ хотя бы к одной из кнопок управления проектами
         return (
             has_button_access(request.user, 'create', 'projects') or
-            has_button_access(request.user, 'edit', 'projects')
+            has_button_access(request.user, 'edit', 'projects') or
+            has_button_access(request.user, 'delete', 'projects') or
+            has_button_access(request.user, 'archive', 'projects') or
+            has_button_access(request.user, 'restore', 'projects')
         )
 
 
@@ -87,7 +90,12 @@ class CanManageUsers(permissions.BasePermission):
         # Проверяем доступ хотя бы к одной из кнопок управления пользователями
         return (
             has_button_access(request.user, 'create', 'users') or
-            has_button_access(request.user, 'edit', 'users')
+            has_button_access(request.user, 'edit', 'users') or
+            has_button_access(request.user, 'delete', 'users') or
+            has_button_access(request.user, 'activate', 'users') or
+            has_button_access(request.user, 'deactivate', 'users') or
+            has_button_access(request.user, 'archive', 'users') or
+            has_button_access(request.user, 'restore', 'users')
         )
 
 
