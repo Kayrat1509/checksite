@@ -153,6 +153,7 @@ services:
       - "5174:5174"                                # пробрасываем порт наружу
     environment:
       - NODE_ENV=development                       # режим разработки
+      - VITE_HMR_HOST=${VITE_HMR_HOST:-localhost}  # HMR host (localhost для dev, stroyka.asia для prod)
     depends_on:
       - backend
     networks:

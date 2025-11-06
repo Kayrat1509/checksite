@@ -133,9 +133,13 @@ export default defineConfig({
       usePolling: true,  // Используем polling для отслеживания изменений файлов в Docker
       interval: 1000     // Проверка каждую секунду
     },
-    // HMR отключён - WebSocket не будет пытаться подключиться
-    // Это уберёт ошибки "WebSocket connection failed" в консоли на продакшне
-    hmr: false,
+    hmr: {
+      // Просто отключаем overlay с ошибками
+      // WebSocket будет пытаться подключиться, но не показывать ошибку пользователю
+      overlay: false,
+      // Тайм-аут для подключения
+      timeout: 5000
+    },
     proxy: {
       '/api': {
         target: 'http://backend:8000',
