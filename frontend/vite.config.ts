@@ -133,11 +133,9 @@ export default defineConfig({
       usePolling: true,  // Используем polling для отслеживания изменений файлов в Docker
       interval: 1000     // Проверка каждую секунду
     },
-    hmr: {
-      host: 'stroyka.asia', // Адрес для WebSocket соединения HMR
-      port: 5174,        // Порт хоста (mapped port)
-      protocol: 'wss'    // Использовать WebSocket Secure для HTTPS
-    },
+    // HMR отключён - WebSocket не будет пытаться подключиться
+    // Это уберёт ошибки "WebSocket connection failed" в консоли на продакшне
+    hmr: false,
     proxy: {
       '/api': {
         target: 'http://backend:8000',
