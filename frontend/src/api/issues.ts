@@ -143,8 +143,8 @@ export const issuesAPI = {
     return response.data
   },
 
-  getStatistics: async () => {
-    const response = await axios.get('/issues/issues/statistics/')
+  getStatistics: async (params?: { project?: number }) => {
+    const response = await axios.get('/issues/issues/statistics/', { params })
     return response.data
   },
 }

@@ -250,67 +250,51 @@ class IssueViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def statistics(self, request):
         """
-        Get issue statistics with automatic status calculation.
-        Статусы вычисляются автоматически на основе правил.
+        Оптимизированная статистика через SQL агрегацию.
+        Использует COUNT() вместо загрузки всех записей в память.
+
+        Query params:
+        - project: ID проекта для фильтрации (опционально)
         """
+        from django.db.models import Count, Q
+
         queryset = self.get_queryset()
 
-        # Получаем все замечания для вычисления статусов
-        issues = list(queryset)
+        # Фильтр по проекту (если передан)
+        project_id = request.query_params.get('project')
+        if project_id:
+            queryset = queryset.filter(project_id=project_id)
 
-        # Счетчики для статусов
-        total = len(issues)
-        new_count = 0
-        in_progress_count = 0
-        pending_review_count = 0
-        completed_count = 0
-        overdue_count = 0
+        # ✅ Один SQL запрос вместо загрузки 1000+ записей в память!
+        # Используем агрегацию COUNT с фильтрами Q
+        stats = queryset.aggregate(
+            total=Count('id'),
+            # Подсчёт по статусам
+            new=Count('id', filter=Q(status='NEW')),
+            in_progress=Count('id', filter=Q(status='IN_PROGRESS')),
+            pending_review=Count('id', filter=Q(status='PENDING_REVIEW')),
+            completed=Count('id', filter=Q(status='COMPLETED')),
+            overdue=Count('id', filter=Q(status='OVERDUE')),
+            # Подсчёт по приоритетам
+            critical=Count('id', filter=Q(priority='CRITICAL')),
+            high=Count('id', filter=Q(priority='HIGH')),
+            normal=Count('id', filter=Q(priority='NORMAL')),
+        )
 
-        # Счетчики для приоритетов
-        critical_count = 0
-        high_count = 0
-        normal_count = 0
-
-        # Проходим по каждому замечанию и вычисляем статус
-        for issue in issues:
-            # Получаем автоматический статус
-            auto_status = issue.get_auto_status()
-
-            # Подсчитываем по статусам
-            if auto_status == Issue.Status.NEW:
-                new_count += 1
-            elif auto_status == Issue.Status.IN_PROGRESS:
-                in_progress_count += 1
-            elif auto_status == Issue.Status.PENDING_REVIEW:
-                pending_review_count += 1
-            elif auto_status == Issue.Status.COMPLETED:
-                completed_count += 1
-            elif auto_status == Issue.Status.OVERDUE:
-                overdue_count += 1
-
-            # Подсчитываем по приоритетам
-            if issue.priority == Issue.Priority.CRITICAL:
-                critical_count += 1
-            elif issue.priority == Issue.Priority.HIGH:
-                high_count += 1
-            elif issue.priority == Issue.Priority.NORMAL:
-                normal_count += 1
-
-        stats = {
-            'total': total,
-            'new': new_count,
-            'in_progress': in_progress_count,
-            'pending_review': pending_review_count,
-            'completed': completed_count,
-            'overdue': overdue_count,
+        # Формируем ответ в том же формате, что и раньше
+        return Response({
+            'total': stats['total'] or 0,
+            'new': stats['new'] or 0,
+            'in_progress': stats['in_progress'] or 0,
+            'pending_review': stats['pending_review'] or 0,
+            'completed': stats['completed'] or 0,
+            'overdue': stats['overdue'] or 0,
             'by_priority': {
-                'critical': critical_count,
-                'high': high_count,
-                'normal': normal_count,
+                'critical': stats['critical'] or 0,
+                'high': stats['high'] or 0,
+                'normal': stats['normal'] or 0,
             }
-        }
-
-        return Response(stats)
+        })
 
 
 class IssuePhotoViewSet(viewsets.ModelViewSet):

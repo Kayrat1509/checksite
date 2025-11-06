@@ -25,57 +25,14 @@ const Dashboard = () => {
     queryFn: () => projectsAPI.getProjects(),
   })
 
-  // Загрузка статистики (будет фильтроваться на клиенте по выбранному проекту)
-  const { data: allIssues, isLoading } = useQuery({
-    queryKey: ['issues'],
-    queryFn: () => issuesAPI.getIssues(),
+  // ✅ ОПТИМИЗАЦИЯ: Загружаем только статистику, а не все замечания!
+  // Фильтрация по проекту происходит на backend через SQL
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ['issues-statistics', selectedProject],
+    queryFn: () => issuesAPI.getStatistics(
+      selectedProject ? { project: selectedProject } : undefined
+    ),
   })
-
-  // Фильтрация замечаний по выбранному проекту
-  const filteredIssues = selectedProject
-    ? (allIssues?.results || []).filter((issue: any) => issue.project === selectedProject)
-    : (allIssues?.results || [])
-
-
-  // Вычисление статистики на основе отфильтрованных данных
-  const calculateStats = () => {
-    const total = filteredIssues.length
-    let new_count = 0
-    let in_progress_count = 0
-    let pending_review_count = 0
-    let completed_count = 0
-    let overdue_count = 0
-    let critical_count = 0
-    let high_count = 0
-
-    filteredIssues.forEach((issue: any) => {
-      // Подсчет по статусам
-      if (issue.status === 'NEW') new_count++
-      else if (issue.status === 'IN_PROGRESS') in_progress_count++
-      else if (issue.status === 'PENDING_REVIEW') pending_review_count++
-      else if (issue.status === 'COMPLETED') completed_count++
-      else if (issue.status === 'OVERDUE') overdue_count++
-
-      // Подсчет по приоритетам
-      if (issue.priority === 'CRITICAL') critical_count++
-      else if (issue.priority === 'HIGH') high_count++
-    })
-
-    return {
-      total,
-      new: new_count,
-      in_progress: in_progress_count,
-      pending_review: pending_review_count,
-      completed: completed_count,
-      overdue: overdue_count,
-      by_priority: {
-        critical: critical_count,
-        high: high_count,
-      }
-    }
-  }
-
-  const stats = calculateStats()
 
   // Функция для навигации на страницу замечаний с фильтрами
   const navigateToIssues = (status?: string, priority?: string) => {
