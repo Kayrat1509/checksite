@@ -1,5 +1,4 @@
 import { create } from 'zustand'
-import { io, Socket } from 'socket.io-client'
 
 interface Notification {
   id: number
@@ -14,7 +13,7 @@ interface Notification {
 interface NotificationState {
   notifications: Notification[]
   unreadCount: number
-  socket: Socket | null
+  socket: WebSocket | null
   connectWebSocket: (userId: number) => void
   disconnectWebSocket: () => void
   addNotification: (notification: Notification) => void
@@ -23,14 +22,14 @@ interface NotificationState {
 }
 
 // Автоматическое определение протокола WebSocket на основе протокола страницы
-const getWebSocketUrl = () => {
+const getWebSocketUrl = (token: string) => {
   const envUrl = import.meta.env.VITE_WS_URL
   if (envUrl) {
     // Если страница загружена по HTTPS, используем WSS вместо WS
     if (window.location.protocol === 'https:' && envUrl.startsWith('ws://')) {
-      return envUrl.replace('ws://', 'wss://')
+      return envUrl.replace('ws://', 'wss://') + `/ws/notifications/?token=${token}`
     }
-    return envUrl
+    return envUrl + `/ws/notifications/?token=${token}`
   }
 
   const isLocal =
@@ -41,14 +40,12 @@ const getWebSocketUrl = () => {
 
   // локальная разработка → backend:8001
   if (isLocal) {
-    return `${protocol}//localhost:8001`
+    return `${protocol}//localhost:8001/ws/notifications/?token=${token}`
   }
 
   // продакшн → домен, nginx сам проксирует /ws/
-  return `${protocol}//${window.location.host}`
+  return `${protocol}//${window.location.host}/ws/notifications/?token=${token}`
 }
-
-const WS_URL = getWebSocketUrl()
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
   notifications: [],
@@ -57,27 +54,64 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   connectWebSocket: (_userId) => {
     const token = localStorage.getItem('access_token')
-    if (!token) return
+    if (!token) {
+      console.warn('WebSocket: отсутствует токен авторизации')
+      return
+    }
 
-    const socket = io(WS_URL, {
-      path: '/ws/notifications/',
-      transports: ['websocket'],
-      auth: {
-        token,
-      },
-    })
+    // Формируем полный URL с токеном
+    const wsUrl = getWebSocketUrl(token)
+    console.log('WebSocket: подключение к', wsUrl)
 
-    socket.on('connect', () => {
-      console.log('WebSocket connected')
-    })
+    // Создаем нативное WebSocket подключение
+    const socket = new WebSocket(wsUrl)
 
-    socket.on('notification', (data: Notification) => {
-      get().addNotification(data)
-    })
+    // Обработчик успешного подключения
+    socket.onopen = () => {
+      console.log('WebSocket: успешное подключение')
+    }
 
-    socket.on('disconnect', () => {
-      console.log('WebSocket disconnected')
-    })
+    // Обработчик входящих сообщений
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        console.log('WebSocket: получено сообщение', data)
+
+        // Обрабатываем разные типы сообщений
+        if (data.type === 'connection') {
+          // Подтверждение подключения
+          console.log('WebSocket:', data.message)
+        } else if (data.type === 'notification' && data.data) {
+          // Новое уведомление (backend отправляет в поле 'data', а не 'payload')
+          get().addNotification(data.data)
+        } else if (data.type === 'pong') {
+          // Ответ на ping
+          console.log('WebSocket: pong получен')
+        }
+      } catch (error) {
+        console.error('WebSocket: ошибка парсинга сообщения', error)
+      }
+    }
+
+    // Обработчик ошибок
+    socket.onerror = (error) => {
+      console.error('WebSocket: ошибка подключения', error)
+    }
+
+    // Обработчик закрытия соединения
+    socket.onclose = (event) => {
+      console.log('WebSocket: соединение закрыто', {
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean,
+      })
+
+      // Автоматическое переподключение через 5 секунд
+      setTimeout(() => {
+        console.log('WebSocket: попытка переподключения...')
+        get().connectWebSocket(_userId)
+      }, 5000)
+    }
 
     set({ socket })
   },
@@ -85,7 +119,8 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   disconnectWebSocket: () => {
     const { socket } = get()
     if (socket) {
-      socket.disconnect()
+      console.log('WebSocket: отключение')
+      socket.close(1000, 'Пользователь вышел из системы')
       set({ socket: null })
     }
   },
