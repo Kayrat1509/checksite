@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { App as AntApp } from 'antd'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useAuthStore } from './stores/authStore'
+import { useNotificationStore } from './stores/notificationStore'
 import { useAccessRefresh } from './hooks/useAccessRefresh'
 import MainLayout from './components/Layout/MainLayout'
 import LandingPage from './pages/Home/LandingPage'
@@ -63,7 +64,8 @@ function DashboardRedirect() {
 }
 
 function App() {
-  const { isAuthenticated, isLoading, checkAuth } = useAuthStore()
+  const { isAuthenticated, isLoading, checkAuth, user } = useAuthStore()
+  const { connectWebSocket, disconnectWebSocket } = useNotificationStore()
 
   // Автоматическое обновление прав доступа
   useAccessRefresh()
@@ -73,6 +75,20 @@ function App() {
     checkAuth()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Подключение WebSocket при авторизации пользователя
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      console.log('App: подключаем WebSocket для пользователя', user.id)
+      connectWebSocket(user.id)
+
+      // Отключаем WebSocket при размонтировании или выходе
+      return () => {
+        console.log('App: отключаем WebSocket')
+        disconnectWebSocket()
+      }
+    }
+  }, [isAuthenticated, user, connectWebSocket, disconnectWebSocket])
 
   // Показываем загрузку, пока идет проверка авторизации
   if (isLoading) {
