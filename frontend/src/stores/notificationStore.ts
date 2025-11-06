@@ -14,36 +14,34 @@ interface NotificationState {
   notifications: Notification[]
   unreadCount: number
   socket: WebSocket | null
+  reconnectAttempts: number
+  maxReconnectAttempts: number
+  isReconnecting: boolean
   connectWebSocket: (userId: number) => void
   disconnectWebSocket: () => void
   addNotification: (notification: Notification) => void
   markAsRead: (id: number) => void
   markAllAsRead: () => void
+  resetReconnectAttempts: () => void
 }
 
 // Автоматическое определение протокола WebSocket на основе протокола страницы
 const getWebSocketUrl = (token: string) => {
-  const envUrl = import.meta.env.VITE_WS_URL
-  if (envUrl) {
-    // Если страница загружена по HTTPS, используем WSS вместо WS
-    if (window.location.protocol === 'https:' && envUrl.startsWith('ws://')) {
-      return envUrl.replace('ws://', 'wss://') + `/ws/notifications/?token=${token}`
-    }
-    return envUrl + `/ws/notifications/?token=${token}`
-  }
-
-  const isLocal =
+  // Проверяем, запущен ли frontend на localhost
+  const isLocalDevelopment =
     window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1'
+    window.location.hostname === '127.0.0.1' ||
+    window.location.port === '5174' // Vite dev server
 
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-
-  // локальная разработка → backend:8001
-  if (isLocal) {
-    return `${protocol}//localhost:8001/ws/notifications/?token=${token}`
+  // В режиме локальной разработки всегда используем localhost:8001
+  if (isLocalDevelopment) {
+    console.log('WebSocket: режим локальной разработки')
+    return `ws://localhost:8001/ws/notifications/?token=${token}`
   }
 
-  // продакшн → домен, nginx сам проксирует /ws/
+  // На продакшене используем текущий домен с автоматическим определением протокола
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  console.log('WebSocket: режим продакшена')
   return `${protocol}//${window.location.host}/ws/notifications/?token=${token}`
 }
 
@@ -51,12 +49,34 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   notifications: [],
   unreadCount: 0,
   socket: null,
+  reconnectAttempts: 0,
+  maxReconnectAttempts: 5,
+  isReconnecting: false,
 
   connectWebSocket: (_userId) => {
     const token = localStorage.getItem('access_token')
     if (!token) {
       console.warn('WebSocket: отсутствует токен авторизации')
       return
+    }
+
+    const state = get()
+
+    // Проверяем, не превышен ли лимит попыток переподключения
+    if (state.reconnectAttempts >= state.maxReconnectAttempts) {
+      console.warn('WebSocket: превышен лимит попыток переподключения. Остановка.')
+      return
+    }
+
+    // Если уже есть активное соединение, не создаем новое
+    if (state.socket && state.socket.readyState === WebSocket.OPEN) {
+      console.log('WebSocket: уже подключен')
+      return
+    }
+
+    // Закрываем старое соединение если оно есть
+    if (state.socket) {
+      state.socket.close()
     }
 
     // Формируем полный URL с токеном
@@ -69,6 +89,8 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     // Обработчик успешного подключения
     socket.onopen = () => {
       console.log('WebSocket: успешное подключение')
+      // Сбрасываем счетчик попыток при успешном подключении
+      set({ reconnectAttempts: 0, isReconnecting: false })
     }
 
     // Обработчик входящих сообщений
@@ -106,11 +128,37 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
         wasClean: event.wasClean,
       })
 
-      // Автоматическое переподключение через 5 секунд
+      const currentState = get()
+
+      // Не переподключаемся если:
+      // 1. Превышен лимит попыток
+      // 2. Соединение закрыто нормально (код 1000)
+      // 3. Нет токена авторизации
+      if (
+        currentState.reconnectAttempts >= currentState.maxReconnectAttempts ||
+        event.code === 1000 ||
+        !localStorage.getItem('access_token')
+      ) {
+        console.log('WebSocket: переподключение не требуется')
+        set({ isReconnecting: false })
+        return
+      }
+
+      // Увеличиваем счетчик попыток
+      set({
+        reconnectAttempts: currentState.reconnectAttempts + 1,
+        isReconnecting: true,
+      })
+
+      // Автоматическое переподключение с экспоненциальной задержкой
+      const delay = Math.min(1000 * Math.pow(2, currentState.reconnectAttempts), 30000)
+      console.log(
+        `WebSocket: попытка переподключения #${currentState.reconnectAttempts + 1} через ${delay}ms`
+      )
+
       setTimeout(() => {
-        console.log('WebSocket: попытка переподключения...')
         get().connectWebSocket(_userId)
-      }, 5000)
+      }, delay)
     }
 
     set({ socket })
@@ -121,8 +169,16 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     if (socket) {
       console.log('WebSocket: отключение')
       socket.close(1000, 'Пользователь вышел из системы')
-      set({ socket: null })
+      set({
+        socket: null,
+        reconnectAttempts: 0,
+        isReconnecting: false,
+      })
     }
+  },
+
+  resetReconnectAttempts: () => {
+    set({ reconnectAttempts: 0, isReconnecting: false })
   },
 
   addNotification: (notification) => {
