@@ -32,9 +32,20 @@ const getWebSocketUrl = () => {
     }
     return envUrl
   }
-  // Fallback: автоматически определяем протокол и хост
+
+  const isLocal =
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1'
+
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${protocol}//${window.location.hostname}:8001`
+
+  // локальная разработка → backend:8001
+  if (isLocal) {
+    return `${protocol}//localhost:8001`
+  }
+
+  // продакшн → домен, nginx сам проксирует /ws/
+  return `${protocol}//${window.location.host}`
 }
 
 const WS_URL = getWebSocketUrl()
