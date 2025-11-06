@@ -210,6 +210,8 @@ class RegisterSerializer(serializers.ModelSerializer):
         validated_data['role'] = User.Role.DIRECTOR
         validated_data['is_verified'] = True  # Auto-verify management
         validated_data['company'] = company
+        # ВАЖНО: Новая компания и директор требуют модерацию суперадмином
+        validated_data['approved'] = False  # Требуется модерация
 
         # Создаем пользователя
         user = User.objects.create_user(**validated_data)

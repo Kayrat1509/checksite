@@ -13,15 +13,18 @@ const Register = () => {
 
       // Показываем информативное модальное окно
       Modal.success({
-        title: 'Регистрация успешна',
+        title: 'Регистрация успешна!',
         icon: <ClockCircleOutlined style={{ color: '#1890ff' }} />,
         content: (
           <div style={{ marginTop: 16, fontSize: 15, lineHeight: 1.8 }}>
             <p style={{ marginBottom: 12, fontWeight: 500 }}>
-              Ваш запрос в обработке.
+              Ваша заявка отправлена на модерацию.
+            </p>
+            <p style={{ marginBottom: 8, color: '#595959' }}>
+              Администратор рассмотрит её в течение <strong>3 часов</strong> в рабочее время с <strong>09:00 до 23:00</strong>
             </p>
             <p style={{ marginBottom: 0, color: '#595959' }}>
-              Время обработки заявки: <strong>3 часа</strong> в рабочее время с <strong>09:00 до 23:00</strong>
+              После одобрения вы сможете войти в систему используя указанные данные.
             </p>
           </div>
         ),

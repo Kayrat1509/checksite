@@ -24,12 +24,28 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """Кастомный сериализатор для JWT токенов с поддержкой case-insensitive email."""
 
     def validate(self, attrs):
-        """Приводим email к нижнему регистру перед аутентификацией."""
+        """
+        Приводим email к нижнему регистру перед аутентификацией.
+        Проверяем статус модерации (approved) перед выдачей токена.
+        """
         # Приводим email (username field) к нижнему регистру
         if self.username_field in attrs:
             attrs[self.username_field] = attrs[self.username_field].lower()
 
-        return super().validate(attrs)
+        # Вызываем базовую валидацию для аутентификации
+        data = super().validate(attrs)
+
+        # ВАЖНО: Проверяем статус модерации пользователя
+        # Суперадмины не нуждаются в модерации
+        if not self.user.is_superuser and not self.user.approved:
+            from rest_framework.exceptions import AuthenticationFailed
+            raise AuthenticationFailed(
+                'Ваша учетная запись ожидает модерации. '
+                'Администратор рассмотрит вашу заявку в течение 3 часов.',
+                code='account_not_approved'
+            )
+
+        return data
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -45,14 +61,19 @@ class RegisterView(viewsets.GenericViewSet):
 
     @action(detail=False, methods=['post'])
     def register(self, request):
-        """Register a new user."""
+        """
+        Регистрация новой компании и директора.
+        Требуется модерация суперадмином перед доступом к системе.
+        """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
         return Response({
             'user': UserSerializer(user).data,
-            'message': 'Регистрация успешна. Данные для входа отправлены на email.'
+            'message': 'Регистрация успешна! Ваша заявка отправлена на модерацию. '
+                      'Администратор рассмотрит её в течение 3 часов. '
+                      'После одобрения вы сможете войти в систему используя указанные данные.'
         }, status=status.HTTP_201_CREATED)
 
 
