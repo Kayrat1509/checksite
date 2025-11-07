@@ -242,7 +242,6 @@ const Issues = () => {
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '')
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || '')
   const [priorityFilter, setPriorityFilter] = useState<string>(searchParams.get('priority') || '')
-  const [sortBy, setSortBy] = useState<string>('created_at')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingIssue, setEditingIssue] = useState<Issue | null>(null)
@@ -1309,6 +1308,15 @@ const Issues = () => {
             label="Исполнитель"
           >
             <Select placeholder="Выберите исполнителя" allowClear>
+              {/* Если редактируем и текущий исполнитель не в списках - показываем его отдельно */}
+              {editingIssue?.assigned_to &&
+               !contractors.find((c: any) => c.id === editingIssue.assigned_to) && (
+                <OptGroup label="Текущий исполнитель">
+                  <Option key={editingIssue.assigned_to} value={editingIssue.assigned_to}>
+                    {editingIssue.assigned_to_name || `Исполнитель #${editingIssue.assigned_to}`}
+                  </Option>
+                </OptGroup>
+              )}
               {contractorsList.length > 0 && (
                 <OptGroup label="Подрядчики">
                   {contractorsList.map((contractor: any) => (
@@ -1586,6 +1594,15 @@ const Issues = () => {
             label="Исполнитель"
           >
             <Select placeholder="Выберите исполнителя" allowClear>
+              {/* Если редактируем и текущий исполнитель не в списках - показываем его отдельно */}
+              {editingIssue?.assigned_to &&
+               !contractors.find((c: any) => c.id === editingIssue.assigned_to) && (
+                <OptGroup label="Текущий исполнитель">
+                  <Option key={editingIssue.assigned_to} value={editingIssue.assigned_to}>
+                    {editingIssue.assigned_to_name || `Исполнитель #${editingIssue.assigned_to}`}
+                  </Option>
+                </OptGroup>
+              )}
               {contractorsList.length > 0 && (
                 <OptGroup label="Подрядчики">
                   {contractorsList.map((contractor: any) => (
