@@ -1315,7 +1315,14 @@ const Issues = () => {
               name="accepted"
               valuePropName="checked"
             >
-              <Checkbox>Принято</Checkbox>
+              <div>
+                <Checkbox>Принято</Checkbox>
+                <div style={{ marginTop: '8px', marginLeft: '24px' }}>
+                  <Text type="secondary" style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                    Установите галочку, если фиксируете уже устраненное замечание, но его нужно зафиксировать. Статус сразу станет 'Исполнено'
+                  </Text>
+                </div>
+              </div>
             </Form.Item>
           )}
 
