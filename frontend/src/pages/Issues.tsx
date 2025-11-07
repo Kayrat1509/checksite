@@ -411,10 +411,15 @@ const Issues = () => {
         // Подрядчики из проекта
         ...(Array.isArray(projectContractorsData) ? projectContractorsData : []),
         // Внутренние исполнители (Начальник участка, Прораб, Мастер) из своей компании
-        ...allExecutors.filter((u: any) =>
-          ['SITE_MANAGER', 'FOREMAN', 'MASTER'].includes(u.role) &&
-          user?.company && u.company === user.company
-        )
+        ...allExecutors.filter((u: any) => {
+          const isInternalRole = ['SITE_MANAGER', 'FOREMAN', 'MASTER'].includes(u.role)
+          // Сравниваем ID компаний (приводим к числу для надежности)
+          const userCompanyId = user?.company ? Number(user.company) : null
+          const executorCompanyId = u.company ? Number(u.company) : null
+          const sameCompany = userCompanyId && executorCompanyId && userCompanyId === executorCompanyId
+
+          return isInternalRole && sameCompany
+        })
       ]
     : allExecutors
 

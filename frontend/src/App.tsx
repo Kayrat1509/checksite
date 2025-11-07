@@ -26,7 +26,6 @@ import ApprovedMaterialRequests from './pages/ApprovedMaterialRequests'
 import CompletedMaterialRequests from './pages/CompletedMaterialRequests'
 import Tenders from './pages/Tenders'
 import Warehouse from './pages/Warehouse'
-import Reports from './pages/Reports'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 import ApprovalFlowSettings from './pages/ApprovalFlowSettings'
@@ -138,7 +137,6 @@ function App() {
             <Route path="material-requests/completed" element={<CompletedMaterialRequests />} />
             <Route path="tenders" element={<Tenders />} />
             <Route path="warehouse" element={<Warehouse />} />
-            <Route path="reports" element={<Reports />} />
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Settings />} />
             <Route path="settings/approval-flow" element={<ApprovalFlowSettings />} />

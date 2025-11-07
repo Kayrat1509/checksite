@@ -6,7 +6,6 @@ import {
   ProjectOutlined,
   FileTextOutlined,
   UserOutlined,
-  BarChartOutlined,
   BellOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
@@ -40,10 +39,10 @@ const MainLayout = () => {
   // Список allowedPages загружается из БД при логине через API /settings/page-access/my-pages/
 
   // ===== ОБНОВЛЕННАЯ СТРУКТУРА МЕНЮ =====
-  // Новая последовательность: Дашборд, Проекты, Персонал, Замечания, Задачи, Заявки, Склад, Тендеры, Отчеты, Настройки
+  // Новая последовательность: Дашборд, Проекты, Персонал, Замечания, Задачи, Заявки, Склад, Тендеры, Настройки
   // "Персонал" объединяет: Сотрудники, Подрядчики, Надзоры
   // "Настройки" объединяет: Настройки системы, Цепочка согласования
-  // УДАЛЕНО: Техусловия (technical-conditions)
+  // УДАЛЕНО: Техусловия (technical-conditions), Отчеты (reports)
   const allMenuItems = [
     // 1. Дашборд
     {
@@ -140,16 +139,7 @@ const MainLayout = () => {
       visible: hasPageAccess('tenders'),
     },
 
-    // 9. Отчеты
-    {
-      key: '/dashboard/reports',
-      icon: <BarChartOutlined />,
-      label: <Link to="/dashboard/reports">Отчеты</Link>,
-      page: 'reports',
-      visible: hasPageAccess('reports'),
-    },
-
-    // 10. Настройки (НОВОЕ МЕНЮ с подпунктами)
+    // 9. Настройки (НОВОЕ МЕНЮ с подпунктами)
     {
       key: 'settings',
       icon: <SettingOutlined />,
