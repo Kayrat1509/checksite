@@ -418,6 +418,22 @@ const Issues = () => {
           const executorCompanyId = u.company ? Number(u.company) : null
           const sameCompany = userCompanyId && executorCompanyId && userCompanyId === executorCompanyId
 
+          // Отладочное логирование (только в DEV режиме)
+          if (import.meta.env.DEV && isInternalRole) {
+            console.log('[DEBUG Исполнители]', {
+              username: u.username,
+              role: u.role,
+              userCompany: user?.company,
+              userCompanyType: typeof user?.company,
+              executorCompany: u.company,
+              executorCompanyType: typeof u.company,
+              userCompanyId,
+              executorCompanyId,
+              sameCompany,
+              willInclude: isInternalRole && sameCompany
+            })
+          }
+
           return isInternalRole && sameCompany
         })
       ]
