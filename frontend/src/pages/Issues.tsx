@@ -406,7 +406,7 @@ const Issues = () => {
   const allExecutors = users.filter((u: any) => EXECUTOR_ROLES.includes(u.role))
 
   // Формируем список исполнителей в зависимости от выбранного проекта
-  const contractors = selectedProjectId && projectContractorsData
+  const contractors = selectedProjectId
     ? [
         // Подрядчики из проекта
         ...(Array.isArray(projectContractorsData) ? projectContractorsData : []),
