@@ -38,12 +38,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (email, password) => {
     set({ isLoading: true })
     try {
-      const { access, refresh } = await authAPI.login({ email, password })
-      localStorage.setItem('access_token', access)
-      localStorage.setItem('refresh_token', refresh)
+      // Токены автоматически устанавливаются в HttpOnly cookies сервером
+      const response = await authAPI.login({ email, password })
 
-      const user = await authAPI.getCurrentUser()
-      set({ user, isAuthenticated: true, isLoading: false })
+      // Получаем данные пользователя из ответа (токены в cookie, user в response.data)
+      set({ user: response.user, isAuthenticated: true, isLoading: false })
 
       // Загружаем разрешенные страницы после логина
       await get().loadAllowedPages()
@@ -53,28 +52,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  logout: () => {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
-    set({ user: null, isAuthenticated: false, allowedPages: [] })
+  logout: async () => {
+    try {
+      // Вызываем logout endpoint для удаления cookies на сервере
+      await authAPI.logout()
+    } catch (error) {
+      console.error('Ошибка при logout:', error)
+    } finally {
+      // В любом случае очищаем локальное состояние
+      set({ user: null, isAuthenticated: false, allowedPages: [] })
+    }
   },
 
   checkAuth: async () => {
-    const token = localStorage.getItem('access_token')
-    if (!token) {
-      set({ isAuthenticated: false, user: null, isLoading: false, allowedPages: [] })
-      return
-    }
-
     try {
+      // Токен автоматически передаётся через HttpOnly cookie
       const user = await authAPI.getCurrentUser()
       set({ user, isAuthenticated: true, isLoading: false })
 
       // Загружаем разрешенные страницы после проверки auth
       await get().loadAllowedPages()
     } catch (error) {
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('refresh_token')
+      // Если токен невалиден или отсутствует, пользователь не авторизован
       set({ user: null, isAuthenticated: false, isLoading: false, allowedPages: [] })
     }
   },

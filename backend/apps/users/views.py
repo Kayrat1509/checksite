@@ -2,6 +2,7 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
@@ -49,8 +50,160 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
-    """Кастомная view для получения JWT токена с case-insensitive email."""
+    """
+    Кастомная view для получения JWT токена с case-insensitive email.
+    Устанавливает токены в HttpOnly cookies для безопасного хранения.
+    """
     serializer_class = CustomTokenObtainPairSerializer
+
+    def post(self, request, *args, **kwargs):
+        """
+        Login с установкой HttpOnly cookies.
+        Токены не возвращаются в response body для безопасности.
+        """
+        response = super().post(request, *args, **kwargs)
+
+        if response.status_code == 200:
+            from django.conf import settings
+
+            # Получить токены из response
+            access_token = response.data.get('access')
+            refresh_token = response.data.get('refresh')
+
+            # Установить access_token в HttpOnly cookie
+            if access_token:
+                response.set_cookie(
+                    key=settings.SIMPLE_JWT['AUTH_COOKIE'],
+                    value=access_token,
+                    max_age=settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds(),
+                    secure=settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
+                    httponly=settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
+                    samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
+                    path=settings.SIMPLE_JWT['AUTH_COOKIE_PATH']
+                )
+
+            # Установить refresh_token в HttpOnly cookie
+            if refresh_token:
+                response.set_cookie(
+                    key=settings.SIMPLE_JWT['REFRESH_COOKIE'],
+                    value=refresh_token,
+                    max_age=settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds(),
+                    secure=settings.SIMPLE_JWT['REFRESH_COOKIE_SECURE'],
+                    httponly=settings.SIMPLE_JWT['REFRESH_COOKIE_HTTP_ONLY'],
+                    samesite=settings.SIMPLE_JWT['REFRESH_COOKIE_SAMESITE'],
+                    path=settings.SIMPLE_JWT['REFRESH_COOKIE_PATH']
+                )
+
+            # Удалить токены из response body (они теперь в cookies)
+            # Оставляем только user info
+            user_data = {
+                'id': self.serializer_class().user.id,
+                'email': self.serializer_class().user.email,
+                'full_name': self.serializer_class().user.get_full_name(),
+                'role': self.serializer_class().user.role,
+            }
+
+            response.data = {
+                'detail': 'Login successful',
+                'user': UserSerializer(self.serializer_class().user).data
+            }
+
+        return response
+
+
+class CustomTokenRefreshView(TokenRefreshView):
+    """
+    Кастомная view для обновления access токена через refresh token из cookie.
+    Читает refresh_token из HttpOnly cookie, обновляет access_token.
+    """
+
+    def post(self, request, *args, **kwargs):
+        """
+        Refresh через HttpOnly cookie.
+        Refresh token автоматически берётся из cookie.
+        """
+        from django.conf import settings
+
+        # Получить refresh_token из cookie
+        refresh_token = request.COOKIES.get(settings.SIMPLE_JWT['REFRESH_COOKIE'])
+
+        if refresh_token:
+            # Добавить refresh token в request data
+            request.data['refresh'] = refresh_token
+
+        response = super().post(request, *args, **kwargs)
+
+        if response.status_code == 200:
+            # Обновить access_token в cookie
+            access_token = response.data.get('access')
+
+            if access_token:
+                response.set_cookie(
+                    key=settings.SIMPLE_JWT['AUTH_COOKIE'],
+                    value=access_token,
+                    max_age=settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds(),
+                    secure=settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
+                    httponly=settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
+                    samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
+                    path=settings.SIMPLE_JWT['AUTH_COOKIE_PATH']
+                )
+
+            # Если пришёл новый refresh token (rotation), обновить cookie
+            new_refresh = response.data.get('refresh')
+            if new_refresh:
+                response.set_cookie(
+                    key=settings.SIMPLE_JWT['REFRESH_COOKIE'],
+                    value=new_refresh,
+                    max_age=settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds(),
+                    secure=settings.SIMPLE_JWT['REFRESH_COOKIE_SECURE'],
+                    httponly=settings.SIMPLE_JWT['REFRESH_COOKIE_HTTP_ONLY'],
+                    samesite=settings.SIMPLE_JWT['REFRESH_COOKIE_SAMESITE'],
+                    path=settings.SIMPLE_JWT['REFRESH_COOKIE_PATH']
+                )
+
+            # Не возвращаем токены в response body
+            response.data = {'detail': 'Token refreshed successfully'}
+
+        return response
+
+
+class LogoutView(APIView):
+    """
+    Logout view для удаления JWT токенов из cookies.
+
+    Удаляет access_token и refresh_token cookies на клиенте.
+    """
+    permission_classes = [AllowAny]  # Разрешаем всем (даже не авторизованным)
+
+    def post(self, request):
+        """
+        Удаляет HttpOnly cookies с токенами.
+
+        Returns:
+            Response с detail message
+        """
+        from django.conf import settings
+
+        response = Response(
+            {'detail': 'Logout successful'},
+            status=status.HTTP_200_OK
+        )
+
+        # Удаляем access_token cookie
+        response.delete_cookie(
+            key=settings.SIMPLE_JWT['AUTH_COOKIE'],
+            path=settings.SIMPLE_JWT['AUTH_COOKIE_PATH'],
+            samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE']
+        )
+
+        # Удаляем refresh_token cookie
+        response.delete_cookie(
+            key=settings.SIMPLE_JWT['REFRESH_COOKIE'],
+            path=settings.SIMPLE_JWT['REFRESH_COOKIE_PATH'],
+            samesite=settings.SIMPLE_JWT['REFRESH_COOKIE_SAMESITE']
+        )
+
+        return response
 
 
 class RegisterView(viewsets.GenericViewSet):

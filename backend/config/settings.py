@@ -147,7 +147,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'apps.users.authentication.CookieJWTAuthentication',  # Custom cookie-based auth
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -173,16 +173,41 @@ REST_FRAMEWORK = {
     }
 }
 
-# JWT Settings
+# JWT Signing Key (отдельный от SECRET_KEY для безопасности)
+JWT_SIGNING_KEY = os.getenv('JWT_SIGNING_KEY', SECRET_KEY)
+
+# JWT Settings (production-level security)
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=int(os.getenv('JWT_ACCESS_TOKEN_LIFETIME', 60))),
-    'REFRESH_TOKEN_LIFETIME': timedelta(minutes=int(os.getenv('JWT_REFRESH_TOKEN_LIFETIME', 1440))),
+    # Время жизни токенов (уменьшено для production)
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=int(os.getenv('JWT_ACCESS_TOKEN_LIFETIME', 15))),  # 15 минут вместо 60
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=int(os.getenv('JWT_REFRESH_TOKEN_DAYS', 7))),  # 7 дней
+
+    # Ротация токенов
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
+
+    # Алгоритм и ключ подписи
     'ALGORITHM': 'HS256',
-    'SIGNING_KEY': SECRET_KEY,
+    'SIGNING_KEY': JWT_SIGNING_KEY,  # Отдельный ключ для JWT
+
+    # Authorization header
     'AUTH_HEADER_TYPES': ('Bearer',),
+
+    # HttpOnly Cookies для безопасного хранения токенов
+    'AUTH_COOKIE': 'access_token',
+    'AUTH_COOKIE_SECURE': not DEBUG,  # Только через HTTPS в production
+    'AUTH_COOKIE_HTTP_ONLY': True,  # Защита от XSS
+    'AUTH_COOKIE_SAMESITE': 'Lax',  # Защита от CSRF (Lax для одного домена)
+    'AUTH_COOKIE_PATH': '/',
+    'AUTH_COOKIE_DOMAIN': None,  # Используем текущий домен
+
+    'REFRESH_COOKIE': 'refresh_token',
+    'REFRESH_COOKIE_SECURE': not DEBUG,
+    'REFRESH_COOKIE_HTTP_ONLY': True,
+    'REFRESH_COOKIE_SAMESITE': 'Lax',
+    'REFRESH_COOKIE_PATH': '/api/auth/token/refresh/',  # Только для refresh endpoint
+    'REFRESH_COOKIE_DOMAIN': None,
 }
 
 # CORS Settings
@@ -281,3 +306,31 @@ LOGGING = {
 
 # Create logs directory if it doesn't exist
 os.makedirs(BASE_DIR / 'logs', exist_ok=True)
+
+# ============================================================================
+# PRODUCTION SECURITY SETTINGS
+# ============================================================================
+
+if not DEBUG:
+    # HTTPS/SSL Settings
+    SECURE_SSL_REDIRECT = True  # Автоматический редирект HTTP -> HTTPS
+    SESSION_COOKIE_SECURE = True  # Session cookies только через HTTPS
+    CSRF_COOKIE_SECURE = True  # CSRF cookies только через HTTPS
+
+    # Для работы за Nginx reverse proxy
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+    # HSTS (HTTP Strict Transport Security)
+    # Браузер будет автоматически использовать HTTPS на 1 год
+    SECURE_HSTS_SECONDS = 31536000  # 1 год
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True  # Включая поддомены
+    SECURE_HSTS_PRELOAD = True  # Добавить в HSTS preload list
+
+    # Content Type защита
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+
+    # Clickjacking защита
+    X_FRAME_OPTIONS = 'SAMEORIGIN'
+
+    # NOTE: SECURE_BROWSER_XSS_FILTER удалён (deprecated с Django 3.0)
+    # Современные браузеры используют CSP вместо X-XSS-Protection

@@ -21,8 +21,25 @@ export interface TokenResponse {
   refresh: string
 }
 
+export interface LoginResponse {
+  detail: string
+  user: {
+    id: number
+    email: string
+    first_name: string
+    last_name: string
+    full_name: string
+    role: string
+    avatar?: string
+    is_superuser?: boolean
+    approved?: boolean
+    company?: number
+    company_name?: string
+  }
+}
+
 export const authAPI = {
-  login: async (data: LoginData): Promise<TokenResponse> => {
+  login: async (data: LoginData): Promise<LoginResponse> => {
     const response = await axios.post('/auth/token/', data)
     return response.data
   },
@@ -48,6 +65,12 @@ export const authAPI = {
     new_password_confirm: string
   }) => {
     const response = await axios.post('/auth/users/change_password/', data)
+    return response.data
+  },
+
+  logout: async () => {
+    // Вызываем logout endpoint для удаления cookies на сервере
+    const response = await axios.post('/auth/logout/')
     return response.data
   },
 }

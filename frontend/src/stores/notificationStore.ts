@@ -48,7 +48,7 @@ const wsError = (message: string, ...args: any[]) => {
 }
 
 // Автоматическое определение протокола WebSocket на основе протокола страницы
-const getWebSocketUrl = (token: string) => {
+const getWebSocketUrl = (userId: number) => {
   // Проверяем, запущен ли frontend на localhost
   const isLocalDevelopment =
     window.location.hostname === 'localhost' ||
@@ -58,13 +58,15 @@ const getWebSocketUrl = (token: string) => {
   // В режиме локальной разработки всегда используем localhost:8001
   if (isLocalDevelopment) {
     wsLog('режим локальной разработки')
-    return `ws://localhost:8001/ws/notifications/?token=${token}`
+    // Токен автоматически передаётся через HttpOnly cookie
+    return `ws://localhost:8001/ws/notifications/${userId}/`
   }
 
   // На продакшене используем текущий домен с автоматическим определением протокола
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   wsLog('режим продакшена')
-  return `${protocol}//${window.location.host}/ws/notifications/?token=${token}`
+  // Токен автоматически передаётся через HttpOnly cookie
+  return `${protocol}//${window.location.host}/ws/notifications/${userId}/`
 }
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
@@ -77,12 +79,6 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   isReconnecting: false,
 
   connectWebSocket: (userId) => {
-    const token = localStorage.getItem('access_token')
-    if (!token) {
-      wsWarn('отсутствует токен авторизации')
-      return
-    }
-
     const state = get()
 
     // Проверяем, не превышен ли лимит попыток переподключения
@@ -110,8 +106,8 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     // Сохраняем userId для использования при переподключении
     set({ userId })
 
-    // Формируем полный URL с токеном
-    const wsUrl = getWebSocketUrl(token)
+    // Формируем полный URL (токен автоматически в cookie)
+    const wsUrl = getWebSocketUrl(userId)
     wsLog('подключение к', wsUrl)
 
     // Создаем нативное WebSocket подключение
@@ -163,12 +159,10 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
       // Не переподключаемся если:
       // 1. Превышен лимит попыток
-      // 2. Соединение закрыто нормально (код 1000)
-      // 3. Нет токена авторизации
+      // 2. Соединение закрыто нормально (код 1000 - пользователь вышел)
       if (
         currentState.reconnectAttempts >= currentState.maxReconnectAttempts ||
-        event.code === 1000 ||
-        !localStorage.getItem('access_token')
+        event.code === 1000
       ) {
         wsLog('переподключение не требуется')
         set({ isReconnecting: false })
