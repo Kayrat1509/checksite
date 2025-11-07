@@ -248,6 +248,28 @@ const Tasks = () => {
       title: 'Задача',
       dataIndex: 'title',
       key: 'title',
+      width: 200,
+      ellipsis: true,
+    },
+    {
+      title: 'Описание задачи',
+      dataIndex: 'description',
+      key: 'description',
+      width: 250,
+      ellipsis: {
+        showTitle: false,
+      },
+      render: (description: string) => (
+        <Tooltip placement="topLeft" title={description}>
+          {description}
+        </Tooltip>
+      ),
+    },
+    {
+      title: 'Проект',
+      dataIndex: 'project_name',
+      key: 'project_name',
+      width: 150,
       ellipsis: true,
     },
     {
