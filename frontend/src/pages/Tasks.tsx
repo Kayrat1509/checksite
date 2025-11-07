@@ -163,7 +163,6 @@ const Tasks = () => {
     setEditingTask(task)
     form.setFieldsValue({
       title: task.title,
-      description: task.description,
       assigned_to_user: task.assigned_to_user,
       assigned_to_contractor: task.assigned_to_contractor,
       project: task.project,
@@ -183,7 +182,6 @@ const Tasks = () => {
   const handleSubmit = async (values: any) => {
     const taskData: CreateTaskData | UpdateTaskData = {
       title: values.title,
-      description: values.description,
       assigned_to_user: values.assigned_to_user || null,
       assigned_to_contractor: values.assigned_to_contractor || null,
       project: values.project || null,
@@ -248,22 +246,7 @@ const Tasks = () => {
       title: 'Задача',
       dataIndex: 'title',
       key: 'title',
-      width: 200,
       ellipsis: true,
-    },
-    {
-      title: 'Описание задачи',
-      dataIndex: 'description',
-      key: 'description',
-      width: 250,
-      ellipsis: {
-        showTitle: false,
-      },
-      render: (description: string) => (
-        <Tooltip placement="topLeft" title={description}>
-          {description}
-        </Tooltip>
-      ),
     },
     {
       title: 'Проект',
@@ -427,14 +410,6 @@ const Tasks = () => {
             rules={[{ required: true, message: 'Введите название задачи' }]}
           >
             <Input placeholder="Краткое название задачи" />
-          </Form.Item>
-
-          <Form.Item
-            name="description"
-            label="Описание задачи"
-            rules={[{ required: true, message: 'Введите описание' }]}
-          >
-            <TextArea rows={4} placeholder="Подробное описание задачи" />
           </Form.Item>
 
           <Form.Item name="project" label="Проект (опционально)">
