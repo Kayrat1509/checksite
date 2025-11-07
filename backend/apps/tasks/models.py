@@ -48,7 +48,9 @@ class Task(models.Model):
 
     description = models.TextField(
         'Описание задачи',
-        help_text='Полное описание задачи с деталями'
+        blank=True,
+        null=True,
+        help_text='Полное описание задачи с деталями (опционально)'
     )
 
     # Участники
