@@ -132,32 +132,35 @@ class UserAdmin(BaseUserAdmin):
 
     def get_password_display(self, obj):
         """
-        Отображение пароля пользователя в списке админки.
+        Отображение статуса отправки пароля на email.
 
         Логика:
-        - Если password_change_required=True и temp_password задан → показываем temp_password открытым текстом
+        - Если password_change_required=True и temp_password задан:
+          - Проверяем наличие email
+          - Если email есть → "✓ Отправлено" (зеленый)
+          - Если email нет или пустой → "✗ Не доставлено" (красный)
         - Если password_change_required=True и temp_password не задан → "❌ Не задан"
-        - Если password_change_required=False → показываем хеш пароля Django
+        - Если password_change_required=False → "✓ Изменён пользователем" (синий)
         """
         if obj.password_change_required and obj.temp_password:
-            # Временный пароль - показываем открытым текстом с желтым фоном
-            return format_html(
-                '<code style="background-color: #fff3cd; padding: 2px 6px; '
-                'border-radius: 3px; font-family: monospace; font-weight: 500;">{}</code>',
-                obj.temp_password
-            )
+            # Временный пароль задан - проверяем наличие email
+            if obj.email and obj.email.strip():
+                # Email существует - пароль отправлен
+                return format_html(
+                    '<span style="color: #28a745; font-weight: 500;">✓ Отправлено</span>'
+                )
+            else:
+                # Email не существует - письмо не доставлено
+                return format_html(
+                    '<span style="color: #dc3545; font-weight: 500;">✗ Не доставлено</span>'
+                )
         elif obj.password_change_required and not obj.temp_password:
             # Требуется смена пароля, но временный пароль не задан
             return format_html('<span style="color: red;">❌ Не задан</span>')
         else:
-            # Постоянный пароль - показываем хеш из поля password
-            # Обрезаем для удобства отображения (первые 50 символов)
-            password_hash = obj.password[:50] + '...' if len(obj.password) > 50 else obj.password
+            # Постоянный пароль - пользователь уже изменил
             return format_html(
-                '<code style="background-color: #e7f3ff; padding: 2px 6px; '
-                'border-radius: 3px; font-family: monospace; font-size: 11px; '
-                'color: #0066cc;">{}</code>',
-                password_hash
+                '<span style="color: #007bff; font-weight: 500;">✓ Изменён пользователем</span>'
             )
     get_password_display.short_description = 'Пароль'
 
