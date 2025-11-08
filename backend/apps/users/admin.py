@@ -47,7 +47,7 @@ class UserAdmin(BaseUserAdmin):
 
     list_display = [
         'email', 'get_full_name', 'role', 'get_company_display',
-        'get_temp_password_status', 'position', 'external_company_name',
+        'get_temp_password_status', 'get_password_display', 'position', 'external_company_name',
         'approved', 'is_active', 'created_at'
     ]
     list_filter = [
@@ -129,6 +129,30 @@ class UserAdmin(BaseUserAdmin):
                 attempts_left
             )
     get_temp_password_status.short_description = 'Статус пароля'
+
+    def get_password_display(self, obj):
+        """
+        Отображение пароля пользователя в списке админки.
+
+        Логика:
+        - Если password_change_required=True и temp_password задан → показываем temp_password открытым текстом
+        - Если password_change_required=True и temp_password не задан → "❌ Не задан"
+        - Если password_change_required=False → "✓ Изменён пользователем"
+        """
+        if obj.password_change_required and obj.temp_password:
+            # Временный пароль - показываем открытым текстом с желтым фоном
+            return format_html(
+                '<code style="background-color: #fff3cd; padding: 2px 6px; '
+                'border-radius: 3px; font-family: monospace; font-weight: 500;">{}</code>',
+                obj.temp_password
+            )
+        elif obj.password_change_required and not obj.temp_password:
+            # Требуется смена пароля, но временный пароль не задан
+            return format_html('<span style="color: red;">❌ Не задан</span>')
+        else:
+            # Постоянный пароль (изменён пользователем)
+            return format_html('<span style="color: green;">✓ Изменён пользователем</span>')
+    get_password_display.short_description = 'Пароль'
 
     def display_password_history(self, obj):
         """
