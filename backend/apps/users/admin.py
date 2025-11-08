@@ -137,7 +137,7 @@ class UserAdmin(BaseUserAdmin):
         Логика:
         - Если password_change_required=True и temp_password задан → показываем temp_password открытым текстом
         - Если password_change_required=True и temp_password не задан → "❌ Не задан"
-        - Если password_change_required=False → "✓ Изменён пользователем"
+        - Если password_change_required=False → показываем хеш пароля Django
         """
         if obj.password_change_required and obj.temp_password:
             # Временный пароль - показываем открытым текстом с желтым фоном
@@ -150,8 +150,15 @@ class UserAdmin(BaseUserAdmin):
             # Требуется смена пароля, но временный пароль не задан
             return format_html('<span style="color: red;">❌ Не задан</span>')
         else:
-            # Постоянный пароль (изменён пользователем)
-            return format_html('<span style="color: green;">✓ Изменён пользователем</span>')
+            # Постоянный пароль - показываем хеш из поля password
+            # Обрезаем для удобства отображения (первые 50 символов)
+            password_hash = obj.password[:50] + '...' if len(obj.password) > 50 else obj.password
+            return format_html(
+                '<code style="background-color: #e7f3ff; padding: 2px 6px; '
+                'border-radius: 3px; font-family: monospace; font-size: 11px; '
+                'color: #0066cc;">{}</code>',
+                password_hash
+            )
     get_password_display.short_description = 'Пароль'
 
     def display_password_history(self, obj):
