@@ -35,6 +35,10 @@ export interface LoginResponse {
     approved?: boolean
     company?: number
     company_name?: string
+    // НОВЫЕ ПОЛЯ для системы ролей и доступа
+    has_full_access?: boolean
+    is_company_owner?: boolean
+    role_category?: 'MANAGEMENT' | 'ITR_SUPPLY'
   }
 }
 

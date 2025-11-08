@@ -103,18 +103,24 @@ export const useButtonAccess = (page?: string): UseButtonAccessReturn => {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['button-access', page], // Уникальный ключ кеша для каждой страницы
     queryFn: async () => {
+      console.log(`[useButtonAccess] Загрузка данных для страницы: ${page || 'все страницы'}`)
+
       if (isSinglePage && page) {
         // Загружаем кнопки для одной страницы
-        return await buttonAccessAPI.getByPage(page)
+        const result = await buttonAccessAPI.getByPage(page)
+        console.log(`[useButtonAccess] Получено ${result.length} кнопок для страницы ${page}:`, result)
+        return result
       } else {
         // Загружаем кнопки для всех страниц
-        return await buttonAccessAPI.getAllPages()
+        const result = await buttonAccessAPI.getAllPages()
+        console.log('[useButtonAccess] Получены кнопки для всех страниц:', result)
+        return result
       }
     },
-    // Настройки автообновления унаследованы из queryClient в App.tsx:
-    // - staleTime: 10000 (данные свежие 10 секунд)
-    // - refetchOnWindowFocus: true (обновить при возврате на вкладку)
-    // - refetchOnReconnect: true (обновить при восстановлении сети)
+    // Настройки автообновления унаследованы из queryClient в main.tsx:
+    // - staleTime: 5 * 60 * 1000 (данные свежие 5 минут)
+    // - refetchOnWindowFocus: false (НЕ обновлять при возврате на вкладку)
+    // - retry: 1 (1 попытка повтора при ошибке)
   })
 
   /**
@@ -122,27 +128,38 @@ export const useButtonAccess = (page?: string): UseButtonAccessReturn => {
    */
   const canUseButton = useCallback(
     (buttonKey: string, pageName?: string): boolean => {
-      if (!data) return false
+      console.log(`[canUseButton] Проверка доступа к кнопке "${buttonKey}" на странице "${pageName || page || 'не указана'}"`)
+      console.log(`[canUseButton] data:`, data)
+      console.log(`[canUseButton] isLoading:`, isLoading)
+
+      if (!data) {
+        console.warn(`[canUseButton] Данные не загружены, возвращаем false`)
+        return false
+      }
 
       if (isSinglePage) {
         // Режим одной страницы - data это ButtonAccess[]
         const buttons = data as ButtonAccess[]
-        return buttons.some((btn) => btn.button_key === buttonKey)
+        const hasAccess = buttons.some((btn) => btn.button_key === buttonKey)
+        console.log(`[canUseButton] Режим одной страницы (${page}). Найдено кнопок: ${buttons.length}. Доступ: ${hasAccess}`)
+        return hasAccess
       } else {
         // Режим всех страниц - data это AllPagesButtons
         if (!pageName) {
           console.warn(
-            'useButtonAccess: page parameter is required when hook is initialized without specific page'
+            '[canUseButton] page parameter is required when hook is initialized without specific page'
           )
           return false
         }
 
         const allPages = data as AllPagesButtons
         const pageButtons = allPages[pageName] || []
-        return pageButtons.some((btn) => btn.button_key === buttonKey)
+        const hasAccess = pageButtons.some((btn) => btn.button_key === buttonKey)
+        console.log(`[canUseButton] Режим всех страниц. Страница ${pageName}. Найдено кнопок: ${pageButtons.length}. Доступ: ${hasAccess}`)
+        return hasAccess
       }
     },
-    [data, isSinglePage]
+    [data, isSinglePage, isLoading, page]
   )
 
   /**
