@@ -22,7 +22,10 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   (config) => {
     // FIXED infinite loop: Блокируем все запросы если уже начался редирект
-    if (isRedirecting()) {
+    // НО разрешаем login endpoint (чтобы можно было залогиниться)
+    const isLoginRequest = config.url?.includes('/auth/token/') && !config.url?.includes('/refresh/')
+
+    if (isRedirecting() && !isLoginRequest) {
       return Promise.reject(new Error('Redirecting to login...'))
     }
 
@@ -37,7 +40,13 @@ axiosInstance.interceptors.request.use(
 
 // Response interceptor to handle token refresh через cookies
 axiosInstance.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // FIXED: Очищаем флаг редиректа после успешного логина
+    if (response.config.url?.includes('/auth/token/') && !response.config.url?.includes('/refresh/')) {
+      sessionStorage.removeItem(REDIRECT_FLAG_KEY)
+    }
+    return response
+  },
   async (error) => {
     const originalRequest = error.config
 

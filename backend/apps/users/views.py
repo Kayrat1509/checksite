@@ -61,52 +61,48 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         Login с установкой HttpOnly cookies.
         Токены не возвращаются в response body для безопасности.
         """
-        response = super().post(request, *args, **kwargs)
+        # Получаем serializer с валидированными данными
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        if response.status_code == 200:
-            from django.conf import settings
+        # Получаем токены
+        access_token = serializer.validated_data.get('access')
+        refresh_token = serializer.validated_data.get('refresh')
 
-            # Получить токены из response
-            access_token = response.data.get('access')
-            refresh_token = response.data.get('refresh')
+        # Получаем user из validated_data (SimpleJWT добавляет его в CustomTokenObtainPairSerializer)
+        user = serializer.user
 
-            # Установить access_token в HttpOnly cookie
-            if access_token:
-                response.set_cookie(
-                    key=settings.SIMPLE_JWT['AUTH_COOKIE'],
-                    value=access_token,
-                    max_age=settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds(),
-                    secure=settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
-                    httponly=settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
-                    samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
-                    path=settings.SIMPLE_JWT['AUTH_COOKIE_PATH']
-                )
+        # Создаём response с user data
+        response = Response({
+            'detail': 'Login successful',
+            'user': UserSerializer(user).data
+        }, status=status.HTTP_200_OK)
 
-            # Установить refresh_token в HttpOnly cookie
-            if refresh_token:
-                response.set_cookie(
-                    key=settings.SIMPLE_JWT['REFRESH_COOKIE'],
-                    value=refresh_token,
-                    max_age=settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds(),
-                    secure=settings.SIMPLE_JWT['REFRESH_COOKIE_SECURE'],
-                    httponly=settings.SIMPLE_JWT['REFRESH_COOKIE_HTTP_ONLY'],
-                    samesite=settings.SIMPLE_JWT['REFRESH_COOKIE_SAMESITE'],
-                    path=settings.SIMPLE_JWT['REFRESH_COOKIE_PATH']
-                )
+        from django.conf import settings
 
-            # Удалить токены из response body (они теперь в cookies)
-            # Оставляем только user info
-            user_data = {
-                'id': self.serializer_class().user.id,
-                'email': self.serializer_class().user.email,
-                'full_name': self.serializer_class().user.get_full_name(),
-                'role': self.serializer_class().user.role,
-            }
+        # Установить access_token в HttpOnly cookie
+        if access_token:
+            response.set_cookie(
+                key=settings.SIMPLE_JWT['AUTH_COOKIE'],
+                value=access_token,
+                max_age=settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds(),
+                secure=settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
+                httponly=settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
+                samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
+                path=settings.SIMPLE_JWT['AUTH_COOKIE_PATH']
+            )
 
-            response.data = {
-                'detail': 'Login successful',
-                'user': UserSerializer(self.serializer_class().user).data
-            }
+        # Установить refresh_token в HttpOnly cookie
+        if refresh_token:
+            response.set_cookie(
+                key=settings.SIMPLE_JWT['REFRESH_COOKIE'],
+                value=refresh_token,
+                max_age=settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds(),
+                secure=settings.SIMPLE_JWT['REFRESH_COOKIE_SECURE'],
+                httponly=settings.SIMPLE_JWT['REFRESH_COOKIE_HTTP_ONLY'],
+                samesite=settings.SIMPLE_JWT['REFRESH_COOKIE_SAMESITE'],
+                path=settings.SIMPLE_JWT['REFRESH_COOKIE_PATH']
+            )
 
         return response
 
@@ -248,7 +244,8 @@ class UserViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
         user = self.request.user
 
         # Запрещенные роли для доступа к списку пользователей
-        FORBIDDEN_ROLES = ['CONTRACTOR', 'SUPERVISOR', 'OBSERVER', 'MASTER']
+        # MASTER убран из списка, так как является внутренним исполнителем замечаний
+        FORBIDDEN_ROLES = ['CONTRACTOR', 'SUPERVISOR', 'OBSERVER']
 
         # Superadmin sees all users
         if user.is_superuser:
