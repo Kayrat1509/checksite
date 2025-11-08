@@ -75,8 +75,16 @@ class TaskListSerializer(serializers.ModelSerializer):
         return obj.created_by.get_full_name() if obj.created_by else None
 
     def get_assigned_to_name(self, obj):
-        assignee = obj.assigned_to
-        return assignee.get_full_name() if assignee else None
+        """
+        Возвращает имена всех назначенных исполнителей через запятую.
+        Поддерживает назначение сотрудника, подрядчика или обоих.
+        """
+        names = []
+        if obj.assigned_to_user:
+            names.append(obj.assigned_to_user.get_full_name())
+        if obj.assigned_to_contractor:
+            names.append(obj.assigned_to_contractor.get_full_name())
+        return ', '.join(names) if names else None
 
     def get_assigned_to_email(self, obj):
         return obj.assigned_to_email
@@ -144,19 +152,15 @@ class TaskCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         """
-        Проверяем, что назначен либо сотрудник, либо подрядчик (но не оба).
+        Проверяем, что назначен хотя бы один исполнитель (сотрудник, подрядчик или оба).
         """
         assigned_to_user = attrs.get('assigned_to_user')
         assigned_to_contractor = attrs.get('assigned_to_contractor')
 
+        # Должен быть назначен хотя бы один исполнитель
         if not assigned_to_user and not assigned_to_contractor:
             raise serializers.ValidationError(
-                'Необходимо указать исполнителя: либо сотрудника, либо подрядчика'
-            )
-
-        if assigned_to_user and assigned_to_contractor:
-            raise serializers.ValidationError(
-                'Можно назначить либо сотрудника, либо подрядчика, но не обоих одновременно'
+                'Необходимо указать исполнителя: сотрудника, подрядчика или обоих'
             )
 
         # Проверяем, что дедлайн в будущем
@@ -220,20 +224,16 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         """
-        Проверяем, что назначен либо сотрудник, либо подрядчик (но не оба).
+        Проверяем, что назначен хотя бы один исполнитель (сотрудник, подрядчик или оба).
         """
         # Используем данные из instance, если поля не изменялись
         assigned_to_user = attrs.get('assigned_to_user', self.instance.assigned_to_user)
         assigned_to_contractor = attrs.get('assigned_to_contractor', self.instance.assigned_to_contractor)
 
+        # Должен быть назначен хотя бы один исполнитель
         if not assigned_to_user and not assigned_to_contractor:
             raise serializers.ValidationError(
-                'Необходимо указать исполнителя: либо сотрудника, либо подрядчика'
-            )
-
-        if assigned_to_user and assigned_to_contractor:
-            raise serializers.ValidationError(
-                'Можно назначить либо сотрудника, либо подрядчика, но не обоих одновременно'
+                'Необходимо указать исполнителя: сотрудника, подрядчика или обоих'
             )
 
         # Проверяем, что дедлайн в будущем (только для незавершенных задач)

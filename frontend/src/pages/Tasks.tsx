@@ -425,7 +425,7 @@ const Tasks = () => {
           <Form.Item
             name="assigned_to_user"
             label="Назначить сотруднику"
-            tooltip="Выберите либо сотрудника, либо подрядчика"
+            tooltip="Можно выбрать сотрудника, подрядчика или обоих"
           >
             <Select placeholder="Выберите сотрудника" allowClear>
               {employees.map((emp: any) => (
@@ -439,7 +439,7 @@ const Tasks = () => {
           <Form.Item
             name="assigned_to_contractor"
             label="Назначить подрядчику"
-            tooltip="Выберите либо сотрудника, либо подрядчика"
+            tooltip="Можно выбрать сотрудника, подрядчика или обоих"
           >
             <Select placeholder="Выберите подрядчика" allowClear>
               {contractors.map((contractor: any) => (
