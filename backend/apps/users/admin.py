@@ -47,7 +47,7 @@ class UserAdmin(BaseUserAdmin):
 
     list_display = [
         'email', 'get_full_name', 'role', 'get_company_display',
-        'get_temp_password_status', 'get_password_display', 'position', 'external_company_name',
+        'position', 'external_company_name',
         'approved', 'is_active', 'created_at'
     ]
     list_filter = [
