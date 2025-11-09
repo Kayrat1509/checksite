@@ -441,6 +441,116 @@ class MaterialRequest(SoftDeleteMixin, models.Model):
             logger = logging.getLogger(__name__)
             logger.error(f'Ошибка при отправке email об отклонении заявки {self.request_number}: {str(e)}')
 
+    def reconfigure_pending_approvals(self, new_flow_template):
+        """
+        Перенастраивает заявку на новую цепочку согласования.
+        Используется при изменении активной цепочки согласования.
+
+        Логика:
+        1. Находит последний APPROVED этап в старой цепочке
+        2. Определяет роль последнего согласующего
+        3. Удаляет все PENDING этапы из старой цепочки
+        4. Создает новые PENDING этапы из новой цепочки, начиная после роли последнего согласующего
+        5. Переходит на следующий этап (или завершает, если этапов больше нет)
+
+        Args:
+            new_flow_template: Новый шаблон цепочки согласования (ApprovalFlowTemplate)
+        """
+        from .approval_models import MaterialRequestApproval
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        # Проверяем, что заявка находится в процессе согласования
+        if self.status not in [self.Status.IN_PROGRESS, self.Status.DRAFT]:
+            logger.info(
+                f'Заявка {self.request_number} имеет статус {self.status}, '
+                f'перенастройка не требуется'
+            )
+            return
+
+        # Находим последний согласованный этап (если есть)
+        last_approved = self.approvals.filter(
+            status='APPROVED'
+        ).order_by('-step__order').first()
+
+        # Определяем, с какой роли начинать новую цепочку
+        if last_approved:
+            # Есть уже согласованные этапы - продолжаем после последней согласованной роли
+            last_approved_role = last_approved.step.role
+            last_approved_order = last_approved.step.order
+
+            logger.info(
+                f'Заявка {self.request_number}: последний согласовавший - '
+                f'{last_approved_role} (этап {last_approved_order})'
+            )
+
+            # Находим порядковый номер этой роли в новой цепочке
+            new_steps = list(new_flow_template.steps.order_by('order'))
+            start_from_order = 0
+
+            for idx, step in enumerate(new_steps):
+                if step.role == last_approved_role:
+                    # Начинаем со следующего этапа после этой роли
+                    start_from_order = idx + 1
+                    break
+
+            # Если роль не найдена в новой цепочке, начинаем с первого этапа
+            if start_from_order == 0:
+                logger.warning(
+                    f'Роль {last_approved_role} не найдена в новой цепочке согласования. '
+                    f'Начинаем с первого этапа новой цепочки.'
+                )
+        else:
+            # Нет согласованных этапов - начинаем с первого этапа новой цепочки
+            start_from_order = 0
+            logger.info(
+                f'Заявка {self.request_number}: нет согласованных этапов, '
+                f'начинаем с первого этапа новой цепочки'
+            )
+
+        # Удаляем все PENDING этапы из старой цепочки
+        deleted_count = self.approvals.filter(status='PENDING').delete()[0]
+        logger.info(
+            f'Заявка {self.request_number}: удалено {deleted_count} ожидающих этапов '
+            f'из старой цепочки'
+        )
+
+        # Создаем новые PENDING этапы из новой цепочки
+        new_steps = new_flow_template.steps.order_by('order')
+        created_count = 0
+
+        for step in new_steps[start_from_order:]:
+            MaterialRequestApproval.objects.create(
+                material_request=self,
+                step=step,
+                status='PENDING'
+            )
+            created_count += 1
+
+        logger.info(
+            f'Заявка {self.request_number}: создано {created_count} новых этапов '
+            f'из новой цепочки (начиная с позиции {start_from_order})'
+        )
+
+        # Логируем изменение цепочки согласования
+        self._log_history(
+            user=None,
+            old_status='Цепочка согласования',
+            new_status='Обновлена',
+            comment=f'Цепочка согласования обновлена на "{new_flow_template.name}". '
+                    f'Удалено {deleted_count} ожидающих этапов, '
+                    f'создано {created_count} новых этапов.'
+        )
+
+        # Переходим на следующий этап (или завершаем, если этапов больше нет)
+        self.move_to_next_step()
+
+        logger.info(
+            f'Заявка {self.request_number}: перенастройка завершена. '
+            f'Текущий этап: {self.current_step.get_role_display() if self.current_step else "завершено"}'
+        )
+
     def _log_history(self, user, old_status, new_status, comment=''):
         """Добавление записи в историю заявки"""
         MaterialRequestHistory.objects.create(

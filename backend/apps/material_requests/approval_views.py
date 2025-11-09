@@ -87,7 +87,12 @@ class ApprovalFlowTemplateViewSet(viewsets.ModelViewSet):
         """
         Активация шаблона цепочки согласования.
         Деактивирует все остальные шаблоны этой компании.
+        Перенастраивает все заявки в процессе согласования на новую цепочку.
         """
+        from .models import MaterialRequest
+        import logging
+
+        logger = logging.getLogger(__name__)
         template = self.get_object()
 
         # Деактивируем все другие шаблоны в этой компании
@@ -99,6 +104,32 @@ class ApprovalFlowTemplateViewSet(viewsets.ModelViewSet):
         # Активируем текущий шаблон
         template.is_active = True
         template.save()
+
+        # Перенастраиваем все заявки в процессе согласования на новую цепочку
+        # Находим все заявки компании со статусом IN_PROGRESS или DRAFT
+        pending_requests = MaterialRequest.objects.filter(
+            project__company=template.company,
+            status__in=['IN_PROGRESS', 'DRAFT']
+        )
+
+        reconfigured_count = 0
+        for material_request in pending_requests:
+            try:
+                material_request.reconfigure_pending_approvals(template)
+                reconfigured_count += 1
+                logger.info(
+                    f'Заявка {material_request.request_number} успешно перенастроена '
+                    f'на новую цепочку "{template.name}"'
+                )
+            except Exception as e:
+                logger.error(
+                    f'Ошибка при перенастройке заявки {material_request.request_number}: {str(e)}'
+                )
+
+        logger.info(
+            f'Цепочка согласования "{template.name}" активирована. '
+            f'Перенастроено заявок: {reconfigured_count} из {pending_requests.count()}'
+        )
 
         serializer = self.get_serializer(template)
         return Response(serializer.data)
