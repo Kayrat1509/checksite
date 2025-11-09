@@ -399,7 +399,7 @@ const Issues = () => {
   const users = Array.isArray(usersData) ? usersData : (usersData?.results || [])
 
   // Роли, которые могут быть исполнителями замечаний
-  const EXECUTOR_ROLES = ['CONTRACTOR', 'SITE_MANAGER', 'FOREMAN', 'MASTER']
+  const EXECUTOR_ROLES = ['CONTRACTOR', 'SITE_MANAGER', 'FOREMAN', 'POWER_ENGINEER', 'MASTER']
 
   // Все пользователи с ролями исполнителей
   const allExecutors = users.filter((u: any) => EXECUTOR_ROLES.includes(u.role))
@@ -409,9 +409,9 @@ const Issues = () => {
     ? [
         // Подрядчики из проекта
         ...(Array.isArray(projectContractorsData) ? projectContractorsData : []),
-        // Внутренние исполнители (Начальник участка, Прораб, Мастер) из своей компании
+        // Внутренние исполнители (Начальник участка, Прораб, Энергетик, Мастер) из своей компании
         ...allExecutors.filter((u: any) => {
-          const isInternalRole = ['SITE_MANAGER', 'FOREMAN', 'MASTER'].includes(u.role)
+          const isInternalRole = ['SITE_MANAGER', 'FOREMAN', 'POWER_ENGINEER', 'MASTER'].includes(u.role)
           // Сравниваем ID компаний (приводим к числу для надежности)
           const userCompanyId = user?.company ? Number(user.company) : null
           const executorCompanyId = u.company ? Number(u.company) : null
@@ -441,7 +441,7 @@ const Issues = () => {
   // Разделяем исполнителей на группы для отображения
   const contractorsList = contractors.filter((u: any) => u.role === 'CONTRACTOR')
   const internalExecutorsList = contractors.filter((u: any) =>
-    ['SITE_MANAGER', 'FOREMAN', 'MASTER'].includes(u.role)
+    ['SITE_MANAGER', 'FOREMAN', 'POWER_ENGINEER', 'MASTER'].includes(u.role)
   )
 
   // Обработка данных (может быть массив или объект с results)

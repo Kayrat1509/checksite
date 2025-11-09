@@ -154,9 +154,11 @@ class User(SoftDeleteMixin, AbstractUser):
         DIRECTOR = 'DIRECTOR', _('Директор')
         CHIEF_ENGINEER = 'CHIEF_ENGINEER', _('Главный инженер')
         PROJECT_MANAGER = 'PROJECT_MANAGER', _('Руководитель проекта')
+        CHIEF_POWER_ENGINEER = 'CHIEF_POWER_ENGINEER', _('Главный энергетик')
         ENGINEER = 'ENGINEER', _('Инженер ПТО')
         SITE_MANAGER = 'SITE_MANAGER', _('Начальник участка')
         FOREMAN = 'FOREMAN', _('Прораб')
+        POWER_ENGINEER = 'POWER_ENGINEER', _('Энергетик')
         MASTER = 'MASTER', _('Мастер')
         SUPERVISOR = 'SUPERVISOR', _('Технадзор')
         CONTRACTOR = 'CONTRACTOR', _('Подрядчик')
@@ -324,8 +326,10 @@ class User(SoftDeleteMixin, AbstractUser):
         return self.role in [
             self.Role.ENGINEER,
             self.Role.PROJECT_MANAGER,
+            self.Role.CHIEF_POWER_ENGINEER,  # Новая роль: Главный энергетик
             self.Role.SITE_MANAGER,
             self.Role.FOREMAN,
+            self.Role.POWER_ENGINEER,  # Новая роль: Энергетик
             self.Role.MASTER,
         ]
 
@@ -336,6 +340,7 @@ class User(SoftDeleteMixin, AbstractUser):
             self.Role.DIRECTOR,
             self.Role.CHIEF_ENGINEER,
             self.Role.PROJECT_MANAGER,
+            self.Role.CHIEF_POWER_ENGINEER,  # Новая роль: Главный энергетик
             self.Role.SITE_MANAGER,
             self.Role.FOREMAN,
         ]
@@ -346,6 +351,7 @@ class User(SoftDeleteMixin, AbstractUser):
         """Проверка: относится ли роль к категории ИТР и снабжение."""
         itr_supply_roles = [
             self.Role.ENGINEER,
+            self.Role.POWER_ENGINEER,  # Новая роль: Энергетик
             self.Role.MASTER,
             self.Role.SUPPLY_MANAGER,
             self.Role.WAREHOUSE_HEAD,

@@ -23,15 +23,17 @@ import { useAuthStore } from '../stores/authStore'
 
 const { Title, Paragraph } = Typography
 
-// Дефолтная схема согласования для всех компаний
+// Дефолтная схема согласования для всех компаний (обновлено: добавлены роли энергетиков)
 const DEFAULT_APPROVAL_STEPS = [
   { role: 'FOREMAN', role_display: 'Прораб', enabled: true },
+  { role: 'POWER_ENGINEER', role_display: 'Энергетик', enabled: false },  // Новая роль
   { role: 'SITE_MANAGER', role_display: 'Начальник участка', enabled: true },
   { role: 'SUPPLY_MANAGER', role_display: 'Снабжение', enabled: true },
   { role: 'WAREHOUSE_HEAD', role_display: 'Завсклад центр.склада', enabled: true },
   { role: 'SUPPLY_MANAGER', role_display: 'Снабжение', enabled: true },
   { role: 'ENGINEER', role_display: 'Инженер ПТО', enabled: true },
   { role: 'PROJECT_MANAGER', role_display: 'Руководитель проекта', enabled: true },
+  { role: 'CHIEF_POWER_ENGINEER', role_display: 'Главный энергетик', enabled: false },  // Новая роль
   { role: 'CHIEF_ENGINEER', role_display: 'Главный инженер', enabled: true },
   { role: 'DIRECTOR', role_display: 'Директор', enabled: true },
 ]

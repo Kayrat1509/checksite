@@ -65,11 +65,10 @@ def update_full_access_for_management(sender, instance, created, **kwargs):
 
     ВАЖНО: Матрица доступа к страницам теперь глобальная (ButtonAccess с company=NULL),
     поэтому создание записей PageAccess по компаниям больше не требуется.
-    """
-    # Пропускаем, если это создание нового пользователя (обработает другой сигнал)
-    if created:
-        return
 
+    ОБНОВЛЕНО: Теперь работает и при создании пользователя (created=True),
+    чтобы новые роли (CHIEF_POWER_ENGINEER, POWER_ENGINEER) получали правильную категорию.
+    """
     # Проверяем, изменилась ли роль на руководящую
     if instance.is_management_category:
         if not instance.has_full_access or instance.role_category != 'MANAGEMENT':

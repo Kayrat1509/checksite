@@ -77,7 +77,9 @@ ITEM_STATUS_TRANSITIONS = {
         ('BACK_TO_SUPPLY', 'ENGINEER_APPROVAL'),
         ('BACK_TO_SUPPLY_AFTER_ENGINEER', 'PROJECT_MANAGER_APPROVAL'),
         ('BACK_TO_SUPPLY_AFTER_PM', 'DIRECTOR_APPROVAL'),
-        ('BACK_TO_SUPPLY_AFTER_DIRECTOR', 'APPROVED'),  # Автоматический переход после согласования Директором
+        ('BACK_TO_SUPPLY_AFTER_DIRECTOR', 'APPROVED'),      # Промежуточный статус (опционально)
+        ('BACK_TO_SUPPLY_AFTER_DIRECTOR', 'PAYMENT'),       # Прямой переход на оплату
+        ('BACK_TO_SUPPLY_AFTER_DIRECTOR', 'SENT_TO_SITE'),  # Прямой переход на объект
         ('APPROVED', 'PAYMENT'),  # Снабженец отправляет на оплату
         ('APPROVED', 'SENT_TO_SITE'),  # Снабженец отправляет на объект
         ('PAYMENT', 'PAID'),  # Снабженец подтверждает оплату (не бухгалтер!)

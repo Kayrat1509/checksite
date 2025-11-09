@@ -204,14 +204,16 @@ export const approvalFlowsAPI = {
 
 // ===== КОНСТАНТЫ =====
 
-// Доступные роли для согласования
+// Доступные роли для согласования (обновлено: добавлены роли энергетиков)
 export const APPROVAL_ROLES: ApprovalRole[] = [
   { value: 'DIRECTOR', label: 'Директор' },
   { value: 'CHIEF_ENGINEER', label: 'Главный инженер' },
   { value: 'PROJECT_MANAGER', label: 'Руководитель проекта' },
+  { value: 'CHIEF_POWER_ENGINEER', label: 'Главный энергетик' },  // Новая роль
   { value: 'ENGINEER', label: 'Инженер ПТО' },
   { value: 'SITE_MANAGER', label: 'Начальник участка' },
   { value: 'FOREMAN', label: 'Прораб' },
+  { value: 'POWER_ENGINEER', label: 'Энергетик' },  // Новая роль
   { value: 'SUPPLY_MANAGER', label: 'Снабженец' },
   { value: 'WAREHOUSE_HEAD', label: 'Завсклад центрального склада' },
   { value: 'SITE_WAREHOUSE_MANAGER', label: 'Завсклад объекта' },

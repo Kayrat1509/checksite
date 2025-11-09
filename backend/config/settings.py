@@ -334,3 +334,13 @@ if not DEBUG:
 
     # NOTE: SECURE_BROWSER_XSS_FILTER удалён (deprecated с Django 3.0)
     # Современные браузеры используют CSP вместо X-XSS-Protection
+
+
+# ================================================
+# DATA UPLOAD SETTINGS
+# ================================================
+# Увеличен лимит для админ-панели ButtonAccess
+# С добавлением новых ролей (CHIEF_POWER_ENGINEER, POWER_ENGINEER)
+# количество полей в форме увеличилось: 117 кнопок * 16 ролей = ~1900 полей
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
+

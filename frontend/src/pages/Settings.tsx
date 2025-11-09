@@ -12,7 +12,7 @@ const Settings = () => {
   // Проверка доступа к вкладке "Корзина"
   const canAccessRecycleBin = () => {
     if (!user) return false
-    const allowedRoles = ['SUPERADMIN', 'DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'SITE_MANAGER']
+    const allowedRoles = ['SUPERADMIN', 'DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'CHIEF_POWER_ENGINEER', 'SITE_MANAGER']
     return allowedRoles.includes(user.role)
   }
 

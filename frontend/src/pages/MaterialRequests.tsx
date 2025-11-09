@@ -1399,8 +1399,8 @@ const MaterialRequests = () => {
       return true;
     }
 
-    // Прораб, Мастер, Начальник участка, Завсклад - всегда могут
-    if (['FOREMAN', 'MASTER', 'SITE_MANAGER', 'WAREHOUSE_HEAD'].includes(user?.role || '')) {
+    // Прораб, Энергетик, Мастер, Начальник участка, Завсклад - всегда могут
+    if (['FOREMAN', 'POWER_ENGINEER', 'MASTER', 'SITE_MANAGER', 'WAREHOUSE_HEAD'].includes(user?.role || '')) {
       return true;
     }
 

@@ -34,7 +34,9 @@ class ButtonAccessAdmin(admin.ModelAdmin):
         'default_access',
         'DIRECTOR',
         'CHIEF_ENGINEER',
-        'PROJECT_MANAGER'
+        'PROJECT_MANAGER',
+        'CHIEF_POWER_ENGINEER',  # Новая роль: Главный энергетик
+        'POWER_ENGINEER'  # Новая роль: Энергетик
     )
 
     search_fields = (
@@ -64,6 +66,7 @@ class ButtonAccessAdmin(admin.ModelAdmin):
                 'DIRECTOR',
                 'CHIEF_ENGINEER',
                 'PROJECT_MANAGER',
+                'CHIEF_POWER_ENGINEER',  # Новая роль: Главный энергетик
             ),
             'description': 'Если "Доступ по умолчанию" включен, эти настройки игнорируются'
         }),
@@ -72,6 +75,7 @@ class ButtonAccessAdmin(admin.ModelAdmin):
                 'ENGINEER',
                 'SITE_MANAGER',
                 'FOREMAN',
+                'POWER_ENGINEER',  # Новая роль: Энергетик
                 'MASTER',
             ),
         }),
@@ -145,9 +149,11 @@ class ButtonAccessAdmin(admin.ModelAdmin):
             'DIRECTOR': 'Директор',
             'CHIEF_ENGINEER': 'Гл.инженер',
             'PROJECT_MANAGER': 'Рук.проекта',
+            'CHIEF_POWER_ENGINEER': 'Гл.энергетик',  # Новая роль
             'ENGINEER': 'Инженер ПТО',
             'SITE_MANAGER': 'Нач.участка',
             'FOREMAN': 'Прораб',
+            'POWER_ENGINEER': 'Энергетик',  # Новая роль
             'MASTER': 'Мастер',
             'SUPERVISOR': 'Технадзор',
             'CONTRACTOR': 'Подрядчик',
@@ -225,9 +231,11 @@ class ButtonAccessAdmin(admin.ModelAdmin):
             ('DIRECTOR', 'Директор'),
             ('CHIEF_ENGINEER', 'Гл.инженер'),
             ('PROJECT_MANAGER', 'Рук.проекта'),
+            ('CHIEF_POWER_ENGINEER', 'Гл.энергетик'),  # Новая роль
             ('ENGINEER', 'Инженер ПТО'),
             ('SITE_MANAGER', 'Нач.участка'),
             ('FOREMAN', 'Прораб'),
+            ('POWER_ENGINEER', 'Энергетик'),  # Новая роль
             ('MASTER', 'Мастер'),
             ('SUPERVISOR', 'Технадзор'),
             ('CONTRACTOR', 'Подрядчик'),
@@ -260,11 +268,11 @@ class ButtonAccessAdmin(admin.ModelAdmin):
         # Получаем все кнопки
         all_buttons = ButtonAccess.objects.all()
 
-        # Список всех ролей
+        # Список всех ролей (включая новые роли энергетиков)
         all_roles = [
-            'DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'ENGINEER',
-            'SITE_MANAGER', 'FOREMAN', 'MASTER', 'SUPERVISOR',
-            'CONTRACTOR', 'OBSERVER', 'SUPPLY_MANAGER',
+            'DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER', 'CHIEF_POWER_ENGINEER',
+            'ENGINEER', 'SITE_MANAGER', 'FOREMAN', 'POWER_ENGINEER',
+            'MASTER', 'SUPERVISOR', 'CONTRACTOR', 'OBSERVER', 'SUPPLY_MANAGER',
             'WAREHOUSE_HEAD', 'SITE_WAREHOUSE_MANAGER'
         ]
 

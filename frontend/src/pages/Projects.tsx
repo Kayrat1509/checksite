@@ -621,8 +621,8 @@ const Projects = () => {
       render: (_: any, record: Project) => {
         // Используем team_members_details из API проекта вместо фильтрации общего списка users
         // Фильтруем только роли: ИТР и Руководство
-        const ITR_ROLES = ['ENGINEER', 'SITE_MANAGER', 'FOREMAN', 'MASTER']
-        const MANAGEMENT_ROLES = ['PROJECT_MANAGER', 'CHIEF_ENGINEER', 'DIRECTOR']
+        const ITR_ROLES = ['ENGINEER', 'SITE_MANAGER', 'FOREMAN', 'POWER_ENGINEER', 'MASTER']
+        const MANAGEMENT_ROLES = ['PROJECT_MANAGER', 'CHIEF_POWER_ENGINEER', 'CHIEF_ENGINEER', 'DIRECTOR']
         const allowedRoles = [...ITR_ROLES, ...MANAGEMENT_ROLES]
 
         const projectUsers = (record.team_members_details || []).filter((user: any) =>
@@ -980,8 +980,8 @@ const Projects = () => {
 
           // Используем team_members_details из API проекта вместо фильтрации общего списка users
           // Фильтруем только роли: ИТР и Руководство
-          const ITR_ROLES = ['ENGINEER', 'SITE_MANAGER', 'FOREMAN', 'MASTER']
-          const MANAGEMENT_ROLES = ['PROJECT_MANAGER', 'CHIEF_ENGINEER', 'DIRECTOR']
+          const ITR_ROLES = ['ENGINEER', 'SITE_MANAGER', 'FOREMAN', 'POWER_ENGINEER', 'MASTER']
+          const MANAGEMENT_ROLES = ['PROJECT_MANAGER', 'CHIEF_POWER_ENGINEER', 'CHIEF_ENGINEER', 'DIRECTOR']
           const allowedRoles = [...ITR_ROLES, ...MANAGEMENT_ROLES]
 
           const projectUsers = (selectedProject.team_members_details || []).filter((user: User) =>

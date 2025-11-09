@@ -134,9 +134,11 @@ class ButtonAccess(models.Model):
     DIRECTOR = models.BooleanField(default=False, verbose_name='Директор')
     CHIEF_ENGINEER = models.BooleanField(default=False, verbose_name='Главный инженер')
     PROJECT_MANAGER = models.BooleanField(default=False, verbose_name='Руководитель проекта')
+    CHIEF_POWER_ENGINEER = models.BooleanField(default=False, verbose_name='Главный энергетик')  # Новая роль
     ENGINEER = models.BooleanField(default=False, verbose_name='Инженер ПТО')
     SITE_MANAGER = models.BooleanField(default=False, verbose_name='Начальник участка')
     FOREMAN = models.BooleanField(default=False, verbose_name='Прораб')
+    POWER_ENGINEER = models.BooleanField(default=False, verbose_name='Энергетик')  # Новая роль
     MASTER = models.BooleanField(default=False, verbose_name='Мастер')
     SUPERVISOR = models.BooleanField(default=False, verbose_name='Технадзор')
     CONTRACTOR = models.BooleanField(default=False, verbose_name='Подрядчик')
@@ -204,10 +206,13 @@ class ButtonAccess(models.Model):
             return ['ALL']
 
         roles = []
+        # Список всех ролей в системе (включая новые роли)
         role_fields = [
             'SUPERADMIN', 'DIRECTOR', 'CHIEF_ENGINEER', 'PROJECT_MANAGER',
-            'ENGINEER', 'SITE_MANAGER', 'FOREMAN', 'MASTER',
-            'SUPERVISOR', 'CONTRACTOR', 'OBSERVER', 'SUPPLY_MANAGER',
+            'CHIEF_POWER_ENGINEER',  # Новая роль: Главный энергетик
+            'ENGINEER', 'SITE_MANAGER', 'FOREMAN',
+            'POWER_ENGINEER',  # Новая роль: Энергетик
+            'MASTER', 'SUPERVISOR', 'CONTRACTOR', 'OBSERVER', 'SUPPLY_MANAGER',
             'WAREHOUSE_HEAD', 'SITE_WAREHOUSE_MANAGER'
         ]
 

@@ -99,10 +99,12 @@ const Users = () => {
       { value: 'ENGINEER', label: 'Инженер ПТО' },
       { value: 'SITE_MANAGER', label: 'Начальник участка' },
       { value: 'FOREMAN', label: 'Прораб' },
+      { value: 'POWER_ENGINEER', label: 'Энергетик' },  // Новая роль: Энергетик
       { value: 'MASTER', label: 'Мастер' }
     ],
     MANAGEMENT: [
       { value: 'PROJECT_MANAGER', label: 'Руководитель проекта' },
+      { value: 'CHIEF_POWER_ENGINEER', label: 'Главный энергетик' },  // Новая роль: Главный энергетик
       { value: 'CHIEF_ENGINEER', label: 'Главный инженер' },
       { value: 'DIRECTOR', label: 'Директор' }
     ],
