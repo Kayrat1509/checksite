@@ -181,14 +181,25 @@ const MaterialRequests = () => {
         ...values,
         project: selectedProjectId,
       };
-      await materialRequestsAPI.createMaterialRequest(requestData);
+
+      console.log('Creating request with data:', requestData);
+      const response = await materialRequestsAPI.createMaterialRequest(requestData);
+      console.log('Request created successfully:', response);
+
       message.success('Заявка создана успешно!');
       setIsModalVisible(false);
       form.resetFields();
       fetchRequests();
-    } catch (error) {
-      message.error('Ошибка создания заявки');
-      console.error(error);
+    } catch (error: any) {
+      console.error('Error creating request:', error);
+      console.error('Error response:', error?.response);
+      console.error('Error response data:', error?.response?.data);
+
+      const errorMessage = error?.response?.data?.detail ||
+                          error?.response?.data?.message ||
+                          error?.message ||
+                          'Ошибка создания заявки';
+      message.error(errorMessage);
     }
   };
 

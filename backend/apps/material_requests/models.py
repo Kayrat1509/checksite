@@ -172,14 +172,15 @@ class MaterialRequest(SoftDeleteMixin, models.Model):
     def initialize_approval_flow(self):
         """
         Инициализация процесса согласования при создании заявки.
-        Создает записи MaterialRequestApproval для каждого этапа активной цепочки компании.
+        Создает записи MaterialRequestApproval для каждого этапа активной глобальной цепочки.
+        ВАЖНО: Все настройки глобальные (company=NULL), нет привязки к компании.
         """
         from .approval_models import ApprovalFlowTemplate, MaterialRequestApproval
 
-        # Получаем активную цепочку согласования компании
+        # Получаем активную ГЛОБАЛЬНУЮ цепочку согласования (company=NULL)
         try:
             flow = ApprovalFlowTemplate.objects.get(
-                company=self.project.company,
+                company__isnull=True,  # Глобальные настройки
                 is_active=True
             )
         except ApprovalFlowTemplate.DoesNotExist:
@@ -210,11 +211,14 @@ class MaterialRequest(SoftDeleteMixin, models.Model):
             logger.error(f'Ошибка при отправке email о создании заявки {self.request_number}: {str(e)}')
 
     def _create_default_approval_flow(self):
-        """Создает default цепочку согласования если её нет"""
+        """
+        Создает default ГЛОБАЛЬНУЮ цепочку согласования если её нет.
+        ВАЖНО: company=NULL (глобальные настройки).
+        """
         from .approval_models import ApprovalFlowTemplate, ApprovalStep
 
         flow = ApprovalFlowTemplate.objects.create(
-            company=self.project.company,
+            company=None,  # Глобальные настройки, без привязки к компании
             name="Default схема согласования",
             is_active=True,
             created_by=self.author
