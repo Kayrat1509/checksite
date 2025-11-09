@@ -203,6 +203,16 @@ export const materialRequestsAPI = {
     return response.data
   },
 
+  // Обновить фактическое количество (НОВАЯ УПРОЩЕННАЯ ЛОГИКА)
+  // Используется на вкладке "На доставке" для ИТР на объекте
+  // Если actual_quantity >= quantity И item_status == DELIVERY → автоматически переходит в COMPLETED
+  updateActualQuantity: async (itemId: number, data: {
+    actual_quantity: number
+  }): Promise<MaterialRequestItem & { auto_completed?: boolean }> => {
+    const response = await axios.patch(`/material-request-items/${itemId}/update_actual_quantity/`, data)
+    return response.data
+  },
+
   // Получить материалы с заполненным actual_quantity (для страницы Склад)
   getMaterialItemsWithActualQuantity: async (params?: {
     request__project?: number  // Фильтр по проекту

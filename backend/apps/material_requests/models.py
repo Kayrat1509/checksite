@@ -256,6 +256,28 @@ class MaterialRequest(SoftDeleteMixin, models.Model):
             self.responsible = None
             self.save(update_fields=['status', 'current_step', 'responsible'])
 
+            # НОВАЯ ЛОГИКА: Автоматический переход всех позиций на оплату
+            updated_count = self.items.filter(
+                item_status='IN_APPROVAL',
+                status='ACTIVE'  # Только активные позиции (не отмененные)
+            ).update(item_status='PAYMENT')
+
+            if updated_count > 0:
+                # Логируем переход позиций
+                self._log_history(
+                    user=None,
+                    old_status='На согласовании',
+                    new_status='На оплате',
+                    comment=f'Все этапы согласования пройдены. {updated_count} позиций переведено на оплату.'
+                )
+
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(
+                    f'Заявка {self.request_number}: {updated_count} позиций автоматически переведено '
+                    f'из IN_APPROVAL в PAYMENT после полного согласования'
+                )
+
             # Отправляем email автору о полном согласовании
             from .tasks import send_material_request_notification
             try:
@@ -588,27 +610,16 @@ class MaterialRequestItem(models.Model):
         OUT_OF_STOCK = 'OUT_OF_STOCK', _('Нет на складе')
 
     class ProcessStatus(models.TextChoices):
-        # Независимый статус движения позиции по процессу согласования
-        # Новая логика: Автор → Снабжение → Завсклад → Снабжение → Инженер ПТО → Снабжение → Рук.проекта → Снабжение → Директор → Снабжение
+        # Упрощенная схема статусов (унифицированная с ApprovalFlowTemplate)
+        # Этапы согласования управляются через MaterialRequest.approvals
+        # Здесь только статусы после согласования и завершения
         DRAFT = 'DRAFT', _('Черновик')
-        UNDER_REVIEW = 'UNDER_REVIEW', _('Снабжение (проверка)')
-        WAREHOUSE_CHECK = 'WAREHOUSE_CHECK', _('Завсклад')
-        BACK_TO_SUPPLY = 'BACK_TO_SUPPLY', _('Снабжение (после склада)')
-        ENGINEER_APPROVAL = 'ENGINEER_APPROVAL', _('Инженер ПТО')
-        BACK_TO_SUPPLY_AFTER_ENGINEER = 'BACK_TO_SUPPLY_AFTER_ENGINEER', _('Снабжение (после инженера)')
-        PROJECT_MANAGER_APPROVAL = 'PROJECT_MANAGER_APPROVAL', _('Руководитель проекта')
-        BACK_TO_SUPPLY_AFTER_PM = 'BACK_TO_SUPPLY_AFTER_PM', _('Снабжение (после рук.проекта)')
-        DIRECTOR_APPROVAL = 'DIRECTOR_APPROVAL', _('Директор')
-        BACK_TO_SUPPLY_AFTER_DIRECTOR = 'BACK_TO_SUPPLY_AFTER_DIRECTOR', _('Снабжение (после директора)')
-        RETURNED_FOR_REVISION = 'RETURNED_FOR_REVISION', _('На доработке (у автора)')
-        REWORK = 'REWORK', _('На доработке')
-        APPROVED = 'APPROVED', _('Согласовано')
-        SENT_TO_SITE = 'SENT_TO_SITE', _('Отправить на объект (у зав.склада)')
-        WAREHOUSE_SHIPPING = 'WAREHOUSE_SHIPPING', _('Отправлено на объект (у автора)')
+        IN_APPROVAL = 'IN_APPROVAL', _('На согласовании')
+        RETURNED_FOR_REVISION = 'RETURNED_FOR_REVISION', _('На доработке')
         PAYMENT = 'PAYMENT', _('На оплате')
-        PAID = 'PAID', _('Оплачено')
-        DELIVERY = 'DELIVERY', _('Доставлено')
+        DELIVERY = 'DELIVERY', _('На доставке')
         COMPLETED = 'COMPLETED', _('Отработано')
+        CANCELLED = 'CANCELLED', _('Отменено')
 
     request = models.ForeignKey(
         MaterialRequest,

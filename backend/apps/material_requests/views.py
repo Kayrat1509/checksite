@@ -36,10 +36,17 @@ from .permissions import (
 )
 
 
-# ===== БИЗНЕС-ЛОГИКА WORKFLOW ДЛЯ ПОЗИЦИЙ МАТЕРИАЛОВ =====
+# ===== БИЗНЕС-ЛОГИКА WORKFLOW ДЛЯ ПОЗИЦИЙ МАТЕРИАЛОВ (УПРОЩЕННАЯ) =====
 # Определяет разрешенные переходы между статусами позиций для каждой роли.
 # Это НЕ контроль доступа (который управляется через ButtonAccess),
 # а правила бизнес-процесса: какая роль может выполнить какой переход.
+#
+# НОВАЯ ЛОГИКА (7 статусов):
+# - DRAFT → IN_APPROVAL (автор создает заявку)
+# - IN_APPROVAL → проходит через ApprovalFlowTemplate (управляется на уровне MaterialRequest)
+# - После согласования: автоматический переход в PAYMENT
+# - PAYMENT → DELIVERY (снабженец оплачивает)
+# - DELIVERY → COMPLETED (ИТР на объекте принимает, с проверкой actual_quantity)
 #
 # Формат: {
 #     'ROLE_NAME': [
@@ -48,81 +55,47 @@ from .permissions import (
 #     ]
 # }
 ITEM_STATUS_TRANSITIONS = {
-    # Прораб/Мастер/Начальник участка
+    # Авторы заявки (ИТР на объекте) - создание и доработка
     'FOREMAN': [
-        ('DRAFT', 'UNDER_REVIEW'),
-        ('REWORK', 'UNDER_REVIEW'),
-        ('RETURNED_FOR_REVISION', 'UNDER_REVIEW'),
-        ('DELIVERY', 'COMPLETED'),
-        ('WAREHOUSE_SHIPPING', 'COMPLETED'),
+        ('DRAFT', 'IN_APPROVAL'),                  # Создание заявки
+        ('RETURNED_FOR_REVISION', 'IN_APPROVAL'),  # Отправка после доработки
+        ('DELIVERY', 'COMPLETED'),                 # Приемка на объекте
     ],
     'MASTER': [
-        ('DRAFT', 'UNDER_REVIEW'),
-        ('REWORK', 'UNDER_REVIEW'),
-        ('RETURNED_FOR_REVISION', 'UNDER_REVIEW'),
+        ('DRAFT', 'IN_APPROVAL'),
+        ('RETURNED_FOR_REVISION', 'IN_APPROVAL'),
         ('DELIVERY', 'COMPLETED'),
-        ('WAREHOUSE_SHIPPING', 'COMPLETED'),
     ],
     'SITE_MANAGER': [
-        ('DRAFT', 'UNDER_REVIEW'),
-        ('REWORK', 'UNDER_REVIEW'),
-        ('RETURNED_FOR_REVISION', 'UNDER_REVIEW'),
+        ('DRAFT', 'IN_APPROVAL'),
+        ('RETURNED_FOR_REVISION', 'IN_APPROVAL'),
         ('DELIVERY', 'COMPLETED'),
-        ('WAREHOUSE_SHIPPING', 'COMPLETED'),
+    ],
+    'SITE_WAREHOUSE_MANAGER': [
+        ('DELIVERY', 'COMPLETED'),  # Завсклад объекта может принимать на объекте
     ],
 
-    # Снабженец
+    # Снабженец - оплата
     'SUPPLY_MANAGER': [
-        ('UNDER_REVIEW', 'WAREHOUSE_CHECK'),
-        ('BACK_TO_SUPPLY', 'ENGINEER_APPROVAL'),
-        ('BACK_TO_SUPPLY_AFTER_ENGINEER', 'PROJECT_MANAGER_APPROVAL'),
-        ('BACK_TO_SUPPLY_AFTER_PM', 'DIRECTOR_APPROVAL'),
-        ('BACK_TO_SUPPLY_AFTER_DIRECTOR', 'APPROVED'),      # Промежуточный статус (опционально)
-        ('BACK_TO_SUPPLY_AFTER_DIRECTOR', 'PAYMENT'),       # Прямой переход на оплату
-        ('BACK_TO_SUPPLY_AFTER_DIRECTOR', 'SENT_TO_SITE'),  # Прямой переход на объект
-        ('APPROVED', 'PAYMENT'),  # Снабженец отправляет на оплату
-        ('APPROVED', 'SENT_TO_SITE'),  # Снабженец отправляет на объект
-        ('PAYMENT', 'PAID'),  # Снабженец подтверждает оплату (не бухгалтер!)
-        ('PAID', 'DELIVERY'),  # Снабженец подтверждает доставку
+        ('PAYMENT', 'DELIVERY'),  # Нажатие "Оплачено" → на доставке
     ],
 
-    # Зав.склада
-    'WAREHOUSE_HEAD': [
-        ('WAREHOUSE_CHECK', 'BACK_TO_SUPPLY'),
-        ('SENT_TO_SITE', 'WAREHOUSE_SHIPPING'),
-        ('DELIVERY', 'COMPLETED'),  # Завсклад может отработать позицию
-        ('WAREHOUSE_SHIPPING', 'COMPLETED'),  # Завсклад может отработать позицию
-    ],
-
-    # Инженер ПТО
-    'ENGINEER': [
-        ('ENGINEER_APPROVAL', 'BACK_TO_SUPPLY_AFTER_ENGINEER'),
-        ('ENGINEER_APPROVAL', 'RETURNED_FOR_REVISION'),  # Отправка на доработку автору
-    ],
-
-    # Руководитель проекта
-    'PROJECT_MANAGER': [
-        ('PROJECT_MANAGER_APPROVAL', 'BACK_TO_SUPPLY_AFTER_PM'),
-        ('PROJECT_MANAGER_APPROVAL', 'RETURNED_FOR_REVISION'),  # Отправка на доработку автору
-    ],
-
-    # Директор
+    # Директор - может создавать заявки и принимать на объекте
     'DIRECTOR': [
-        # Директор может создавать и отправлять заявки на согласование (как автор)
-        ('DRAFT', 'UNDER_REVIEW'),
-        ('REWORK', 'UNDER_REVIEW'),
-        ('RETURNED_FOR_REVISION', 'UNDER_REVIEW'),
+        ('DRAFT', 'IN_APPROVAL'),
+        ('RETURNED_FOR_REVISION', 'IN_APPROVAL'),
         ('DELIVERY', 'COMPLETED'),
-        ('WAREHOUSE_SHIPPING', 'COMPLETED'),
-        # Директор может согласовывать заявки на своем этапе
-        ('DIRECTOR_APPROVAL', 'BACK_TO_SUPPLY_AFTER_DIRECTOR'),
-        ('DIRECTOR_APPROVAL', 'RETURNED_FOR_REVISION'),  # Отправка на доработку автору
     ],
 
-    # Главный инженер
-    'CHIEF_ENGINEER': [
-        ('DIRECTOR_APPROVAL', 'BACK_TO_SUPPLY_AFTER_DIRECTOR'),
-        ('DIRECTOR_APPROVAL', 'RETURNED_FOR_REVISION'),  # Отправка на доработку автору
+    # Суперадмин - все переходы
+    'SUPERADMIN': [
+        ('DRAFT', 'IN_APPROVAL'),
+        ('IN_APPROVAL', 'PAYMENT'),
+        ('IN_APPROVAL', 'RETURNED_FOR_REVISION'),
+        ('RETURNED_FOR_REVISION', 'IN_APPROVAL'),
+        ('PAYMENT', 'DELIVERY'),
+        ('DELIVERY', 'COMPLETED'),
+        ('DELIVERY', 'RETURNED_FOR_REVISION'),
     ],
 }
 from apps.core.viewsets import SoftDeleteViewSetMixin
@@ -970,6 +943,102 @@ class MaterialRequestItemViewSet(viewsets.ModelViewSet):
         # Возвращаем обновленную позицию
         serializer = self.get_serializer(item)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['patch'], url_path='update-actual-quantity')
+    def update_actual_quantity(self, request, pk=None):
+        """
+        Быстрое обновление фактического количества позиции.
+        Endpoint: PATCH /api/material-request-items/{id}/update-actual-quantity/
+
+        Body: {
+            "actual_quantity": 100.50
+        }
+
+        Доступ: SITE_MANAGER, FOREMAN, MASTER, SITE_WAREHOUSE_MANAGER, SUPERADMIN
+
+        Автоматический переход в COMPLETED:
+        Если actual_quantity >= quantity И item_status == 'DELIVERY',
+        позиция автоматически переходит в статус COMPLETED.
+        """
+        from apps.material_requests.models import MaterialRequestHistory
+
+        item = self.get_object()
+        material_request = item.request
+        user = request.user
+
+        # Проверка прав доступа
+        allowed_roles = ['SITE_MANAGER', 'FOREMAN', 'MASTER', 'SITE_WAREHOUSE_MANAGER', 'SUPERADMIN']
+        if user.role not in allowed_roles and not user.is_superuser:
+            return Response(
+                {'detail': 'У вас нет прав для изменения фактического количества'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Получаем новое значение
+        actual_quantity = request.data.get('actual_quantity')
+        if actual_quantity is None:
+            return Response(
+                {'detail': 'Необходимо указать actual_quantity'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            actual_quantity = float(actual_quantity)
+            if actual_quantity < 0:
+                return Response(
+                    {'detail': 'Количество должно быть положительным числом'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except (ValueError, TypeError):
+            return Response(
+                {'detail': 'Некорректное значение для actual_quantity'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Сохраняем старое значение для логирования
+        old_actual = item.actual_quantity or 0
+
+        # Обновляем количество
+        item.actual_quantity = actual_quantity
+        item.save(update_fields=['actual_quantity'])
+
+        # Логирование изменения
+        MaterialRequestHistory.objects.create(
+            request=material_request,
+            user=user,
+            old_status=f'Кол-во по факту: {old_actual}',
+            new_status=f'Кол-во по факту: {actual_quantity}',
+            comment=f'Обновлено фактическое количество для "{item.material_name}": {old_actual} → {actual_quantity} {item.unit}'
+        )
+
+        # Проверка автоматического перехода в COMPLETED
+        auto_completed = False
+        if item.item_status == 'DELIVERY' and actual_quantity >= item.quantity:
+            old_status = item.item_status
+            item.item_status = 'COMPLETED'
+            item.save(update_fields=['item_status'])
+            auto_completed = True
+
+            MaterialRequestHistory.objects.create(
+                request=material_request,
+                user=None,  # Автоматическое действие системы
+                old_status='На доставке',
+                new_status='Отработано',
+                comment=f'Позиция "{item.material_name}" автоматически завершена (получено полное количество: {actual_quantity} >= {item.quantity} {item.unit})'
+            )
+
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(
+                f'Позиция {item.id} ({item.material_name}) автоматически переведена '
+                f'из DELIVERY в COMPLETED: actual_quantity {actual_quantity} >= quantity {item.quantity}'
+            )
+
+        serializer = self.get_serializer(item)
+        response_data = serializer.data
+        response_data['auto_completed'] = auto_completed
+
+        return Response(response_data)
 
     @action(detail=True, methods=['patch'])
     def record_actual_quantity(self, request, pk=None):

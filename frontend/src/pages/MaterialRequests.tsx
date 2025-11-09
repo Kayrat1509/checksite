@@ -21,45 +21,46 @@ interface Project {
   name: string;
 }
 
-// Маппинг статусов на цвета согласно новой схеме согласования
+// Маппинг статусов на цвета (УПРОЩЕННАЯ СХЕМА - 7 статусов)
 const getStatusColor = (status: string): string => {
   const colors: Record<string, string> = {
-    DRAFT: 'default',                            // Серый - Черновик
-    UNDER_REVIEW: 'blue',                        // Синий - На проверке снабжения
-    WAREHOUSE_CHECK: 'cyan',                     // Голубой - Центр склад
-    BACK_TO_SUPPLY: 'blue',                      // Синий - Снабжение (после склада)
-    ENGINEER_APPROVAL: 'orange',                 // Оранжевый - У инженера ПТО
-    BACK_TO_SUPPLY_AFTER_ENGINEER: 'blue',       // Синий - Снабжение (после инженера)
-    PROJECT_MANAGER_APPROVAL: 'geekblue',        // Темно-синий - У руководителя проекта
-    BACK_TO_SUPPLY_AFTER_PM: 'blue',             // Синий - Снабжение (после рук.проекта)
-    DIRECTOR_APPROVAL: 'purple',                 // Фиолетовый - У директора
-    BACK_TO_SUPPLY_AFTER_DIRECTOR: 'blue',       // Синий - Снабжение (после директора)
-    RETURNED_FOR_REVISION: 'red',                // Красный - На доработке (у автора)
-    REWORK: 'orange',                            // Оранжевый - На доработке
-    APPROVED: 'green',                           // Зелёный - Согласовано
-    SENT_TO_SITE: 'cyan',                        // Голубой - Отправить на объект (у зав.склада)
-    WAREHOUSE_SHIPPING: 'geekblue',              // Темно-синий - Отправлено на объект (у автора)
-    PAYMENT: 'gold',                             // Золотой - На оплате
-    PAID: 'lime',                                // Салатовый - Оплачено
-    DELIVERY: 'magenta',                         // Пурпурный - Доставлено
-    COMPLETED: 'green',                          // Зелёный - Отработано
+    DRAFT: 'default',                  // Серый - Черновик
+    IN_APPROVAL: 'blue',               // Синий - На согласовании
+    RETURNED_FOR_REVISION: 'orange',   // Оранжевый - На доработке
+    PAYMENT: 'gold',                   // Золотой - На оплате
+    DELIVERY: 'cyan',                  // Голубой - На доставке
+    COMPLETED: 'green',                // Зелёный - Отработано
+    CANCELLED: 'red',                  // Красный - Отменено
   };
   return colors[status] || 'default';
 };
 
-// Константы для фильтрации по статусам
-const IN_PROGRESS_STATUSES = [
-  'UNDER_REVIEW', 'WAREHOUSE_CHECK', 'BACK_TO_SUPPLY',
-  'ENGINEER_APPROVAL', 'BACK_TO_SUPPLY_AFTER_ENGINEER',
-  'PROJECT_MANAGER_APPROVAL', 'BACK_TO_SUPPLY_AFTER_PM',
-  'DIRECTOR_APPROVAL', 'RETURNED_FOR_REVISION'
-];
+// Текстовые метки для статусов (для отображения в UI)
+const getStatusLabel = (status: string): string => {
+  const labels: Record<string, string> = {
+    DRAFT: 'Черновик',
+    IN_APPROVAL: 'На согласовании',
+    RETURNED_FOR_REVISION: 'На доработке',
+    PAYMENT: 'На оплате',
+    DELIVERY: 'На доставке',
+    COMPLETED: 'Отработано',
+    CANCELLED: 'Отменено',
+  };
+  return labels[status] || status;
+};
 
-const APPROVED_STATUSES = [
-  'BACK_TO_SUPPLY_AFTER_DIRECTOR', 'APPROVED',
-  'PAYMENT', 'PAID', 'DELIVERY',
-  'SENT_TO_SITE', 'WAREHOUSE_SHIPPING'  // Альтернативный путь через склад
-];
+// Константы для фильтрации по статусам (НОВАЯ СХЕМА)
+// Вкладка "На согласовании" - позиции в процессе согласования
+const APPROVAL_STATUSES = ['IN_APPROVAL', 'RETURNED_FOR_REVISION'];
+
+// Вкладка "На оплате" - позиции после согласования, ожидающие оплаты
+const PAYMENT_STATUSES = ['PAYMENT'];
+
+// Вкладка "На доставке" - позиции после оплаты, ожидающие доставки и приемки
+const DELIVERY_STATUSES = ['DELIVERY'];
+
+// Вкладка "Отработанные заявки" - завершенные позиции
+const COMPLETED_STATUSES = ['COMPLETED'];
 
 const MaterialRequests = () => {
   const { user } = useAuthStore();
@@ -627,37 +628,29 @@ const MaterialRequests = () => {
   }
 
   // Преобразуем данные в плоскую структуру для таблицы
-  // ОБНОВЛЕНО: Исключаем согласованные (APPROVED) и отработанные (COMPLETED) позиции
+  // НОВАЯ ЛОГИКА: Показываем все позиции (кроме черновиков), фильтрация по вкладкам
   const flattenData = (): FlatMaterialRow[] => {
     const flatData: FlatMaterialRow[] = [];
-    const excludedStatuses = ['APPROVED', 'SENT_TO_SITE', 'WAREHOUSE_SHIPPING', 'PAYMENT', 'PAID', 'DELIVERY', 'COMPLETED'];
 
     requests.forEach((request) => {
       if (request.items && request.items.length > 0) {
-        // Фильтруем позиции: исключаем согласованные и отработанные
-        const activeItems = request.items.filter(
-          item => !excludedStatuses.includes(item.item_status || '')
-        );
-
-        // Если есть активные позиции, показываем их
-        if (activeItems.length > 0) {
-          activeItems.forEach((item, index) => {
-            flatData.push({
-              key: `${request.id}-${item.id}`,
-              request: request,
-              material: item,
-              materialIndex: index + 1,
-              isFirstRowOfRequest: index === 0,
-            });
+        // Показываем все позиции, фильтрация будет в getFilteredData()
+        request.items.forEach((item, index) => {
+          flatData.push({
+            key: `${request.id}-${item.id}`,
+            request: request,
+            material: item,
+            materialIndex: index + 1,
+            isFirstRowOfRequest: index === 0,
           });
-        }
+        });
       }
     });
 
     return flatData;
   };
 
-  // Функция фильтрации данных по активной вкладке
+  // Функция фильтрации данных по активной вкладке (НОВАЯ СХЕМА)
   const getFilteredData = (data: FlatMaterialRow[]) => {
     return data.filter(row => {
       // Если нет материала, пропускаем строку
@@ -667,23 +660,29 @@ const MaterialRequests = () => {
 
       const status = row.material.item_status;
 
-      if (activeTab === 'in_progress') {
-        // На согласовании - все статусы до согласования Директора
-        return IN_PROGRESS_STATUSES.includes(status);
+      // Фильтрация по вкладкам
+      if (activeTab === 'approval') {
+        // Вкладка "На согласовании" - позиции в процессе согласования (включая доработку)
+        return APPROVAL_STATUSES.includes(status);
       }
 
-      if (activeTab === 'approved') {
-        // Согласованные заявки - после согласования Директора, но еще не завершены
-        // Включает: BACK_TO_SUPPLY_AFTER_DIRECTOR, APPROVED, PAYMENT, PAID, DELIVERY, SENT_TO_SITE, WAREHOUSE_SHIPPING
-        return APPROVED_STATUSES.includes(status);
+      if (activeTab === 'payment') {
+        // Вкладка "На оплате" - позиции после согласования, ожидающие оплаты
+        return PAYMENT_STATUSES.includes(status);
+      }
+
+      if (activeTab === 'delivery') {
+        // Вкладка "На доставке" - позиции после оплаты, ожидающие доставки и приемки
+        return DELIVERY_STATUSES.includes(status);
       }
 
       if (activeTab === 'completed') {
-        // Отработанные заявки - только статус COMPLETED
-        return status === 'COMPLETED';
+        // Вкладка "Отработанные заявки" - завершенные позиции
+        return COMPLETED_STATUSES.includes(status);
       }
 
-      return true; // all - показываем все строки с материалами
+      // Вкладка "Все заявки" - показываем все позиции (кроме черновиков и отмененных)
+      return status !== 'DRAFT' && status !== 'CANCELLED';
     });
   };
 
@@ -878,14 +877,21 @@ const MaterialRequests = () => {
         if (!record.material) return '-';
 
         const material = record.material;
-        const isAuthor = record.request.author_data?.id === user?.id;
 
-        // Проверяем, может ли пользователь редактировать это поле
-        // Разрешаем редактировать автору с правами редактирования (проверка через ButtonAccess)
-        const canEdit = isAuthor && (canEditRequest() || user?.is_superuser);
+        // НОВАЯ ЛОГИКА: Колонка доступна только на вкладке "На доставке"
+        // Редактирование только для ИТР на объекте (4 роли)
+        const allowedRoles = ['SITE_MANAGER', 'FOREMAN', 'MASTER', 'SITE_WAREHOUSE_MANAGER'];
+        const canEdit = (user?.is_superuser || allowedRoles.includes(user?.role || '')) &&
+                        material.item_status === 'DELIVERY' &&
+                        activeTab === 'delivery';
 
         // Если позиция отменена, отображаем прочерк
         if (material.status === 'CANCELLED') {
+          return <span style={{ color: '#999' }}>-</span>;
+        }
+
+        // Показываем колонку только на вкладке "На доставке"
+        if (activeTab !== 'delivery') {
           return <span style={{ color: '#999' }}>-</span>;
         }
 
@@ -898,25 +904,26 @@ const MaterialRequests = () => {
                 placeholder="Не указано"
                 value={material.actual_quantity || undefined}
                 onChange={async (value) => {
-                  if (!value) return;
+                  if (value === null || value === undefined) return;
 
                   try {
-                    // Используем новый endpoint, который создает запись на складе и обновляет actual_quantity атомарно
-                    await materialRequestsAPI.recordActualQuantity(material.id!, {
+                    // Используем новый endpoint update_actual_quantity
+                    const response = await materialRequestsAPI.updateActualQuantity(material.id!, {
                       actual_quantity: value,
-                      receipt_date: new Date().toISOString(),
-                      quality_status: 'GOOD',
                     });
 
-                    message.success('Поступление зафиксировано на складе');
+                    // Проверяем, произошел ли автоматический переход в COMPLETED
+                    if (response.auto_completed) {
+                      message.success(`Фактическое количество обновлено. Позиция автоматически переведена в "Отработано"`);
+                    } else {
+                      message.success('Фактическое количество обновлено');
+                    }
 
                     // Обновляем таблицу материальных заявок
                     fetchRequests();
-
-                    // Инвалидируем кеш страницы Склад, чтобы данные обновились автоматически
-                    queryClient.invalidateQueries({ queryKey: ['warehouse-materials'] });
                   } catch (error: any) {
-                    message.error('Ошибка при фиксации поступления');
+                    const errorMsg = error?.response?.data?.detail || 'Ошибка при обновлении количества';
+                    message.error(errorMsg);
                     console.error(error);
                   }
                 }}
@@ -966,17 +973,16 @@ const MaterialRequests = () => {
       key: 'status',
       width: 250,
       render: (record: FlatMaterialRow) => {
-        // Используем item_status для каждой позиции отдельно
+        // НОВАЯ УПРОЩЕННАЯ ЛОГИКА (7 статусов)
         const itemStatus = record.material?.item_status || 'DRAFT';
-        const userRole = user?.role;
         const isCancelled = record.material?.status === 'CANCELLED';
 
         return (
           <Space direction="vertical" size="small" style={{ width: '100%' }}>
-            {/* Показываем статус позиции только для активных позиций */}
+            {/* Показываем статус позиции */}
             {!isCancelled && (
               <Tag color={getStatusColor(itemStatus)} style={{ width: '100%', textAlign: 'center' }}>
-                {record.material?.item_status_display || 'Черновик'}
+                {getStatusLabel(itemStatus)}
               </Tag>
             )}
 
@@ -987,7 +993,22 @@ const MaterialRequests = () => {
               </Tag>
             )}
 
-            {/* 0. RETURNED_FOR_REVISION → Автор может редактировать позицию и повторно отправлять на согласование */}
+            {/* НОВЫЕ КНОПКИ ДЛЯ УПРОЩЕННОЙ СХЕМЫ */}
+
+            {/* 1. DRAFT → Отправка на согласование */}
+            {itemStatus === 'DRAFT' && canSubmitForApproval() && !isCancelled && record.material && (
+              <Button
+                type="primary"
+                icon={<SendOutlined />}
+                size="small"
+                onClick={() => handleChangeItemStatus(record.material, 'IN_APPROVAL', 'Отправлено на согласование', 'Отправка на согласование...', 'Позиция отправлена на согласование')}
+                block
+              >
+                На согласование
+              </Button>
+            )}
+
+            {/* 2. RETURNED_FOR_REVISION → Автор может редактировать и повторно отправить */}
             {itemStatus === 'RETURNED_FOR_REVISION' && canSubmitForApproval() && !isCancelled && record.material && (
               <Space direction="vertical" size="small" style={{ width: '100%' }}>
                 <Button
@@ -1004,7 +1025,7 @@ const MaterialRequests = () => {
                   type="primary"
                   icon={<SendOutlined />}
                   size="small"
-                  onClick={() => handleChangeItemStatus(record.material, 'UNDER_REVIEW', 'Отправлено на проверку снабжения после доработки', 'Отправка на согласование...', 'Позиция отправлена на согласование после доработки')}
+                  onClick={() => handleChangeItemStatus(record.material, 'IN_APPROVAL', 'Отправлено на согласование после доработки', 'Отправка на согласование...', 'Позиция отправлена на согласование после доработки')}
                   block
                 >
                   Отправить после доработки
@@ -1012,209 +1033,23 @@ const MaterialRequests = () => {
               </Space>
             )}
 
-            {/* 1. DRAFT → Отправка на согласование (проверка через ButtonAccess) */}
-            {itemStatus === 'DRAFT' && canSubmitForApproval() && !isCancelled && record.material && (
-              <Button
-                type="primary"
-                icon={<SendOutlined />}
-                size="small"
-                onClick={() => handleChangeItemStatus(record.material, 'UNDER_REVIEW', 'Отправлено на проверку снабжения', 'Отправка на согласование...', 'Позиция отправлена на согласование')}
-                block
-              >
-                На согласование
-              </Button>
-            )}
+            {/* 3. IN_APPROVAL → Согласование происходит через ApprovalFlowTemplate, кнопок здесь нет */}
+            {/* Согласование/отклонение происходит в expandedRowRender через ApprovalFlowTimeline */}
 
-            {/* 2. UNDER_REVIEW → Снабженец отправляет на склад */}
-            {itemStatus === 'UNDER_REVIEW' && canUseSupplyWorkflow() && !isCancelled && record.material && (
-              <Button
-                type="primary"
-                icon={<SendOutlined />}
-                size="small"
-                onClick={() => handleChangeItemStatus(record.material, 'WAREHOUSE_CHECK', 'Отправлено на проверку склада', 'Отправка на склад...', 'Позиция отправлена на склад')}
-                block
-              >
-                На проверку склада
-              </Button>
-            )}
-
-            {/* 3. WAREHOUSE_CHECK → Зав.склада возвращает снабженцу */}
-            {itemStatus === 'WAREHOUSE_CHECK' && userRole === 'WAREHOUSE_HEAD' && !isCancelled && record.material && (
-              <Button
-                type="primary"
-                icon={<RollbackOutlined />}
-                size="small"
-                onClick={() => handleChangeItemStatus(record.material, 'BACK_TO_SUPPLY', 'Возвращено снабженцу с отметками о наличии', 'Возврат снабженцу...', 'Позиция возвращена снабженцу')}
-                block
-              >
-                Вернуть снабженцу
-              </Button>
-            )}
-
-            {/* 4. BACK_TO_SUPPLY → Снабженец отправляет Инженеру ПТО */}
-            {itemStatus === 'BACK_TO_SUPPLY' && canUseSupplyWorkflow() && !isCancelled && record.material && (
-              <Button
-                type="primary"
-                icon={<SendOutlined />}
-                size="small"
-                onClick={() => handleChangeItemStatus(record.material, 'ENGINEER_APPROVAL', 'Отправлено Инженеру ПТО', 'Отправка...', 'Позиция отправлена Инженеру ПТО')}
-                block
-              >
-                Инженеру ПТО
-              </Button>
-            )}
-
-            {/* 5. ENGINEER_APPROVAL → Инженер ПТО возвращает снабженцу или отправляет на доработку */}
-            {itemStatus === 'ENGINEER_APPROVAL' && userRole === 'ENGINEER' && !isCancelled && record.material && (
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                <Button
-                  type="primary"
-                  icon={<CheckOutlined />}
-                  size="small"
-                  onClick={() => handleChangeItemStatus(record.material, 'BACK_TO_SUPPLY_AFTER_ENGINEER', 'Согласовано инженером ПТО', 'Согласование...', 'Позиция согласована инженером')}
-                  block
-                >
-                  Согласовать
-                </Button>
-                <Button
-                  danger
-                  icon={<RollbackOutlined />}
-                  size="small"
-                  onClick={() => handleChangeItemStatus(record.material, 'RETURNED_FOR_REVISION', 'Возвращено автору на доработку', 'Возврат на доработку...', 'Позиция возвращена автору на доработку')}
-                  block
-                >
-                  На доработку
-                </Button>
-              </Space>
-            )}
-
-            {/* 6. BACK_TO_SUPPLY_AFTER_ENGINEER → Снабженец отправляет Руководителю проекта */}
-            {itemStatus === 'BACK_TO_SUPPLY_AFTER_ENGINEER' && canUseSupplyWorkflow() && !isCancelled && record.material && (
-              <Button
-                type="primary"
-                icon={<SendOutlined />}
-                size="small"
-                onClick={() => handleChangeItemStatus(record.material, 'PROJECT_MANAGER_APPROVAL', 'Отправлено руководителю проекта', 'Отправка...', 'Позиция отправлена руководителю')}
-                block
-              >
-                Руководителю проекта
-              </Button>
-            )}
-
-            {/* 7. PROJECT_MANAGER_APPROVAL → Руководитель проекта возвращает снабженцу или отправляет на доработку */}
-            {itemStatus === 'PROJECT_MANAGER_APPROVAL' && userRole === 'PROJECT_MANAGER' && !isCancelled && record.material && (
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                <Button
-                  type="primary"
-                  icon={<CheckOutlined />}
-                  size="small"
-                  onClick={() => handleChangeItemStatus(record.material, 'BACK_TO_SUPPLY_AFTER_PM', 'Согласовано руководителем проекта', 'Согласование...', 'Позиция согласована руководителем')}
-                  block
-                >
-                  Согласовать
-                </Button>
-                <Button
-                  danger
-                  icon={<RollbackOutlined />}
-                  size="small"
-                  onClick={() => handleChangeItemStatus(record.material, 'RETURNED_FOR_REVISION', 'Возвращено автору на доработку', 'Возврат на доработку...', 'Позиция возвращена автору на доработку')}
-                  block
-                >
-                  На доработку
-                </Button>
-              </Space>
-            )}
-
-            {/* 8. BACK_TO_SUPPLY_AFTER_PM → Снабженец отправляет Директору */}
-            {itemStatus === 'BACK_TO_SUPPLY_AFTER_PM' && canUseSupplyWorkflow() && !isCancelled && record.material && (
-              <Button
-                type="primary"
-                icon={<SendOutlined />}
-                size="small"
-                onClick={() => handleChangeItemStatus(record.material, 'DIRECTOR_APPROVAL', 'Отправлено директору', 'Отправка...', 'Позиция отправлена директору')}
-                block
-              >
-                Директору
-              </Button>
-            )}
-
-            {/* 9. DIRECTOR_APPROVAL → Директор/Главный инженер возвращают снабженцу или отправляют на доработку */}
-            {itemStatus === 'DIRECTOR_APPROVAL' && canUseDirectorWorkflow() && !isCancelled && record.material && (
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                <Button
-                  type="primary"
-                  icon={<CheckOutlined />}
-                  size="small"
-                  onClick={() => handleChangeItemStatus(record.material, 'BACK_TO_SUPPLY_AFTER_DIRECTOR', 'Согласовано директором', 'Согласование...', 'Позиция согласована директором')}
-                  block
-                >
-                  Согласовать
-                </Button>
-                <Button
-                  danger
-                  icon={<RollbackOutlined />}
-                  size="small"
-                  onClick={() => handleChangeItemStatus(record.material, 'RETURNED_FOR_REVISION', 'Возвращено автору на доработку', 'Возврат на доработку...', 'Позиция возвращена автору на доработку')}
-                  block
-                >
-                  На доработку
-                </Button>
-              </Space>
-            )}
-
-            {/* 10. BACK_TO_SUPPLY_AFTER_DIRECTOR → Снабженец переводит в процесс оплаты/доставки */}
-            {itemStatus === 'BACK_TO_SUPPLY_AFTER_DIRECTOR' && canUseSupplyWorkflow() && !isCancelled && record.material && (
-              <Button
-                type="primary"
-                icon={<SendOutlined />}
-                size="small"
-                onClick={() => handleChangeItemStatus(record.material, 'PAYMENT', 'Переведено на оплату', 'Отправка на оплату...', 'Позиция переведена на оплату')}
-                block
-              >
-                На оплату
-              </Button>
-            )}
-
-            {/* 11. REWORK → Автор отправляет повторно (проверка через ButtonAccess) */}
-            {itemStatus === 'REWORK' && canSubmitForApproval() && !isCancelled && record.material && (
-              <Button
-                type="primary"
-                icon={<SendOutlined />}
-                size="small"
-                onClick={() => handleChangeItemStatus(record.material, 'UNDER_REVIEW', 'Отправлено повторно на проверку', 'Отправка...', 'Позиция отправлена повторно')}
-                block
-              >
-                Отправить повторно
-              </Button>
-            )}
-
-            {/* 12. PAYMENT → Снабженец отмечает оплачено */}
+            {/* 4. PAYMENT → Снабженец отмечает "Оплачено" */}
             {itemStatus === 'PAYMENT' && canUseSupplyWorkflow() && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<CheckOutlined />}
                 size="small"
-                onClick={() => handleChangeItemStatus(record.material, 'PAID', 'Оплачено', 'Отметка оплаты...', 'Позиция помечена как оплаченная')}
+                onClick={() => handleChangeItemStatus(record.material, 'DELIVERY', 'Оплачено', 'Отметка оплаты...', 'Позиция оплачена и переведена на доставку')}
                 block
               >
                 Оплачено
               </Button>
             )}
 
-            {/* 13. PAID → Снабженец отмечает доставлено */}
-            {itemStatus === 'PAID' && canUseSupplyWorkflow() && !isCancelled && record.material && (
-              <Button
-                type="primary"
-                icon={<CheckOutlined />}
-                size="small"
-                onClick={() => handleChangeItemStatus(record.material, 'DELIVERY', 'Доставлено', 'Отметка доставки...', 'Позиция помечена как доставленная')}
-                block
-              >
-                Доставлено
-              </Button>
-            )}
-
-            {/* 14. DELIVERY → Только ИТР на объекте могут принять материал */}
+            {/* 5. DELIVERY → ИТР на объекте могут принять материал */}
             {itemStatus === 'DELIVERY' && canAcceptOnSite() && !isCancelled && record.material && (
               <Button
                 type="primary"
@@ -1223,35 +1058,11 @@ const MaterialRequests = () => {
                 onClick={() => handleChangeItemStatus(record.material, 'COMPLETED', 'Принято на объекте', 'Прием на объекте...', 'Позиция принята на объекте')}
                 block
               >
-                Принято на объекте
+                Принять
               </Button>
             )}
 
-            {/* 15. SENT_TO_SITE → Зав.склада подтверждает отправку */}
-            {itemStatus === 'SENT_TO_SITE' && canUseWarehouseWorkflow() && !isCancelled && record.material && (
-              <Button
-                type="primary"
-                icon={<CheckOutlined />}
-                size="small"
-                onClick={() => handleChangeItemStatus(record.material, 'WAREHOUSE_SHIPPING', 'Материалы отправлены со склада на объект', 'Подтверждение отправки...', 'Отправка подтверждена')}
-                block
-              >
-                Отправлено на объект
-              </Button>
-            )}
-
-            {/* 16. WAREHOUSE_SHIPPING → Только ИТР на объекте могут принять материал */}
-            {itemStatus === 'WAREHOUSE_SHIPPING' && canAcceptOnSite() && !isCancelled && record.material && (
-              <Button
-                type="primary"
-                icon={<CheckOutlined />}
-                size="small"
-                onClick={() => handleChangeItemStatus(record.material, 'COMPLETED', 'Материалы приняты на объекте и отработаны', 'Приемка материалов...', 'Материалы приняты и отработаны')}
-                block
-              >
-                Принято на объекте
-              </Button>
-            )}
+            {/* 6. COMPLETED → Отработано, никаких кнопок не показываем */}
           </Space>
         );
       },
@@ -1595,6 +1406,7 @@ const MaterialRequests = () => {
             onChange={setActiveTab}
             type="card"
           >
+            {/* Вкладка 1: Все заявки */}
             <TabPane tab="Все заявки" key="all">
               <Table
                 columns={columns}
@@ -1623,7 +1435,9 @@ const MaterialRequests = () => {
                 }}
               />
             </TabPane>
-            <TabPane tab="На согласовании" key="in_progress">
+
+            {/* Вкладка 2: На согласовании */}
+            <TabPane tab="На согласовании" key="approval">
               <Table
                 columns={columns}
                 dataSource={getFilteredData(flattenData())}
@@ -1651,17 +1465,9 @@ const MaterialRequests = () => {
                 }}
               />
             </TabPane>
-            <TabPane
-              tab={
-                <span>
-                  Согласованные заявки
-                  <Tag color="green" style={{ marginLeft: 8 }}>
-                    {getFilteredData(flattenData()).length}
-                  </Tag>
-                </span>
-              }
-              key="approved"
-            >
+
+            {/* Вкладка 3: На оплате */}
+            <TabPane tab="На оплате" key="payment">
               <Table
                 columns={columns}
                 dataSource={getFilteredData(flattenData())}
@@ -1689,6 +1495,38 @@ const MaterialRequests = () => {
                 }}
               />
             </TabPane>
+
+            {/* Вкладка 4: На доставке */}
+            <TabPane tab="На доставке" key="delivery">
+              <Table
+                columns={columns}
+                dataSource={getFilteredData(flattenData())}
+                loading={loading}
+                rowKey="key"
+                scroll={{ x: 1600 }}
+                pagination={{
+                  pageSize: 20,
+                  showSizeChanger: true,
+                  showTotal: (total: number) => `Всего позиций: ${total}`,
+                }}
+                size="small"
+                bordered
+                rowClassName={(record: FlatMaterialRow) =>
+                  record.isFirstRowOfRequest ? 'request-separator' : ''
+                }
+                expandable={{
+                  expandedRowRender,
+                  onExpand: (expanded, record) => {
+                    if (expanded && record.isFirstRowOfRequest) {
+                      fetchApprovals(record.request.id);
+                    }
+                  },
+                  rowExpandable: (record) => record.isFirstRowOfRequest,
+                }}
+              />
+            </TabPane>
+
+            {/* Вкладка 5: Отработанные заявки */}
             <TabPane tab="Отработанные заявки" key="completed">
               <Table
                 columns={columns}
