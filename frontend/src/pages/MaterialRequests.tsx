@@ -49,6 +49,29 @@ const getStatusLabel = (status: string): string => {
   return labels[status] || status;
 };
 
+// Текстовые метки для ролей в родительном падеже (для "у Снабженца", "у Завсклада" и т.д.)
+const getRoleGenitiveLabel = (role: string): string => {
+  const labels: Record<string, string> = {
+    SUPERADMIN: 'Суперадмина',
+    DIRECTOR: 'Директора',
+    CHIEF_ENGINEER: 'Главного инженера',
+    PROJECT_MANAGER: 'Руководителя проекта',
+    CHIEF_POWER_ENGINEER: 'Главного энергетика',
+    ENGINEER: 'Инженера ПТО',
+    SITE_MANAGER: 'Начальника участка',
+    FOREMAN: 'Прораба',
+    POWER_ENGINEER: 'Энергетика',
+    MASTER: 'Мастера',
+    SUPERVISOR: 'Технадзора',
+    CONTRACTOR: 'Подрядчика',
+    OBSERVER: 'Наблюдателя',
+    SUPPLY_MANAGER: 'Снабженца',
+    WAREHOUSE_HEAD: 'Зав.Центрсклада',
+    SITE_WAREHOUSE_MANAGER: 'Завсклада объекта',
+  };
+  return labels[role] || role;
+};
+
 // Константы для фильтрации по статусам (НОВАЯ СХЕМА)
 // Вкладка "На согласовании" - позиции в процессе согласования
 const APPROVAL_STATUSES = ['IN_APPROVAL', 'RETURNED_FOR_REVISION'];
@@ -982,9 +1005,17 @@ const MaterialRequests = () => {
           <Space direction="vertical" size="small" style={{ width: '100%' }}>
             {/* Показываем статус позиции */}
             {!isCancelled && (
-              <Tag color={getStatusColor(itemStatus)} style={{ width: '100%', textAlign: 'center' }}>
-                {getStatusLabel(itemStatus)}
-              </Tag>
+              <>
+                <Tag color={getStatusColor(itemStatus)} style={{ width: '100%', textAlign: 'center' }}>
+                  {getStatusLabel(itemStatus)}
+                </Tag>
+                {/* Показываем роль ответственного, если позиция на согласовании */}
+                {itemStatus === 'IN_APPROVAL' && record.request.responsible_data && record.request.responsible_data.role && (
+                  <div style={{ fontSize: '12px', color: '#666', textAlign: 'center' }}>
+                    у {getRoleGenitiveLabel(record.request.responsible_data.role)}
+                  </div>
+                )}
+              </>
             )}
 
             {/* Для отмененных позиций показываем только статус "Отменено" */}

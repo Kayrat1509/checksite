@@ -57,6 +57,7 @@ export interface MaterialRequest {
   responsible_data?: {
     id: number
     full_name: string
+    role: string
   }
   status: string
   status_display: string
