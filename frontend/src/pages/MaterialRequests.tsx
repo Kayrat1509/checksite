@@ -681,8 +681,9 @@ const MaterialRequests = () => {
         return COMPLETED_STATUSES.includes(status);
       }
 
-      // Вкладка "Все заявки" - показываем все позиции (кроме черновиков и отмененных)
-      return status !== 'DRAFT' && status !== 'CANCELLED';
+      // Вкладка "Все заявки" - показываем все позиции (кроме отмененных)
+      // DRAFT позиции тоже показываем, чтобы автор мог отправить их на согласование
+      return status !== 'CANCELLED';
     });
   };
 
