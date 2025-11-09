@@ -36,7 +36,10 @@ class ApprovalFlowTemplate(models.Model):
         'users.Company',
         on_delete=models.CASCADE,
         related_name='approval_flow_templates',
-        verbose_name=_('Компания')
+        verbose_name=_('Компания'),
+        null=True,
+        blank=True,
+        help_text=_('Компания (NULL для глобальных настроек)')
     )
 
     name = models.CharField(
@@ -54,7 +57,7 @@ class ApprovalFlowTemplate(models.Model):
     is_active = models.BooleanField(
         _('Активна'),
         default=True,
-        help_text=_('Только одна схема может быть активной в компании')
+        help_text=_('Только одна глобальная схема или одна схема на компанию может быть активной')
     )
 
     created_by = models.ForeignKey(
@@ -82,16 +85,33 @@ class ApprovalFlowTemplate(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.company.name} - {self.name}"
+        """
+        Строковое представление схемы согласования.
+        Для глобальных настроек (company=None) показываем '[Глобальная]'.
+        """
+        if self.company:
+            return f"{self.company.name} - {self.name}"
+        return f"[Глобальная] - {self.name}"
 
     def save(self, *args, **kwargs):
-        """При активации новой схемы - деактивировать все остальные в компании"""
+        """
+        При активации новой схемы - деактивировать все остальные.
+        ВАЖНО: Для глобальных настроек (company=None) деактивируем все другие глобальные схемы.
+        """
         if self.is_active:
-            # Деактивируем все другие схемы в этой компании
-            ApprovalFlowTemplate.objects.filter(
-                company=self.company,
-                is_active=True
-            ).exclude(pk=self.pk).update(is_active=False)
+            # Деактивируем все другие схемы (для глобальных настроек или для компании)
+            if self.company_id is None:
+                # Глобальные настройки - деактивируем другие глобальные схемы
+                ApprovalFlowTemplate.objects.filter(
+                    company__isnull=True,
+                    is_active=True
+                ).exclude(pk=self.pk).update(is_active=False)
+            else:
+                # Настройки компании - деактивируем другие схемы этой компании
+                ApprovalFlowTemplate.objects.filter(
+                    company=self.company,
+                    is_active=True
+                ).exclude(pk=self.pk).update(is_active=False)
 
         super().save(*args, **kwargs)
 
