@@ -57,7 +57,8 @@ const IN_PROGRESS_STATUSES = [
 
 const APPROVED_STATUSES = [
   'BACK_TO_SUPPLY_AFTER_DIRECTOR', 'APPROVED',
-  'PAYMENT', 'PAID', 'DELIVERY'
+  'PAYMENT', 'PAID', 'DELIVERY',
+  'SENT_TO_SITE', 'WAREHOUSE_SHIPPING'  // Альтернативный путь через склад
 ];
 
 const MaterialRequests = () => {
@@ -659,35 +660,29 @@ const MaterialRequests = () => {
   // Функция фильтрации данных по активной вкладке
   const getFilteredData = (data: FlatMaterialRow[]) => {
     return data.filter(row => {
-      // Если нет материала, пропускаем строку (это не должно происходить в нормальной ситуации)
+      // Если нет материала, пропускаем строку
       if (!row.material) {
         return false;
       }
 
       const status = row.material.item_status;
-      const actual = row.material.actual_quantity || 0;
-      const requested = row.material.quantity || 0;
 
       if (activeTab === 'in_progress') {
-        // На согласовании - все статусы до BACK_TO_SUPPLY_AFTER_DIRECTOR
+        // На согласовании - все статусы до согласования Директора
         return IN_PROGRESS_STATUSES.includes(status);
       }
+
       if (activeTab === 'approved') {
-        // Согласованные - после директора, но еще не завершены (actual < requested)
-        return APPROVED_STATUSES.includes(status) && actual < requested;
+        // Согласованные заявки - после согласования Директора, но еще не завершены
+        // Включает: BACK_TO_SUPPLY_AFTER_DIRECTOR, APPROVED, PAYMENT, PAID, DELIVERY, SENT_TO_SITE, WAREHOUSE_SHIPPING
+        return APPROVED_STATUSES.includes(status);
       }
+
       if (activeTab === 'completed') {
-        // Отработанные - либо статус COMPLETED, либо фактически получено >= запрошенного
-        // НО только если позиция находится в финальных статусах
-        if (status === 'COMPLETED') {
-          return true;
-        }
-        // Если actual >= requested, но позиция еще не в COMPLETED, показываем только если она в процессе завершения
-        if (actual >= requested && APPROVED_STATUSES.includes(status)) {
-          return true;
-        }
-        return false;
+        // Отработанные заявки - только статус COMPLETED
+        return status === 'COMPLETED';
       }
+
       return true; // all - показываем все строки с материалами
     });
   };
