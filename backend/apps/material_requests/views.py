@@ -932,6 +932,24 @@ class MaterialRequestItemViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
 
+        # НОВАЯ ЛОГИКА: Проверка фактического количества при переходе в COMPLETED
+        if new_status == 'COMPLETED':
+            actual = item.actual_quantity or 0
+            requested = item.quantity
+
+            if actual < requested:
+                missing = requested - actual
+                return Response({
+                    'detail': (
+                        f'Невозможно завершить позицию: по факту получено {actual} {item.unit}, '
+                        f'а запрошено {requested} {item.unit}. '
+                        f'Необходимо получить еще {missing} {item.unit}.'
+                    ),
+                    'actual_quantity': float(actual),
+                    'requested_quantity': float(requested),
+                    'missing_quantity': float(missing)
+                }, status=status.HTTP_400_BAD_REQUEST)
+
         # Сохраняем старый статус для истории
         old_status = item.item_status
 

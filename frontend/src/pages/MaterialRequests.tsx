@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Table, Button, Tag, Space, Modal, Form, Input, Select, InputNumber, message, Card, Typography, Tooltip, Popconfirm } from 'antd';
+import { Table, Button, Tag, Space, Modal, Form, Input, Select, InputNumber, message, Card, Typography, Tooltip, Popconfirm, Tabs } from 'antd';
 import { PlusOutlined, DownloadOutlined, EditOutlined, CloseCircleOutlined, SendOutlined, CheckOutlined, RollbackOutlined, UndoOutlined, FileTextOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { materialRequestsAPI, MaterialRequest, CreateMaterialRequestData } from '../api/materialRequests';
@@ -13,6 +13,7 @@ import { approvalFlowsAPI, type MaterialRequestApproval } from '../api/approvalF
 const { Option } = Select;
 const { TextArea } = Input;
 const { Title } = Typography;
+const { TabPane } = Tabs;
 
 // Интерфейс для проекта
 interface Project {
@@ -46,6 +47,19 @@ const getStatusColor = (status: string): string => {
   return colors[status] || 'default';
 };
 
+// Константы для фильтрации по статусам
+const IN_PROGRESS_STATUSES = [
+  'UNDER_REVIEW', 'WAREHOUSE_CHECK', 'BACK_TO_SUPPLY',
+  'ENGINEER_APPROVAL', 'BACK_TO_SUPPLY_AFTER_ENGINEER',
+  'PROJECT_MANAGER_APPROVAL', 'BACK_TO_SUPPLY_AFTER_PM',
+  'DIRECTOR_APPROVAL', 'RETURNED_FOR_REVISION'
+];
+
+const APPROVED_STATUSES = [
+  'BACK_TO_SUPPLY_AFTER_DIRECTOR', 'APPROVED',
+  'PAYMENT', 'PAID', 'DELIVERY'
+];
+
 const MaterialRequests = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -55,6 +69,7 @@ const MaterialRequests = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('all'); // Активная вкладка фильтра
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isEditItemModalVisible, setIsEditItemModalVisible] = useState(false);
@@ -641,6 +656,26 @@ const MaterialRequests = () => {
     return flatData;
   };
 
+  // Функция фильтрации данных по активной вкладке
+  const getFilteredData = (data: FlatMaterialRow[]) => {
+    return data.filter(row => {
+      const status = row.material?.item_status;
+      const actual = row.material?.actual_quantity || 0;
+      const requested = row.material?.quantity || 0;
+
+      if (activeTab === 'in_progress') {
+        return IN_PROGRESS_STATUSES.includes(status);
+      }
+      if (activeTab === 'approved') {
+        return APPROVED_STATUSES.includes(status) && actual < requested;
+      }
+      if (activeTab === 'completed') {
+        return status === 'COMPLETED' || actual >= requested;
+      }
+      return true; // all
+    });
+  };
+
   // Колонки таблицы в новом порядке
   const columns = [
     {
@@ -1168,16 +1203,16 @@ const MaterialRequests = () => {
               </Button>
             )}
 
-            {/* 14. DELIVERY → Прораб/Мастер/Начальник/Директор-автор отмечает отработано */}
-            {itemStatus === 'DELIVERY' && canMarkAsCompleted(record.request) && !isCancelled && record.material && (
+            {/* 14. DELIVERY → Только ИТР на объекте могут принять материал */}
+            {itemStatus === 'DELIVERY' && canAcceptOnSite() && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<CheckOutlined />}
                 size="small"
-                onClick={() => handleChangeItemStatus(record.material, 'COMPLETED', 'Отработано', 'Завершение...', 'Позиция отработана')}
+                onClick={() => handleChangeItemStatus(record.material, 'COMPLETED', 'Принято на объекте', 'Прием на объекте...', 'Позиция принята на объекте')}
                 block
               >
-                Отработано
+                Принято на объекте
               </Button>
             )}
 
@@ -1194,8 +1229,8 @@ const MaterialRequests = () => {
               </Button>
             )}
 
-            {/* 16. WAREHOUSE_SHIPPING → Прораб/Мастер/Начальник/Завсклад/Директор-автор принимает на объекте */}
-            {itemStatus === 'WAREHOUSE_SHIPPING' && canMarkAsCompleted(record.request) && !isCancelled && record.material && (
+            {/* 16. WAREHOUSE_SHIPPING → Только ИТР на объекте могут принять материал */}
+            {itemStatus === 'WAREHOUSE_SHIPPING' && canAcceptOnSite() && !isCancelled && record.material && (
               <Button
                 type="primary"
                 icon={<CheckOutlined />}
@@ -1393,7 +1428,17 @@ const MaterialRequests = () => {
     return canUseButton('pm_workflow');
   };
 
-  // Проверка доступа к кнопке "Принято на объекте"
+  // Проверка доступа к кнопке "Принято на объекте" (НОВАЯ ЛОГИКА - только 4 роли)
+  const canAcceptOnSite = () => {
+    if (user?.is_superuser || user?.role === 'SUPERADMIN') {
+      return true;
+    }
+    // Только: Начальник участка, Прораб, Мастер, Завсклад объекта
+    const allowedRoles = ['SITE_MANAGER', 'FOREMAN', 'MASTER', 'SITE_WAREHOUSE_MANAGER'];
+    return allowedRoles.includes(user?.role || '');
+  };
+
+  // УСТАРЕВШАЯ функция - оставлена для обратной совместимости с другими частями кода
   const canMarkAsCompleted = (request: MaterialRequest) => {
     if (user?.is_superuser || user?.role === 'SUPERADMIN') {
       return true;
@@ -1499,20 +1544,6 @@ const MaterialRequests = () => {
                 Создать заявку
               </Button>
             )}
-            <Button
-              icon={<FileTextOutlined />}
-              onClick={() => navigate('/dashboard/material-requests/approved')}
-              size="large"
-            >
-              Согласованные заявки
-            </Button>
-            <Button
-              icon={<CheckOutlined />}
-              onClick={() => navigate('/dashboard/material-requests/completed')}
-              size="large"
-            >
-              Отработанные заявки
-            </Button>
           </Space>
         </Space>
       </Card>
@@ -1548,33 +1579,134 @@ const MaterialRequests = () => {
               }
             `}
           </style>
-          <Table
-            columns={columns}
-            dataSource={flattenData()}
-            loading={loading}
-            rowKey="key"
-            scroll={{ x: 1600 }}
-            pagination={{
-              pageSize: 20,
-              showSizeChanger: true,
-              showTotal: (total: number) => `Всего позиций: ${total}`,
-            }}
-            size="small"
-            bordered
-            rowClassName={(record: FlatMaterialRow) =>
-              record.isFirstRowOfRequest ? 'request-separator' : ''
-            }
-            expandable={{
-              expandedRowRender,
-              onExpand: (expanded, record) => {
-                if (expanded && record.isFirstRowOfRequest) {
-                  // Загружаем цепочку согласования при раскрытии строки
-                  fetchApprovals(record.request.id);
+          <Tabs
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            type="card"
+          >
+            <TabPane tab="Все заявки" key="all">
+              <Table
+                columns={columns}
+                dataSource={getFilteredData(flattenData())}
+                loading={loading}
+                rowKey="key"
+                scroll={{ x: 1600 }}
+                pagination={{
+                  pageSize: 20,
+                  showSizeChanger: true,
+                  showTotal: (total: number) => `Всего позиций: ${total}`,
+                }}
+                size="small"
+                bordered
+                rowClassName={(record: FlatMaterialRow) =>
+                  record.isFirstRowOfRequest ? 'request-separator' : ''
                 }
-              },
-              rowExpandable: (record) => record.isFirstRowOfRequest, // Только первая строка каждой заявки может раскрываться
-            }}
-          />
+                expandable={{
+                  expandedRowRender,
+                  onExpand: (expanded, record) => {
+                    if (expanded && record.isFirstRowOfRequest) {
+                      fetchApprovals(record.request.id);
+                    }
+                  },
+                  rowExpandable: (record) => record.isFirstRowOfRequest,
+                }}
+              />
+            </TabPane>
+            <TabPane tab="На согласовании" key="in_progress">
+              <Table
+                columns={columns}
+                dataSource={getFilteredData(flattenData())}
+                loading={loading}
+                rowKey="key"
+                scroll={{ x: 1600 }}
+                pagination={{
+                  pageSize: 20,
+                  showSizeChanger: true,
+                  showTotal: (total: number) => `Всего позиций: ${total}`,
+                }}
+                size="small"
+                bordered
+                rowClassName={(record: FlatMaterialRow) =>
+                  record.isFirstRowOfRequest ? 'request-separator' : ''
+                }
+                expandable={{
+                  expandedRowRender,
+                  onExpand: (expanded, record) => {
+                    if (expanded && record.isFirstRowOfRequest) {
+                      fetchApprovals(record.request.id);
+                    }
+                  },
+                  rowExpandable: (record) => record.isFirstRowOfRequest,
+                }}
+              />
+            </TabPane>
+            <TabPane
+              tab={
+                <span>
+                  Согласованные заявки
+                  <Tag color="green" style={{ marginLeft: 8 }}>
+                    {getFilteredData(flattenData()).length}
+                  </Tag>
+                </span>
+              }
+              key="approved"
+            >
+              <Table
+                columns={columns}
+                dataSource={getFilteredData(flattenData())}
+                loading={loading}
+                rowKey="key"
+                scroll={{ x: 1600 }}
+                pagination={{
+                  pageSize: 20,
+                  showSizeChanger: true,
+                  showTotal: (total: number) => `Всего позиций: ${total}`,
+                }}
+                size="small"
+                bordered
+                rowClassName={(record: FlatMaterialRow) =>
+                  record.isFirstRowOfRequest ? 'request-separator' : ''
+                }
+                expandable={{
+                  expandedRowRender,
+                  onExpand: (expanded, record) => {
+                    if (expanded && record.isFirstRowOfRequest) {
+                      fetchApprovals(record.request.id);
+                    }
+                  },
+                  rowExpandable: (record) => record.isFirstRowOfRequest,
+                }}
+              />
+            </TabPane>
+            <TabPane tab="Отработанные заявки" key="completed">
+              <Table
+                columns={columns}
+                dataSource={getFilteredData(flattenData())}
+                loading={loading}
+                rowKey="key"
+                scroll={{ x: 1600 }}
+                pagination={{
+                  pageSize: 20,
+                  showSizeChanger: true,
+                  showTotal: (total: number) => `Всего позиций: ${total}`,
+                }}
+                size="small"
+                bordered
+                rowClassName={(record: FlatMaterialRow) =>
+                  record.isFirstRowOfRequest ? 'request-separator' : ''
+                }
+                expandable={{
+                  expandedRowRender,
+                  onExpand: (expanded, record) => {
+                    if (expanded && record.isFirstRowOfRequest) {
+                      fetchApprovals(record.request.id);
+                    }
+                  },
+                  rowExpandable: (record) => record.isFirstRowOfRequest,
+                }}
+              />
+            </TabPane>
+          </Tabs>
         </Card>
       )}
 
