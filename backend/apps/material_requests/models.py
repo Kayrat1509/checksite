@@ -241,6 +241,11 @@ class MaterialRequest(SoftDeleteMixin, models.Model):
         """
         Переход к следующему этапу согласования.
         Автоматически пропускает этапы, если нет пользователя с нужной ролью.
+
+        ВАЖНАЯ ЛОГИКА:
+        - Если автор = SITE_MANAGER (Начальник участка), пропускаем этап SITE_MANAGER
+        - Начальник участка не может согласовать сам себе
+        - Заявка от Начальника участка идет сразу к следующему этапу в цепочке
         """
         from .approval_models import MaterialRequestApproval
 
@@ -293,6 +298,31 @@ class MaterialRequest(SoftDeleteMixin, models.Model):
             return
 
         step = next_approval.step
+
+        # ВАЖНАЯ ПРОВЕРКА: Если автор = SITE_MANAGER и текущий этап = SITE_MANAGER
+        # То пропускаем этот этап, т.к. Начальник участка не может согласовать сам себе
+        if self.author and self.author.role == 'SITE_MANAGER' and step.role == 'SITE_MANAGER':
+            # Автоматически пропускаем этап
+            next_approval.status = 'SKIPPED'
+            next_approval.save(update_fields=['status'])
+
+            # Логируем пропуск
+            self._log_history(
+                user=self.author,
+                old_status=f"Этап {step.order}",
+                new_status="Пропущено (автор сам Начальник участка)",
+                comment=f"Автоматически пропущен этап '{step.get_role_display()}', т.к. автор заявки сам является Начальником участка"
+            )
+
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(
+                f'Заявка {self.request_number}: этап {step.order} ({step.get_role_display()}) '
+                f'автоматически пропущен, т.к. автор ({self.author.get_full_name()}) сам является Начальником участка'
+            )
+
+            # Переходим к следующему этапу рекурсивно
+            return self.move_to_next_step()
 
         # Ищем пользователя с нужной ролью в проекте/компании
         approver = self._find_approver_for_step(step)
