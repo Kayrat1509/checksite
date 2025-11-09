@@ -659,20 +659,36 @@ const MaterialRequests = () => {
   // Функция фильтрации данных по активной вкладке
   const getFilteredData = (data: FlatMaterialRow[]) => {
     return data.filter(row => {
-      const status = row.material?.item_status;
-      const actual = row.material?.actual_quantity || 0;
-      const requested = row.material?.quantity || 0;
+      // Если нет материала, пропускаем строку (это не должно происходить в нормальной ситуации)
+      if (!row.material) {
+        return false;
+      }
+
+      const status = row.material.item_status;
+      const actual = row.material.actual_quantity || 0;
+      const requested = row.material.quantity || 0;
 
       if (activeTab === 'in_progress') {
+        // На согласовании - все статусы до BACK_TO_SUPPLY_AFTER_DIRECTOR
         return IN_PROGRESS_STATUSES.includes(status);
       }
       if (activeTab === 'approved') {
+        // Согласованные - после директора, но еще не завершены (actual < requested)
         return APPROVED_STATUSES.includes(status) && actual < requested;
       }
       if (activeTab === 'completed') {
-        return status === 'COMPLETED' || actual >= requested;
+        // Отработанные - либо статус COMPLETED, либо фактически получено >= запрошенного
+        // НО только если позиция находится в финальных статусах
+        if (status === 'COMPLETED') {
+          return true;
+        }
+        // Если actual >= requested, но позиция еще не в COMPLETED, показываем только если она в процессе завершения
+        if (actual >= requested && APPROVED_STATUSES.includes(status)) {
+          return true;
+        }
+        return false;
       }
-      return true; // all
+      return true; // all - показываем все строки с материалами
     });
   };
 
