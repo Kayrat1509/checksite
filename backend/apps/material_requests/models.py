@@ -374,7 +374,8 @@ class MaterialRequest(SoftDeleteMixin, models.Model):
     def _find_approver_for_step(self, step):
         """
         Поиск пользователя с нужной ролью для этапа согласования.
-        Ищет среди участников проекта и сотрудников компании.
+        ВАЖНО: Глобальные настройки (без привязки к компании).
+        Ищет среди участников проекта и затем среди ВСЕХ активных пользователей с нужной ролью.
         """
         from apps.users.models import User
 
@@ -382,9 +383,9 @@ class MaterialRequest(SoftDeleteMixin, models.Model):
         approver = self.project.team_members.filter(role=step.role).first()
 
         if not approver:
-            # Если не найден в проекте - ищем среди всех сотрудников компании
+            # Если не найден в проекте - ищем среди ВСЕХ активных пользователей с нужной ролью
+            # (глобальные настройки, нет привязки к компании)
             approver = User.objects.filter(
-                company=self.project.company,
                 role=step.role,
                 is_active=True
             ).first()
