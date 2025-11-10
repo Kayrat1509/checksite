@@ -1,0 +1,415 @@
+/* ========================================
+   Общие стили страницы контактов
+   ======================================== */
+
+.contact-layout {
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+/* ========================================
+   Хедер
+   ======================================== */
+
+.contact-header {
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 0 24px;
+  height: 80px;
+  line-height: 80px;
+}
+
+.contact-header-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.contact-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+
+.contact-logo:hover {
+  opacity: 0.8;
+}
+
+.logo-icon {
+  font-size: 32px;
+  color: #1890ff;
+}
+
+.contact-logo-text {
+  font-size: 24px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #1890ff 0%, #722ed1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.contact-header-buttons {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.register-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.register-btn:hover {
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+  transform: translateY(-2px);
+}
+
+/* ========================================
+   Hero секция
+   ======================================== */
+
+.contact-hero {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 80px 24px;
+  text-align: center;
+}
+
+.contact-hero-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.contact-hero-title {
+  color: #fff !important;
+  font-size: 56px !important;
+  font-weight: 800 !important;
+  margin-bottom: 24px !important;
+  line-height: 1.2 !important;
+}
+
+.contact-hero-description {
+  color: #fff !important;
+  font-size: 20px !important;
+  line-height: 1.8 !important;
+  opacity: 0.95;
+  margin-bottom: 0 !important;
+}
+
+/* ========================================
+   Основной контент
+   ======================================== */
+
+.contact-content {
+  background: #f5f5f5;
+}
+
+.contact-main-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 80px 24px;
+}
+
+/* Форма */
+.contact-form-card {
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: none;
+}
+
+.contact-form-card .ant-form-item-label > label {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.contact-form-card .ant-input,
+.contact-form-card .ant-input-textarea textarea {
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+.contact-form-card .ant-btn-primary {
+  height: 50px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.contact-form-card .ant-btn-primary:hover {
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+  transform: translateY(-2px);
+}
+
+/* Контактная информация */
+.contact-info-section {
+  height: 100%;
+}
+
+.contact-info-card {
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: none;
+  margin-bottom: 24px;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.contact-info-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.contact-info-item {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.contact-info-icon {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #f5f5f5;
+}
+
+.contact-info-text {
+  flex: 1;
+}
+
+.contact-info-text a {
+  color: inherit;
+  text-decoration: none;
+  transition: opacity 0.3s;
+}
+
+.contact-info-text a:hover {
+  opacity: 0.7;
+}
+
+.contact-hours-card {
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(102, 126, 234, 0.4);
+}
+
+/* ========================================
+   FAQ секция
+   ======================================== */
+
+.contact-faq-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 80px 24px;
+  background: #fff;
+  border-radius: 24px;
+  margin-bottom: 80px;
+}
+
+.faq-card {
+  border-radius: 16px;
+  border: 1px solid #e8e8e8;
+  transition: all 0.3s;
+  height: 100%;
+}
+
+.faq-card:hover {
+  border-color: #1890ff;
+  box-shadow: 0 4px 20px rgba(24, 144, 255, 0.15);
+  transform: translateY(-4px);
+}
+
+.faq-card .ant-card-body {
+  padding: 32px;
+}
+
+.faq-card h4 {
+  color: #1890ff;
+  margin-bottom: 16px;
+}
+
+/* ========================================
+   CTA секция
+   ======================================== */
+
+.contact-cta-section {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 80px 24px;
+  text-align: center;
+  margin-top: 80px;
+}
+
+.contact-cta-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.contact-cta-title {
+  color: #fff !important;
+  font-size: 48px !important;
+  font-weight: 700 !important;
+  margin-bottom: 24px !important;
+}
+
+.contact-cta-description {
+  color: #fff !important;
+  font-size: 20px !important;
+  line-height: 1.8 !important;
+  opacity: 0.95;
+  margin-bottom: 0 !important;
+}
+
+.contact-cta-section .ant-btn-primary {
+  height: 56px;
+  padding: 0 48px;
+  font-size: 18px;
+  font-weight: 600;
+  border-radius: 8px;
+  background: #fff;
+  color: #667eea;
+  border: none;
+  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.3);
+}
+
+.contact-cta-section .ant-btn-primary:hover {
+  box-shadow: 0 6px 30px rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+/* ========================================
+   Футер
+   ======================================== */
+
+.contact-footer {
+  background: #001529;
+  color: #fff;
+  padding: 48px 24px;
+}
+
+.footer-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.footer-logo .anticon {
+  color: #1890ff;
+}
+
+.footer-logo span {
+  color: #fff;
+}
+
+.contact-footer .ant-typography {
+  color: #999;
+}
+
+/* ========================================
+   Адаптивность
+   ======================================== */
+
+@media (max-width: 992px) {
+  .contact-hero-title {
+    font-size: 40px !important;
+  }
+
+  .contact-hero-description {
+    font-size: 18px !important;
+  }
+
+  .contact-main-section {
+    padding: 60px 24px;
+  }
+
+  .contact-faq-section {
+    padding: 60px 24px;
+  }
+
+  .contact-cta-title {
+    font-size: 36px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .contact-header {
+    height: auto;
+    line-height: normal;
+    padding: 16px;
+  }
+
+  .contact-header-content {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .contact-header-buttons {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .contact-hero {
+    padding: 60px 16px;
+  }
+
+  .contact-hero-title {
+    font-size: 32px !important;
+  }
+
+  .contact-hero-description {
+    font-size: 16px !important;
+  }
+
+  .contact-main-section {
+    padding: 40px 16px;
+  }
+
+  .contact-faq-section {
+    padding: 40px 16px;
+    margin-bottom: 40px;
+  }
+
+  .contact-cta-section {
+    padding: 60px 16px;
+    margin-top: 40px;
+  }
+
+  .contact-cta-title {
+    font-size: 28px !important;
+  }
+
+  .contact-cta-description {
+    font-size: 16px !important;
+  }
+
+  .contact-footer {
+    padding: 32px 16px;
+  }
+}
+
+@media (max-width: 576px) {
+  .contact-logo-text {
+    font-size: 20px;
+  }
+
+  .logo-icon {
+    font-size: 28px;
+  }
+
+  .contact-header-buttons .ant-btn {
+    font-size: 14px;
+  }
+}
