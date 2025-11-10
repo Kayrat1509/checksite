@@ -56,7 +56,7 @@ const Settings = () => {
                 type="primary"
                 size="large"
                 icon={<ExportOutlined />}
-                onClick={() => window.open('http://localhost:5175/requests', '_blank')}
+                onClick={() => window.open('https://requests.stroyka.asia', '_blank')}
               >
                 Открыть систему заявок
               </Button>

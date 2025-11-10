@@ -116,7 +116,7 @@ const MainLayout = () => {
       key: 'material-requests-external',
       icon: <ShoppingCartOutlined />,
       label: (
-        <a href="http://localhost:5175/requests" target="_blank" rel="noopener noreferrer">
+        <a href="https://requests.stroyka.asia" target="_blank" rel="noopener noreferrer">
           Заявки
         </a>
       ),
