@@ -49,7 +49,7 @@ INSTALLED_APPS = [
     'apps.notifications',
     'apps.reports',
     # УДАЛЕНО: 'apps.technical_conditions' - функционал удален
-    # УДАЛЕНО: 'apps.material_requests' - функционал удален
+    # УДАЛЕНО: 'apps.material_requests' - функционал удален (будет создан позже)
     'apps.tenders',  # Тендеры
     # УДАЛЕНО: 'apps.warehouse' - функционал удален
     'apps.settings',  # Настройки системы и матрица доступа
@@ -211,11 +211,11 @@ SIMPLE_JWT = {
 }
 
 # CORS Settings
-CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5174').split(',')
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5174,http://localhost:5175').split(',')
 CORS_ALLOW_CREDENTIALS = True
 
 # CSRF Settings - exempt API endpoints (using JWT auth)
-CSRF_TRUSTED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5174').split(',')
+CSRF_TRUSTED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5174,http://localhost:5175').split(',')
 CSRF_COOKIE_HTTPONLY = False
 # Проверяем, используется ли HTTPS хотя бы в одном из доверенных источников
 _uses_https = any(origin.startswith('https://') for origin in CSRF_TRUSTED_ORIGINS)
