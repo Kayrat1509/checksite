@@ -35,7 +35,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Django Backend (автообновление кода)
+  # Django Backend (админка)
   backend:
     build:
       context: ./backend
@@ -45,7 +45,7 @@ services:
       sh -c "python manage.py migrate &&
              daphne -b 0.0.0.0 -p 8000 config.asgi:application"
     volumes:
-      - ./backend:/app            # 🔥 Подключаем локальный код внутрь контейнера
+      - ./backend:/app
       - ./staticfiles:/app/staticfiles
       - ./media:/app/media
     ports:
@@ -53,7 +53,7 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      - DEBUG=True                # 🔥 Django autoreload включён при DEBUG=True
+      - DEBUG=True
       - DB_HOST=db
       - DB_PORT=5432
       - REDIS_HOST=redis
@@ -65,7 +65,7 @@ services:
         condition: service_healthy
     networks:
       - checksite_network
-    develop:                       # 🔥 Новая фича Docker Compose 2.22+
+    develop:
       watch:
         - action: sync
           path: ./backend
@@ -139,34 +139,61 @@ services:
     networks:
       - checksite_network
 
-    # React Frontend (автообновление при изменении)
+  # Основной React Frontend
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: checksite_frontend
-    command: npm run dev -- --port 5174 --host     # 🔥 hot reload на нужном порту
+    command: npm run dev -- --port 5174 --host
     volumes:
-      - ./frontend:/app                            # монтируем исходный код
-      - /app/node_modules                          # не затираем зависимости
+      - ./frontend:/app
+      - /app/node_modules
     ports:
-      - "5174:5174"                                # пробрасываем порт наружу
+      - "5174:5174"
     environment:
-      - NODE_ENV=development                       # режим разработки
-      - VITE_HMR_HOST=${VITE_HMR_HOST:-localhost}  # HMR host (localhost для dev, stroyka.asia для prod)
+      - NODE_ENV=development
+      - VITE_HMR_HOST=${VITE_HMR_HOST:-localhost}
     depends_on:
       - backend
     networks:
       - checksite_network
-    develop:                                       # Docker Compose 2.22+ — live sync
+    develop:
       watch:
         - action: sync
-          path: ./frontend                         # следим за изменениями в проекте
+          path: ./frontend
           target: /app
         - action: rebuild
-          path: ./frontend/package.json            # если изменилась конфигурация — пересборка
+          path: ./frontend/package.json
 
-  # Nginx Reverse Proxy
+  # Новый фронтенд для requests.stroyka.asia
+  frontend-requests:
+    build:
+      context: ./frontend-requests
+      dockerfile: Dockerfile
+    container_name: checksite_frontend_requests
+    command: npm run dev -- --port 5175 --host
+    volumes:
+      - ./frontend-requests:/app
+      - /app/node_modules
+    ports:
+      - "5175:5175"
+    environment:
+      - NODE_ENV=development
+      - VITE_HMR_HOST=${VITE_HMR_HOST:-localhost}
+    depends_on:
+      - backend
+    networks:
+      - checksite_network
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend-requests
+          target: /app
+        - action: rebuild
+          path: ./frontend-requests/package.json
+
+  # Nginx Reverse Proxy для всех фронтендов и админки
   nginx:
     image: nginx:alpine
     container_name: checksite_nginx
@@ -175,11 +202,14 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - ./staticfiles:/app/staticfiles
       - ./media:/app/media
+      - ./frontend/dist:/app/frontend
+      - ./frontend-requests/dist:/app/frontend-requests
     ports:
-      - "80:80"  # Изменено с 8080 на 80 для Cloudflare
+      - "80:80"
     depends_on:
       - backend
       - frontend
+      - frontend-requests
     networks:
       - checksite_network
 
