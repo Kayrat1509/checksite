@@ -19,16 +19,14 @@ import Issues from './pages/Issues'
 import Users from './pages/Users'
 import Contractors from './pages/Contractors'
 import Supervisions from './pages/Supervisions'
-// УДАЛЕНО: import TechnicalConditions - компонент удален из проекта
+// УДАЛЕНО: import TechnicalConditions - функционал удален
+// УДАЛЕНО: import MaterialRequests, ApprovedMaterialRequests, CompletedMaterialRequests - функционал удален
+// УДАЛЕНО: import ApprovalFlowSettings - функционал удален
+// УДАЛЕНО: import Warehouse - функционал удален
 import Tasks from './pages/Tasks'
-import MaterialRequests from './pages/MaterialRequests'
-import ApprovedMaterialRequests from './pages/ApprovedMaterialRequests'
-import CompletedMaterialRequests from './pages/CompletedMaterialRequests'
 import Tenders from './pages/Tenders'
-import Warehouse from './pages/Warehouse'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
-import ApprovalFlowSettings from './pages/ApprovalFlowSettings'
 import NotFound from './pages/NotFound'
 
 // Публичные тендеры (для внешних пользователей)
@@ -130,16 +128,14 @@ function App() {
             <Route path="users" element={<Users />} />
             <Route path="contractors" element={<Contractors />} />
             <Route path="supervisions" element={<Supervisions />} />
-            {/* УДАЛЕНО: <Route path="technical-conditions" /> - функcionал удален из системы */}
+            {/* УДАЛЕНО: <Route path="technical-conditions" /> - функционал удален */}
+            {/* УДАЛЕНО: <Route path="material-requests" /> - функционал удален */}
+            {/* УДАЛЕНО: <Route path="settings/approval-flow" /> - функционал удален */}
+            {/* УДАЛЕНО: <Route path="warehouse" /> - функционал удален */}
             <Route path="tasks" element={<Tasks />} />
-            <Route path="material-requests" element={<MaterialRequests />} />
-            <Route path="material-requests/approved" element={<ApprovedMaterialRequests />} />
-            <Route path="material-requests/completed" element={<CompletedMaterialRequests />} />
             <Route path="tenders" element={<Tenders />} />
-            <Route path="warehouse" element={<Warehouse />} />
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Settings />} />
-            <Route path="settings/approval-flow" element={<ApprovalFlowSettings />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

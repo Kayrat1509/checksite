@@ -17,10 +17,9 @@ import {
   FormOutlined,
   BellOutlined,
   CameraOutlined,
-  FilePdfOutlined,
-  InboxOutlined,
-  ShopOutlined
+  FilePdfOutlined
 } from '@ant-design/icons'
+// УДАЛЕНО: InboxOutlined, ShopOutlined - использовались для склада, функционал удален
 import { useNavigate } from 'react-router-dom'
 import './FeaturesPage.css'
 
@@ -601,102 +600,12 @@ const FeaturesPage = () => {
           </Row>
         </div>
 
-        {/* Шаг 9: Склад */}
+        {/* УДАЛЕНО: Шаг 9: Склад - функционал удален */}
+
+        {/* Шаг 9: Тендеры */}
         <div className="feature-section">
           <div className="section-header">
-            <Badge count="9" style={{ backgroundColor: '#52c41a' }} />
-            <Title level={2} style={{ marginLeft: 16 }}>Склад — Учет материалов на объекте</Title>
-          </div>
-
-          <Row gutter={[48, 48]} align="middle">
-            <Col xs={24} lg={12}>
-              <Card className="feature-card">
-                <InboxOutlined style={{ fontSize: 48, color: '#52c41a', marginBottom: 24 }} />
-                <Title level={3}>Полный контроль складских операций</Title>
-                <Paragraph className="large-text">
-                  Забудьте о бумажных накладных и потерянных материалах! Система автоматизирует
-                  весь процесс приемки, хранения и выдачи материалов:
-                </Paragraph>
-                <Space direction="vertical" size="middle" style={{ width: '100%', marginTop: 16 }}>
-                  <div className="metric-item">
-                    <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
-                    <Text strong>Приемка материалов — сканирование QR-кода, фото</Text>
-                  </div>
-                  <div className="metric-item">
-                    <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
-                    <Text strong>Актуальные остатки в реальном времени</Text>
-                  </div>
-                  <div className="metric-item">
-                    <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
-                    <Text strong>Выдача материалов прорабам с подписью</Text>
-                  </div>
-                  <div className="metric-item">
-                    <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
-                    <Text strong>История перемещений и списаний</Text>
-                  </div>
-                  <div className="metric-item">
-                    <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
-                    <Text strong>Инвентаризация за 15 минут вместо 2 дней</Text>
-                  </div>
-                </Space>
-              </Card>
-            </Col>
-
-            <Col xs={24} lg={12}>
-              <Card className="preview-card" style={{ background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)', border: 'none' }}>
-                <div style={{ textAlign: 'center', color: '#fff' }}>
-                  <ShopOutlined style={{ fontSize: 80, marginBottom: 24 }} />
-                  <Title level={3} style={{ color: '#fff' }}>Экономия времени и денег</Title>
-                  <Paragraph style={{ color: '#fff', fontSize: 16, lineHeight: 1.8 }}>
-                    Завсклад освобождается от рутинной работы с Excel и бумагами.
-                    Все операции выполняются в приложении за секунды.
-                  </Paragraph>
-                  <Paragraph style={{ color: '#fff', fontSize: 16, lineHeight: 1.8 }}>
-                    Руководство в любой момент видит, какие материалы есть на складе,
-                    кому выданы, сколько осталось. Никаких "потерявшихся" материалов!
-                  </Paragraph>
-                </div>
-              </Card>
-            </Col>
-          </Row>
-
-          <Row gutter={[24, 24]} style={{ marginTop: 32 }}>
-            <Col xs={24} md={8}>
-              <Card className="feature-highlight" style={{ background: '#f6ffed', border: '2px solid #52c41a', textAlign: 'center' }}>
-                <InboxOutlined style={{ fontSize: 40, color: '#52c41a', marginBottom: 16 }} />
-                <Title level={4} style={{ color: '#52c41a' }}>Приемка за 60 секунд</Title>
-                <Paragraph>
-                  Отсканировали QR-код → указали количество → сфотографировали → готово!
-                  Товар автоматически появился на складе.
-                </Paragraph>
-              </Card>
-            </Col>
-            <Col xs={24} md={8}>
-              <Card className="feature-highlight" style={{ background: '#f6ffed', border: '2px solid #52c41a', textAlign: 'center' }}>
-                <BellOutlined style={{ fontSize: 40, color: '#52c41a', marginBottom: 16 }} />
-                <Title level={4} style={{ color: '#52c41a' }}>Уведомления о минимумах</Title>
-                <Paragraph>
-                  Система предупреждает, когда материал заканчивается. Успеете заказать до простоя!
-                </Paragraph>
-              </Card>
-            </Col>
-            <Col xs={24} md={8}>
-              <Card className="feature-highlight" style={{ background: '#f6ffed', border: '2px solid #52c41a', textAlign: 'center' }}>
-                <BarChartOutlined style={{ fontSize: 40, color: '#52c41a', marginBottom: 16 }} />
-                <Title level={4} style={{ color: '#52c41a' }}>Аналитика расхода</Title>
-                <Paragraph>
-                  Смотрите, какие материалы расходуются быстрее всего, кто больше берет,
-                  планируйте закупки точнее.
-                </Paragraph>
-              </Card>
-            </Col>
-          </Row>
-        </div>
-
-        {/* Шаг 10: Тендеры */}
-        <div className="feature-section">
-          <div className="section-header">
-            <Badge count="10" style={{ backgroundColor: '#faad14' }} />
+            <Badge count="9" style={{ backgroundColor: '#faad14' }} />
             <Title level={2} style={{ marginLeft: 16 }}>Тендеры — Поиск поставщиков и подрядчиков</Title>
           </div>
 
@@ -748,10 +657,10 @@ const FeaturesPage = () => {
           </Row>
         </div>
 
-        {/* Шаг 11: Отчеты */}
+        {/* Шаг 10: Отчеты */}
         <div className="feature-section">
           <div className="section-header">
-            <Badge count="11" style={{ backgroundColor: '#1890ff' }} />
+            <Badge count="10" style={{ backgroundColor: '#1890ff' }} />
             <Title level={2} style={{ marginLeft: 16 }}>Отчеты — Аналитика и экспорт</Title>
           </div>
 
@@ -844,13 +753,7 @@ const FeaturesPage = () => {
                   <Text style={{ color: '#fff', fontSize: 13 }}>Согласование</Text>
                 </div>
               </Col>
-              <Col xs={12} sm={8} lg={4}>
-                <div className="workflow-module">
-                  <InboxOutlined style={{ fontSize: 48, color: '#fff', marginBottom: 16 }} />
-                  <Title level={4} style={{ color: '#fff', fontSize: 16 }}>Склад</Title>
-                  <Text style={{ color: '#fff', fontSize: 13 }}>Учет материалов</Text>
-                </div>
-              </Col>
+              {/* УДАЛЕНО: Склад - функционал удален */}
               <Col xs={12} sm={8} lg={4}>
                 <div className="workflow-module">
                   <DollarOutlined style={{ fontSize: 48, color: '#fff', marginBottom: 16 }} />

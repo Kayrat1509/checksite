@@ -12,15 +12,15 @@ import {
   MenuUnfoldOutlined,
   TeamOutlined,
   SafetyOutlined,
-  ShoppingCartOutlined,
   DollarOutlined,
-  InboxOutlined,
   SettingOutlined,
   UsergroupAddOutlined, // НОВАЯ ИКОНКА: для меню "Персонал"
-  CheckCircleOutlined, // НОВАЯ ИКОНКА: для цепочки согласования
   CheckSquareOutlined, // НОВАЯ ИКОНКА: для задач
 } from '@ant-design/icons'
-// УДАЛЕНО: FileProtectOutlined - использовалась для техусловий, больше не нужна
+// УДАЛЕНО: FileProtectOutlined - функционал техусловий удален
+// УДАЛЕНО: ShoppingCartOutlined - функционал заявок удален
+// УДАЛЕНО: CheckCircleOutlined - функционал цепочки согласования удален
+// УДАЛЕНО: InboxOutlined - функционал склада удален
 import { useAuthStore } from '../../stores/authStore'
 import { useNotificationStore } from '../../stores/notificationStore'
 import './MainLayout.css'
@@ -39,10 +39,9 @@ const MainLayout = () => {
   // Список allowedPages загружается из БД при логине через API /settings/page-access/my-pages/
 
   // ===== ОБНОВЛЕННАЯ СТРУКТУРА МЕНЮ =====
-  // Новая последовательность: Дашборд, Проекты, Персонал, Замечания, Задачи, Заявки, Склад, Тендеры, Настройки
+  // Новая последовательность: Дашборд, Проекты, Персонал, Замечания, Задачи, Тендеры, Настройки
   // "Персонал" объединяет: Сотрудники, Подрядчики, Надзоры
-  // "Настройки" объединяет: Настройки системы, Цепочка согласования
-  // УДАЛЕНО: Техусловия (technical-conditions), Отчеты (reports)
+  // УДАЛЕНО: Техусловия (technical-conditions), Отчеты (reports), Заявки (material-requests), Склад (warehouse), Цепочка согласования (settings/approval-flow)
   const allMenuItems = [
     // 1. Дашборд
     {
@@ -112,25 +111,10 @@ const MainLayout = () => {
       visible: hasPageAccess('tasks'),
     },
 
-    // 6. Заявки
-    {
-      key: '/dashboard/material-requests',
-      icon: <ShoppingCartOutlined />,
-      label: <Link to="/dashboard/material-requests">Заявки</Link>,
-      page: 'material-requests',
-      visible: hasPageAccess('material-requests'),
-    },
+    // УДАЛЕНО: 6. Заявки - функционал удален
+    // УДАЛЕНО: 7. Склад - функционал удален
 
-    // 7. Склад
-    {
-      key: '/dashboard/warehouse',
-      icon: <InboxOutlined />,
-      label: <Link to="/dashboard/warehouse">Склад</Link>,
-      page: 'warehouse',
-      visible: hasPageAccess('warehouse'),
-    },
-
-    // 8. Тендеры
+    // 6. Тендеры
     {
       key: '/dashboard/tenders',
       icon: <DollarOutlined />,
@@ -139,30 +123,15 @@ const MainLayout = () => {
       visible: hasPageAccess('tenders'),
     },
 
-    // 9. Настройки (НОВОЕ МЕНЮ с подпунктами)
+    // 7. Настройки
     {
-      key: 'settings',
+      key: '/dashboard/settings',
       icon: <SettingOutlined />,
-      label: 'Настройки',
-      // Показываем меню, если есть доступ хотя бы к одной странице
-      visible: hasPageAccess('settings') || hasPageAccess('settings/approval-flow'),
-      children: [
-        {
-          key: '/dashboard/settings',
-          icon: <SettingOutlined />,
-          label: <Link to="/dashboard/settings">Настройки системы</Link>,
-          page: 'settings',
-          visible: hasPageAccess('settings'),
-        },
-        {
-          key: '/dashboard/settings/approval-flow',
-          icon: <CheckCircleOutlined />,
-          label: <Link to="/dashboard/settings/approval-flow">Цепочка согласования</Link>,
-          page: 'settings/approval-flow',
-          visible: hasPageAccess('settings/approval-flow'),
-        },
-      ],
+      label: <Link to="/dashboard/settings">Настройки</Link>,
+      page: 'settings',
+      visible: hasPageAccess('settings'),
     },
+    // УДАЛЕНО: Подменю "Цепочка согласования" - функционал удален
   ]
 
   // ===== РЕКУРСИВНАЯ ФИЛЬТРАЦИЯ МЕНЮ =====
