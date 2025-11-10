@@ -23,11 +23,11 @@ urlpatterns = [
     path('api/', include('apps.tasks.urls')),  # Задачи
     path('api/notifications/', include('apps.notifications.urls')),
     path('api/reports/', include('apps.reports.urls')),
-    path('api/', include('apps.technical_conditions.urls')),
-    path('api/', include('apps.material_requests.urls')),  # Заявки на материалы
+    # УДАЛЕНО: path('api/', include('apps.technical_conditions.urls')) - функционал удален
+    # УДАЛЕНО: path('api/', include('apps.material_requests.urls')) - функционал удален
     path('api/', include('apps.tenders.urls')),  # Тендеры
     path('api/public-tenders/', include('apps.tenders.public_urls')),  # Публичные тендеры
-    path('api/warehouse/', include('apps.warehouse.urls')),  # Складской учет
+    # УДАЛЕНО: path('api/warehouse/', include('apps.warehouse.urls')) - функционал удален
     path('api/settings/', include('apps.settings.urls')),  # Настройки системы
     path('api/', include('apps.core.urls')),  # Корзина (Recycle Bin)
 ]

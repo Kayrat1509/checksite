@@ -48,10 +48,10 @@ INSTALLED_APPS = [
     'apps.tasks',  # Задачи для сотрудников и подрядчиков
     'apps.notifications',
     'apps.reports',
-    'apps.technical_conditions',
-    'apps.material_requests',  # Заявки на строительные материалы
+    # УДАЛЕНО: 'apps.technical_conditions' - функционал удален
+    # УДАЛЕНО: 'apps.material_requests' - функционал удален
     'apps.tenders',  # Тендеры
-    'apps.warehouse',  # Складской учет
+    # УДАЛЕНО: 'apps.warehouse' - функционал удален
     'apps.settings',  # Настройки системы и матрица доступа
 ]
 
