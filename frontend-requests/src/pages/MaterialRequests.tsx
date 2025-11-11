@@ -1102,8 +1102,8 @@ const MaterialRequests = () => {
                     style={{ marginBottom: '16px' }}
                   >
                     <Form.Item
-                      {...field}
                       name={[field.name, 'material_name']}
+                      fieldKey={[field.fieldKey, 'material_name']}
                       label="Название материала"
                       rules={[{ required: true, message: 'Введите название материала' }]}
                     >
@@ -1113,8 +1113,8 @@ const MaterialRequests = () => {
                     <Row gutter={16}>
                       <Col span={12}>
                         <Form.Item
-                          {...field}
                           name={[field.name, 'quantity_requested']}
+                          fieldKey={[field.fieldKey, 'quantity_requested']}
                           label="Количество"
                           rules={[
                             { required: true, message: 'Введите количество' },
@@ -1131,8 +1131,8 @@ const MaterialRequests = () => {
                       </Col>
                       <Col span={12}>
                         <Form.Item
-                          {...field}
                           name={[field.name, 'unit']}
+                          fieldKey={[field.fieldKey, 'unit']}
                           label="Единица измерения"
                           rules={[{ required: true, message: 'Выберите единицу' }]}
                         >
@@ -1151,8 +1151,8 @@ const MaterialRequests = () => {
                     </Row>
 
                     <Form.Item
-                      {...field}
                       name={[field.name, 'notes']}
+                      fieldKey={[field.fieldKey, 'notes']}
                       label="Примечания (необязательно)"
                     >
                       <TextArea
