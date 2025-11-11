@@ -18,15 +18,20 @@ import {
   Row,
   Col,
   Statistic,
+  Form,
+  Select,
 } from 'antd'
 import {
   CheckOutlined,
   CloseOutlined,
   DollarOutlined,
   ReloadOutlined,
+  PlusOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { materialRequestsAPI, MaterialRequest, MaterialRequestItem } from '../api/materialRequests'
+import { buttonAccessAPI } from '../api/buttonAccess'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -58,14 +63,45 @@ const MaterialRequests = () => {
   const [rejectModalVisible, setRejectModalVisible] = useState(false)
   const [paidModalVisible, setPaidModalVisible] = useState(false)
   const [deliveredModalVisible, setDeliveredModalVisible] = useState(false)
+  const [createModalVisible, setCreateModalVisible] = useState(false)
+
+  // Состояния для создания заявки
+  const [canCreate, setCanCreate] = useState(false)
+  const [projects, setProjects] = useState<Array<{ id: number; name: string }>>([])
+  const [createForm] = Form.useForm()
 
   // Загрузка данных при монтировании
   useEffect(() => {
     loadData()
+    loadButtonAccess()
+    loadProjects()
     // Автообновление каждые 30 секунд
     const interval = setInterval(loadData, 30000)
     return () => clearInterval(interval)
   }, [])
+
+  // Проверка доступа к кнопке создания
+  const loadButtonAccess = async () => {
+    try {
+      const buttons = await buttonAccessAPI.getByPage('material-requests')
+      const hasCreateAccess = buttons.some((btn) => btn.button_key === 'create')
+      setCanCreate(hasCreateAccess)
+    } catch (error) {
+      console.error('Ошибка загрузки прав доступа:', error)
+      setCanCreate(false)
+    }
+  }
+
+  // Загрузка списка проектов
+  const loadProjects = async () => {
+    try {
+      const data = await materialRequestsAPI.getProjects()
+      setProjects(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Ошибка загрузки проектов:', error)
+      setProjects([])
+    }
+  }
 
   // Загрузка заявок
   const loadData = async () => {
@@ -208,6 +244,31 @@ const MaterialRequests = () => {
       loadData()
     } catch (error) {
       message.error('Ошибка при приемке материала')
+    }
+  }
+
+  // Обработчик создания заявки
+  const handleCreateRequest = async (values: any) => {
+    try {
+      const createData = {
+        project_id: values.project_id,
+        items_data: values.items.map((item: any, index: number) => ({
+          material_name: item.material_name,
+          unit: item.unit,
+          quantity_requested: item.quantity_requested,
+          notes: item.notes || '',
+          order: index,
+        })),
+      }
+
+      await materialRequestsAPI.create(createData)
+      message.success('Заявка успешно создана')
+      setCreateModalVisible(false)
+      createForm.resetFields()
+      loadData()
+    } catch (error: any) {
+      console.error('Ошибка создания заявки:', error)
+      message.error(error.response?.data?.detail || 'Ошибка при создании заявки')
     }
   }
 
@@ -691,13 +752,24 @@ const MaterialRequests = () => {
             <Title level={2} style={{ margin: 0 }}>
               Система согласования заявок на материалы
             </Title>
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={loadData}
-              loading={loading}
-            >
-              Обновить
-            </Button>
+            <Space>
+              {canCreate && (
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => setCreateModalVisible(true)}
+                >
+                  Создать заявку
+                </Button>
+              )}
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={loadData}
+                loading={loading}
+              >
+                Обновить
+              </Button>
+            </Space>
           </div>
           <Text type="secondary">
             Поэтапное согласование и контроль доставки строительных материалов
@@ -965,6 +1037,145 @@ const MaterialRequests = () => {
             />
           </div>
         </Space>
+      </Modal>
+
+      {/* Модальное окно: Создание заявки */}
+      <Modal
+        title="Создание новой заявки на материалы"
+        open={createModalVisible}
+        onOk={() => createForm.submit()}
+        onCancel={() => {
+          setCreateModalVisible(false)
+          createForm.resetFields()
+        }}
+        okText="Создать заявку"
+        cancelText="Отмена"
+        width={800}
+      >
+        <Form
+          form={createForm}
+          layout="vertical"
+          onFinish={handleCreateRequest}
+          initialValues={{
+            items: [{ material_name: '', unit: 'шт', quantity_requested: 1, notes: '' }],
+          }}
+        >
+          <Form.Item
+            name="project_id"
+            label="Проект"
+            rules={[{ required: true, message: 'Выберите проект' }]}
+          >
+            <Select
+              placeholder="Выберите проект"
+              showSearch
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              options={projects.map((proj) => ({ label: proj.name, value: proj.id }))}
+            />
+          </Form.Item>
+
+          <Form.List name="items">
+            {(fields, { add, remove }) => (
+              <>
+                <div style={{ marginBottom: '16px' }}>
+                  <Text strong>Позиции материалов:</Text>
+                </div>
+                {fields.map((field, index) => (
+                  <Card
+                    key={field.key}
+                    size="small"
+                    title={`Позиция ${index + 1}`}
+                    extra={
+                      fields.length > 1 && (
+                        <Button
+                          type="text"
+                          danger
+                          size="small"
+                          icon={<DeleteOutlined />}
+                          onClick={() => remove(field.name)}
+                        >
+                          Удалить
+                        </Button>
+                      )
+                    }
+                    style={{ marginBottom: '16px' }}
+                  >
+                    <Form.Item
+                      {...field}
+                      name={[field.name, 'material_name']}
+                      label="Название материала"
+                      rules={[{ required: true, message: 'Введите название материала' }]}
+                    >
+                      <Input placeholder="Например: Цемент М500" />
+                    </Form.Item>
+
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item
+                          {...field}
+                          name={[field.name, 'quantity_requested']}
+                          label="Количество"
+                          rules={[
+                            { required: true, message: 'Введите количество' },
+                            { type: 'number', min: 0.001, message: 'Количество должно быть больше 0' },
+                          ]}
+                        >
+                          <InputNumber
+                            placeholder="0"
+                            style={{ width: '100%' }}
+                            min={0.001}
+                            step={0.1}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item
+                          {...field}
+                          name={[field.name, 'unit']}
+                          label="Единица измерения"
+                          rules={[{ required: true, message: 'Выберите единицу' }]}
+                        >
+                          <Select placeholder="Выберите единицу">
+                            <Select.Option value="шт">шт</Select.Option>
+                            <Select.Option value="кг">кг</Select.Option>
+                            <Select.Option value="т">т (тонн)</Select.Option>
+                            <Select.Option value="м">м (метров)</Select.Option>
+                            <Select.Option value="м2">м² (кв. метров)</Select.Option>
+                            <Select.Option value="м3">м³ (куб. метров)</Select.Option>
+                            <Select.Option value="л">л (литров)</Select.Option>
+                            <Select.Option value="упак">упак (упаковок)</Select.Option>
+                          </Select>
+                        </Form.Item>
+                      </Col>
+                    </Row>
+
+                    <Form.Item
+                      {...field}
+                      name={[field.name, 'notes']}
+                      label="Примечания (необязательно)"
+                    >
+                      <TextArea
+                        rows={2}
+                        placeholder="Дополнительная информация о материале"
+                      />
+                    </Form.Item>
+                  </Card>
+                ))}
+
+                <Button
+                  type="dashed"
+                  onClick={() => add()}
+                  block
+                  icon={<PlusOutlined />}
+                  style={{ marginBottom: '16px' }}
+                >
+                  Добавить позицию
+                </Button>
+              </>
+            )}
+          </Form.List>
+        </Form>
       </Modal>
     </div>
   )
