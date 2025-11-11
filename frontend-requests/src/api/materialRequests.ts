@@ -149,7 +149,7 @@ export const materialRequestsAPI = {
 
   // Получить список проектов (для фильтров)
   getProjects: async (): Promise<Array<{ id: number; name: string }>> => {
-    const response = await axios.get('/projects/')
+    const response = await axios.get('/projects/projects/')
     return response.data.results || response.data
   },
 

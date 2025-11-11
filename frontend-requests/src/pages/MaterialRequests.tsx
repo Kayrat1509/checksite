@@ -736,11 +736,11 @@ const MaterialRequests = () => {
   const allItems = getItemsWithRequestInfo()
   const stats = {
     total: allItems.length,
-    approval: allItems.filter((item) => item.status.includes('approval')).length,
-    approved: allItems.filter((item) => item.status === 'approved').length,
-    payment: allItems.filter((item) => item.status === 'payment').length,
-    delivery: allItems.filter((item) => item.status === 'delivery').length,
-    completed: allItems.filter((item) => item.status === 'completed').length,
+    approval: allItems.filter((item) => item.status.includes('APPROVAL') || item.status === 'DRAFT').length,
+    approved: allItems.filter((item) => item.status === 'APPROVED').length,
+    payment: allItems.filter((item) => item.status === 'PAYMENT' || item.status === 'PROCUREMENT').length,
+    delivery: allItems.filter((item) => item.status === 'DELIVERY').length,
+    completed: allItems.filter((item) => item.status === 'COMPLETED').length,
   }
 
   return (
@@ -1081,11 +1081,11 @@ const MaterialRequests = () => {
                 <div style={{ marginBottom: '16px' }}>
                   <Text strong>Позиции материалов:</Text>
                 </div>
-                {fields.map((field, index) => (
+                {fields.map((field) => (
                   <Card
                     key={field.key}
                     size="small"
-                    title={`Позиция ${index + 1}`}
+                    title={`Позиция ${field.name + 1}`}
                     extra={
                       fields.length > 1 && (
                         <Button

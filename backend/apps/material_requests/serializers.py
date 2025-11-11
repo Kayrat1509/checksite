@@ -107,14 +107,12 @@ class MaterialRequestSerializer(serializers.ModelSerializer):
         items_data = validated_data.pop('items_data')
         project_id = validated_data.pop('project_id', None)
 
-        # Получаем пользователя из контекста
-        user = self.context['request'].user
+        # company и created_by передаются из ViewSet.perform_create()
+        # через serializer.save(company=..., created_by=...)
 
         # Создаём заявку
         request = MaterialRequest.objects.create(
-            company=user.company,
             project_id=project_id,
-            created_by=user,
             **validated_data
         )
 
