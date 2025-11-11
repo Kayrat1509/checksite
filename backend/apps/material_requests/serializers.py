@@ -7,6 +7,14 @@ from apps.users.serializers import UserSerializer
 from apps.projects.serializers import ProjectSerializer
 
 
+class SimpleProjectSerializer(serializers.Serializer):
+    """
+    Упрощенный сериализатор проекта для заявок (без drawings и sites)
+    """
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+
+
 class MaterialRequestItemSerializer(serializers.ModelSerializer):
     """Сериализатор для позиции материала"""
 
@@ -36,7 +44,7 @@ class MaterialRequestSerializer(serializers.ModelSerializer):
     # Вложенные объекты (read-only)
     items = MaterialRequestItemSerializer(many=True, read_only=True)
     created_by = UserSerializer(read_only=True)
-    project = ProjectSerializer(read_only=True)
+    project = SimpleProjectSerializer(read_only=True)
     current_approver = UserSerializer(read_only=True)
 
     # Для создания/обновления (write-only)
@@ -170,7 +178,7 @@ class MaterialRequestListSerializer(serializers.ModelSerializer):
     Упрощённый сериализатор для списка заявок (без полной истории)
     """
     created_by = UserSerializer(read_only=True)
-    project = ProjectSerializer(read_only=True)
+    project = SimpleProjectSerializer(read_only=True)
     items_count = serializers.IntegerField(source='items.count', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
 
