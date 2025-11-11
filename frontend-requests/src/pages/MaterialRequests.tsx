@@ -1083,7 +1083,7 @@ const MaterialRequests = () => {
                 </div>
                 {fields.map((field) => (
                   <Card
-                    key={field.key}
+                    key={`material-item-${field.key}-${field.name}`}
                     size="small"
                     title={`Позиция ${field.name + 1}`}
                     extra={
