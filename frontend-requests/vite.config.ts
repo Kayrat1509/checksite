@@ -122,8 +122,8 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0',
-    port: 5173,
-    allowedHosts: ['stroyka.asia', 'requests.stroyka.asia', 'localhost'],
+    port: 5175,
+    allowedHosts: ['stroyka.asia', 'requests.stroyka.asia', 'admin.stroyka.asia', 'localhost'],
     // Отключаем кеширование в режиме разработки
     headers: {
       'Cache-Control': 'no-store',
