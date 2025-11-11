@@ -49,7 +49,7 @@ INSTALLED_APPS = [
     'apps.notifications',
     'apps.reports',
     # УДАЛЕНО: 'apps.technical_conditions' - функционал удален
-    # УДАЛЕНО: 'apps.material_requests' - функционал удален (будет создан позже)
+    'apps.material_requests',  # Заявки на материалы
     'apps.tenders',  # Тендеры
     # УДАЛЕНО: 'apps.warehouse' - функционал удален
     'apps.settings',  # Настройки системы и матрица доступа

@@ -1,5 +1,6 @@
 // Система поэтапного согласования заявок на строительные материалы
 // requests.stroyka.asia (http://localhost:5175)
+// ВАЖНО: Таблицы показывают ПОЗИЦИИ материалов, а не заявки целиком
 
 import { useState, useEffect } from 'react'
 import {
@@ -10,60 +11,57 @@ import {
   Space,
   Button,
   Tag,
-  Empty,
   Modal,
   Input,
   InputNumber,
-  Select,
   message,
-  Descriptions,
-  Badge,
   Row,
   Col,
   Statistic,
 } from 'antd'
 import {
-  FileTextOutlined,
   CheckOutlined,
   CloseOutlined,
   DollarOutlined,
-  InboxOutlined,
-  CarOutlined,
-  EyeOutlined,
-  FilterOutlined,
   ReloadOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { materialRequestsAPI, MaterialRequest } from '../api/materialRequests'
+import { materialRequestsAPI, MaterialRequest, MaterialRequestItem } from '../api/materialRequests'
 
-const { Title, Text, Paragraph } = Typography
+const { Title, Text } = Typography
 const { TextArea } = Input
+
+// Расширенный тип для позиции с информацией о заявке
+interface MaterialItemWithRequest extends MaterialRequestItem {
+  requestId: number
+  requestNumber: string
+  projectName: string
+  authorName: string
+  authorRole: string
+  status: string
+  statusDisplay: string
+  currentApproverRole?: string | null
+}
 
 const MaterialRequests = () => {
   // Состояния
   const [loading, setLoading] = useState(false)
   const [requests, setRequests] = useState<MaterialRequest[]>([])
   const [activeTab, setActiveTab] = useState<string>('all')
-  const [selectedRequest, setSelectedRequest] = useState<MaterialRequest | null>(null)
-  const [detailModalVisible, setDetailModalVisible] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<MaterialItemWithRequest | null>(null)
+  const [comment, setComment] = useState('')
+  const [rejectionReason, setRejectionReason] = useState('')
+  const [actualQuantity, setActualQuantity] = useState<number>(0)
+
+  // Модальные окна
   const [approveModalVisible, setApproveModalVisible] = useState(false)
   const [rejectModalVisible, setRejectModalVisible] = useState(false)
   const [paidModalVisible, setPaidModalVisible] = useState(false)
   const [deliveredModalVisible, setDeliveredModalVisible] = useState(false)
-  const [comment, setComment] = useState('')
-  const [rejectionReason, setRejectionReason] = useState('')
-  const [actualQuantities, setActualQuantities] = useState<Record<number, number>>({})
-
-  // Фильтры
-  const [filterProject, setFilterProject] = useState<number | undefined>()
-  const [filterAuthor, setFilterAuthor] = useState<number | undefined>()
-  const [projects, setProjects] = useState<Array<{ id: number; name: string }>>([])
-  const [users, setUsers] = useState<Array<{ id: number; full_name: string }>>([])
 
   // Загрузка данных при монтировании
   useEffect(() => {
     loadData()
-    loadFilters()
     // Автообновление каждые 30 секунд
     const interval = setInterval(loadData, 30000)
     return () => clearInterval(interval)
@@ -74,126 +72,119 @@ const MaterialRequests = () => {
     setLoading(true)
     try {
       const data = await materialRequestsAPI.getAll()
-      // Обрабатываем случай, когда API возвращает объект с results
       setRequests(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Ошибка загрузки заявок:', error)
       message.error('Не удалось загрузить заявки')
-      setRequests([]) // Устанавливаем пустой массив при ошибке
+      setRequests([])
     } finally {
       setLoading(false)
     }
   }
 
-  // Загрузка данных для фильтров
-  const loadFilters = async () => {
-    try {
-      const [projectsData, usersData] = await Promise.all([
-        materialRequestsAPI.getProjects(),
-        materialRequestsAPI.getUsers(),
-      ])
-      setProjects(Array.isArray(projectsData) ? projectsData : [])
-      setUsers(Array.isArray(usersData) ? usersData : [])
-    } catch (error) {
-      console.error('Ошибка загрузки фильтров:', error)
-      // Не показываем ошибку пользователю, просто оставляем фильтры пустыми
-      setProjects([])
-      setUsers([])
-    }
+  // Преобразование заявок в плоский список позиций материалов
+  const getItemsWithRequestInfo = (): MaterialItemWithRequest[] => {
+    const items: MaterialItemWithRequest[] = []
+
+    requests.forEach((request) => {
+      request.items?.forEach((item) => {
+        items.push({
+          ...item,
+          requestId: request.id,
+          requestNumber: request.number,
+          projectName: request.project?.name || 'Без проекта',
+          authorName: request.created_by ? `${request.created_by.first_name} ${request.created_by.last_name}` : 'Неизвестно',
+          authorRole: request.created_by?.role || '',
+          status: request.status,
+          statusDisplay: request.status_display,
+          currentApproverRole: request.current_approver_role,
+        })
+      })
+    })
+
+    return items
   }
 
-  // Фильтрация данных по вкладкам
-  const getFilteredData = (): MaterialRequest[] => {
-    let filtered = requests
+  // Фильтрация позиций по вкладкам
+  const getFilteredItems = (): MaterialItemWithRequest[] => {
+    const allItems = getItemsWithRequestInfo()
 
-    // Фильтр по проекту
-    if (filterProject) {
-      filtered = filtered.filter((req) => req.project.id === filterProject)
-    }
-
-    // Фильтр по автору
-    if (filterAuthor) {
-      filtered = filtered.filter((req) => req.author.id === filterAuthor)
-    }
-
-    // Фильтр по вкладке
     switch (activeTab) {
       case 'approval':
-        return filtered.filter((req) =>
-          req.status.includes('approval') || req.status === 'draft'
+        return allItems.filter((item) =>
+          item.status.includes('APPROVAL') || item.status === 'DRAFT'
         )
       case 'approved':
-        return filtered.filter((req) => req.status === 'approved')
+        return allItems.filter((item) => item.status === 'APPROVED')
       case 'payment':
-        return filtered.filter((req) => req.status === 'payment')
+        return allItems.filter((item) =>
+          item.status === 'PAYMENT' || item.status === 'PROCUREMENT'
+        )
       case 'delivery':
-        return filtered.filter((req) => req.status === 'delivery')
+        return allItems.filter((item) => item.status === 'DELIVERY')
       case 'completed':
-        return filtered.filter((req) => req.status === 'completed')
+        return allItems.filter((item) => item.status === 'COMPLETED')
       default:
-        return filtered
+        return allItems
     }
   }
 
   // Получить цвет статуса
   const getStatusColor = (status: string): string => {
     const colors: Record<string, string> = {
-      draft: 'default',
-      pto_approval: 'processing',
-      pm_approval: 'processing',
-      chief_engineer_approval: 'processing',
-      director_approval: 'processing',
-      warehouse_approval: 'processing',
-      procurement_approval: 'processing',
-      approved: 'success',
-      payment: 'warning',
-      delivery: 'cyan',
-      completed: 'success',
-      rejected: 'error',
+      DRAFT: 'default',
+      SITE_MANAGER_APPROVAL: 'processing',
+      ENGINEER_APPROVAL: 'processing',
+      PM_APPROVAL: 'processing',
+      CHIEF_POWER_APPROVAL: 'processing',
+      CHIEF_ENGINEER_APPROVAL: 'processing',
+      DIRECTOR_APPROVAL: 'processing',
+      APPROVED: 'success',
+      WAREHOUSE_REVIEW: 'blue',
+      PROCUREMENT: 'orange',
+      PAYMENT: 'warning',
+      DELIVERY: 'cyan',
+      COMPLETED: 'success',
+      REJECTED: 'error',
     }
     return colors[status] || 'default'
   }
 
   // Обработчики действий
-  const handleViewDetail = (record: MaterialRequest) => {
-    setSelectedRequest(record)
-    setDetailModalVisible(true)
-  }
-
   const handleApprove = async () => {
-    if (!selectedRequest) return
+    if (!selectedItem) return
     try {
-      await materialRequestsAPI.approve(selectedRequest.id, comment)
-      message.success('Заявка успешно согласована')
+      await materialRequestsAPI.approve(selectedItem.requestId, comment)
+      message.success('Позиция согласована')
       setApproveModalVisible(false)
       setComment('')
       loadData()
     } catch (error) {
-      message.error('Ошибка при согласовании заявки')
+      message.error('Ошибка при согласовании')
     }
   }
 
   const handleReject = async () => {
-    if (!selectedRequest || !rejectionReason) {
-      message.warning('Укажите причину отклонения')
+    if (!selectedItem || !rejectionReason) {
+      message.warning('Укажите причину возврата на доработку')
       return
     }
     try {
-      await materialRequestsAPI.reject(selectedRequest.id, rejectionReason)
-      message.warning('Заявка отправлена на доработку')
+      await materialRequestsAPI.reject(selectedItem.requestId, rejectionReason)
+      message.warning('Заявка возвращена на доработку')
       setRejectModalVisible(false)
       setRejectionReason('')
       loadData()
     } catch (error) {
-      message.error('Ошибка при отклонении заявки')
+      message.error('Ошибка при возврате на доработку')
     }
   }
 
   const handleMarkPaid = async () => {
-    if (!selectedRequest) return
+    if (!selectedItem) return
     try {
-      await materialRequestsAPI.markPaid(selectedRequest.id, comment)
-      message.success('Заявка отмечена как оплаченная')
+      await materialRequestsAPI.markPaid(selectedItem.requestId, comment)
+      message.success('Позиция отмечена как оплаченная')
       setPaidModalVisible(false)
       setComment('')
       loadData()
@@ -203,16 +194,16 @@ const MaterialRequests = () => {
   }
 
   const handleMarkDelivered = async () => {
-    if (!selectedRequest) return
-    const items = Object.entries(actualQuantities).map(([itemId, quantity]) => ({
-      item_id: Number(itemId),
-      quantity_actual: quantity,
-    }))
+    if (!selectedItem || !selectedItem.id) return
     try {
-      await materialRequestsAPI.markDelivered(selectedRequest.id, items, comment)
+      await materialRequestsAPI.markDelivered(
+        selectedItem.requestId,
+        [{ item_id: selectedItem.id, quantity_actual: actualQuantity }],
+        comment
+      )
       message.success('Материал принят')
       setDeliveredModalVisible(false)
-      setActualQuantities({})
+      setActualQuantity(0)
       setComment('')
       loadData()
     } catch (error) {
@@ -220,188 +211,486 @@ const MaterialRequests = () => {
     }
   }
 
-  // Колонки таблицы
-  const columns: ColumnsType<MaterialRequest> = [
+  // Колонки для вкладки "Все заявки"
+  const allColumns: ColumnsType<MaterialItemWithRequest> = [
     {
-      title: '№ заявки',
-      dataIndex: 'number',
-      key: 'number',
-      width: 120,
+      title: '№ (п/п)',
+      key: 'index',
+      width: 80,
       fixed: 'left',
-      render: (text) => <Text strong>{text}</Text>,
+      render: (_, __, index) => <Text strong>{index + 1}</Text>,
     },
     {
-      title: 'Проект',
-      dataIndex: ['project', 'name'],
-      key: 'project',
+      title: 'Материал',
+      dataIndex: 'material_name',
+      key: 'material_name',
+      width: 250,
+    },
+    {
+      title: 'Ед. изм.',
+      dataIndex: 'unit',
+      key: 'unit',
+      width: 100,
+    },
+    {
+      title: 'Кол-во по заявке',
+      dataIndex: 'quantity_requested',
+      key: 'quantity_requested',
+      width: 130,
+      align: 'right',
+    },
+    {
+      title: 'Кол-во по факту',
+      dataIndex: 'quantity_actual',
+      key: 'quantity_actual',
+      width: 130,
+      align: 'right',
+      render: (val) => val || '-',
+    },
+    {
+      title: 'Примечания',
+      dataIndex: 'notes',
+      key: 'notes',
       width: 200,
+      render: (val) => val || '-',
     },
     {
       title: 'Автор',
-      dataIndex: ['author', 'full_name'],
-      key: 'author',
+      dataIndex: 'authorName',
+      key: 'authorName',
       width: 150,
     },
     {
-      title: 'Позиций',
-      key: 'items_count',
-      width: 80,
-      align: 'center',
-      render: (_, record) => (
-        <Badge count={record.items?.length || 0} showZero color="blue" />
-      ),
-    },
-    {
       title: 'Статус',
-      dataIndex: 'status_display',
+      dataIndex: 'statusDisplay',
       key: 'status',
-      width: 250,
+      width: 200,
       render: (text, record) => (
         <Tag color={getStatusColor(record.status)}>{text}</Tag>
       ),
     },
     {
-      title: 'Дата создания',
-      dataIndex: 'created_at',
-      key: 'created_at',
+      title: 'Действия',
+      key: 'actions',
       width: 150,
-      render: (date) => new Date(date).toLocaleDateString('ru-RU'),
+      fixed: 'right',
+      render: () => <Text type="secondary">-</Text>,
+    },
+  ]
+
+  // Колонки для вкладки "На согласовании"
+  const approvalColumns: ColumnsType<MaterialItemWithRequest> = [
+    {
+      title: '№ (п/п)',
+      key: 'index',
+      width: 80,
+      fixed: 'left',
+      render: (_, __, index) => <Text strong>{index + 1}</Text>,
+    },
+    {
+      title: 'Материал',
+      dataIndex: 'material_name',
+      key: 'material_name',
+      width: 250,
+    },
+    {
+      title: 'Ед. изм.',
+      dataIndex: 'unit',
+      key: 'unit',
+      width: 100,
+    },
+    {
+      title: 'Кол-во по заявке',
+      dataIndex: 'quantity_requested',
+      key: 'quantity_requested',
+      width: 130,
+      align: 'right',
+    },
+    {
+      title: 'Примечания',
+      dataIndex: 'notes',
+      key: 'notes',
+      width: 200,
+      render: (val) => val || '-',
+    },
+    {
+      title: 'Автор',
+      dataIndex: 'authorName',
+      key: 'authorName',
+      width: 150,
+    },
+    {
+      title: 'Статус',
+      key: 'status',
+      width: 250,
+      render: (_, record) => (
+        <Space direction="vertical" size="small">
+          <Tag color={getStatusColor(record.status)}>{record.statusDisplay}</Tag>
+          {record.currentApproverRole && (
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              Ожидает: {record.currentApproverRole}
+            </Text>
+          )}
+        </Space>
+      ),
     },
     {
       title: 'Действия',
       key: 'actions',
-      width: 250,
+      width: 200,
       fixed: 'right',
       render: (_, record) => (
         <Space>
           <Button
             size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewDetail(record)}
+            type="primary"
+            icon={<CheckOutlined />}
+            onClick={() => {
+              setSelectedItem(record)
+              setApproveModalVisible(true)
+            }}
           >
-            Просмотр
+            Согласовать
           </Button>
-          {activeTab === 'approval' && (
-            <>
-              <Button
-                size="small"
-                type="primary"
-                icon={<CheckOutlined />}
-                onClick={() => {
-                  setSelectedRequest(record)
-                  setApproveModalVisible(true)
-                }}
-              >
-                Согласовать
-              </Button>
-              <Button
-                size="small"
-                danger
-                icon={<CloseOutlined />}
-                onClick={() => {
-                  setSelectedRequest(record)
-                  setRejectModalVisible(true)
-                }}
-              >
-                Вернуть
-              </Button>
-            </>
-          )}
-          {activeTab === 'payment' && (
-            <Button
-              size="small"
-              type="primary"
-              icon={<DollarOutlined />}
-              onClick={() => {
-                setSelectedRequest(record)
-                setPaidModalVisible(true)
-              }}
-            >
-              Оплачено
-            </Button>
-          )}
-          {activeTab === 'delivery' && (
-            <Button
-              size="small"
-              type="primary"
-              icon={<CheckOutlined />}
-              onClick={() => {
-                setSelectedRequest(record)
-                const quantities: Record<number, number> = {}
-                record.items?.forEach((item) => {
-                  if (item.id) quantities[item.id] = item.quantity_requested
-                })
-                setActualQuantities(quantities)
-                setDeliveredModalVisible(true)
-              }}
-            >
-              Принято
-            </Button>
-          )}
+          <Button
+            size="small"
+            danger
+            icon={<CloseOutlined />}
+            onClick={() => {
+              setSelectedItem(record)
+              setRejectModalVisible(true)
+            }}
+          >
+            На доработку
+          </Button>
         </Space>
       ),
     },
   ]
 
-  // Статистика
-  const stats = {
-    total: requests.length,
-    approval: requests.filter((r) => r.status.includes('approval')).length,
-    approved: requests.filter((r) => r.status === 'approved').length,
-    payment: requests.filter((r) => r.status === 'payment').length,
-    delivery: requests.filter((r) => r.status === 'delivery').length,
-    completed: requests.filter((r) => r.status === 'completed').length,
-  }
-
-  // Вкладки
-  const tabItems = [
+  // Колонки для вкладки "Согласованные заявки"
+  const approvedColumns: ColumnsType<MaterialItemWithRequest> = [
     {
-      key: 'all',
-      label: `Все заявки (${stats.total})`,
-      children: null,
+      title: '№ (п/п)',
+      key: 'index',
+      width: 80,
+      fixed: 'left',
+      render: (_, __, index) => <Text strong>{index + 1}</Text>,
     },
     {
-      key: 'approval',
-      label: `На согласовании (${stats.approval})`,
-      children: null,
+      title: 'Материал',
+      dataIndex: 'material_name',
+      key: 'material_name',
+      width: 250,
     },
     {
-      key: 'approved',
-      label: `Согласованные (${stats.approved})`,
-      children: null,
+      title: 'Ед. изм.',
+      dataIndex: 'unit',
+      key: 'unit',
+      width: 100,
     },
     {
-      key: 'payment',
-      label: `На оплате (${stats.payment})`,
-      children: null,
+      title: 'Кол-во по заявке',
+      dataIndex: 'quantity_requested',
+      key: 'quantity_requested',
+      width: 130,
+      align: 'right',
     },
     {
-      key: 'delivery',
-      label: `На доставке (${stats.delivery})`,
-      children: null,
+      title: 'Примечания',
+      dataIndex: 'notes',
+      key: 'notes',
+      width: 200,
+      render: (val) => val || '-',
     },
     {
-      key: 'completed',
-      label: `Отработанные (${stats.completed})`,
-      children: null,
+      title: 'Автор',
+      dataIndex: 'authorName',
+      key: 'authorName',
+      width: 150,
+    },
+    {
+      title: 'Статус',
+      key: 'status',
+      width: 200,
+      render: () => (
+        <Tag color="success">Согласовано Директором</Tag>
+      ),
+    },
+    {
+      title: 'Действия',
+      key: 'actions',
+      width: 150,
+      fixed: 'right',
+      render: (_, record) => (
+        <Button
+          size="small"
+          type="primary"
+          icon={<DollarOutlined />}
+          onClick={() => {
+            setSelectedItem(record)
+            setPaidModalVisible(true)
+          }}
+        >
+          На оплату
+        </Button>
+      ),
     },
   ]
 
+  // Колонки для вкладки "На оплате"
+  const paymentColumns: ColumnsType<MaterialItemWithRequest> = [
+    {
+      title: '№ (п/п)',
+      key: 'index',
+      width: 80,
+      fixed: 'left',
+      render: (_, __, index) => <Text strong>{index + 1}</Text>,
+    },
+    {
+      title: 'Материал',
+      dataIndex: 'material_name',
+      key: 'material_name',
+      width: 250,
+    },
+    {
+      title: 'Ед. изм.',
+      dataIndex: 'unit',
+      key: 'unit',
+      width: 100,
+    },
+    {
+      title: 'Кол-во по заявке',
+      dataIndex: 'quantity_requested',
+      key: 'quantity_requested',
+      width: 130,
+      align: 'right',
+    },
+    {
+      title: 'Примечания',
+      dataIndex: 'notes',
+      key: 'notes',
+      width: 200,
+      render: (val) => val || '-',
+    },
+    {
+      title: 'Автор',
+      dataIndex: 'authorName',
+      key: 'authorName',
+      width: 150,
+    },
+    {
+      title: 'Статус',
+      key: 'status',
+      width: 150,
+      render: () => <Tag color="warning">На оплате</Tag>,
+    },
+    {
+      title: 'Действия',
+      key: 'actions',
+      width: 150,
+      fixed: 'right',
+      render: (_, record) => (
+        <Button
+          size="small"
+          type="primary"
+          icon={<CheckOutlined />}
+          onClick={() => {
+            setSelectedItem(record)
+            setPaidModalVisible(true)
+          }}
+        >
+          Оплачено
+        </Button>
+      ),
+    },
+  ]
+
+  // Колонки для вкладки "На доставке"
+  const deliveryColumns: ColumnsType<MaterialItemWithRequest> = [
+    {
+      title: '№ (п/п)',
+      key: 'index',
+      width: 80,
+      fixed: 'left',
+      render: (_, __, index) => <Text strong>{index + 1}</Text>,
+    },
+    {
+      title: 'Материал',
+      dataIndex: 'material_name',
+      key: 'material_name',
+      width: 250,
+    },
+    {
+      title: 'Ед. изм.',
+      dataIndex: 'unit',
+      key: 'unit',
+      width: 100,
+    },
+    {
+      title: 'Кол-во по заявке',
+      dataIndex: 'quantity_requested',
+      key: 'quantity_requested',
+      width: 130,
+      align: 'right',
+    },
+    {
+      title: 'Кол-во по факту',
+      key: 'quantity_actual',
+      width: 150,
+      render: (_, record) => (
+        <InputNumber
+          min={0}
+          max={record.quantity_requested * 2}
+          defaultValue={record.quantity_actual || record.quantity_requested}
+          style={{ width: '100%' }}
+          onChange={(value) => setActualQuantity(value || 0)}
+        />
+      ),
+    },
+    {
+      title: 'Примечания',
+      dataIndex: 'notes',
+      key: 'notes',
+      width: 200,
+      render: (val) => val || '-',
+    },
+    {
+      title: 'Автор',
+      dataIndex: 'authorName',
+      key: 'authorName',
+      width: 150,
+    },
+    {
+      title: 'Статус',
+      key: 'status',
+      width: 150,
+      render: () => <Tag color="cyan">На доставке</Tag>,
+    },
+    {
+      title: 'Действия',
+      key: 'actions',
+      width: 150,
+      fixed: 'right',
+      render: (_, record) => (
+        <Button
+          size="small"
+          type="primary"
+          icon={<CheckOutlined />}
+          onClick={() => {
+            setSelectedItem(record)
+            setActualQuantity(record.quantity_actual || record.quantity_requested)
+            setDeliveredModalVisible(true)
+          }}
+        >
+          Принято
+        </Button>
+      ),
+    },
+  ]
+
+  // Колонки для вкладки "Отработанные заявки"
+  const completedColumns: ColumnsType<MaterialItemWithRequest> = [
+    {
+      title: '№ (п/п)',
+      key: 'index',
+      width: 80,
+      fixed: 'left',
+      render: (_, __, index) => <Text strong>{index + 1}</Text>,
+    },
+    {
+      title: 'Материал',
+      dataIndex: 'material_name',
+      key: 'material_name',
+      width: 250,
+    },
+    {
+      title: 'Ед. изм.',
+      dataIndex: 'unit',
+      key: 'unit',
+      width: 100,
+    },
+    {
+      title: 'Кол-во по заявке',
+      dataIndex: 'quantity_requested',
+      key: 'quantity_requested',
+      width: 130,
+      align: 'right',
+    },
+    {
+      title: 'Кол-во по факту',
+      dataIndex: 'quantity_actual',
+      key: 'quantity_actual',
+      width: 130,
+      align: 'right',
+      render: (val) => val || '-',
+    },
+    {
+      title: 'Примечания',
+      dataIndex: 'notes',
+      key: 'notes',
+      width: 200,
+      render: (val) => val || '-',
+    },
+    {
+      title: 'Автор',
+      dataIndex: 'authorName',
+      key: 'authorName',
+      width: 150,
+    },
+    {
+      title: 'Статус',
+      key: 'status',
+      width: 220,
+      render: () => <Tag color="success">Отработано и доставлено на объект</Tag>,
+    },
+    {
+      title: 'Действия',
+      key: 'actions',
+      width: 100,
+      fixed: 'right',
+      render: () => <Text type="secondary">-</Text>,
+    },
+  ]
+
+  // Выбор колонок в зависимости от активной вкладки
+  const getColumns = (): ColumnsType<MaterialItemWithRequest> => {
+    switch (activeTab) {
+      case 'approval':
+        return approvalColumns
+      case 'approved':
+        return approvedColumns
+      case 'payment':
+        return paymentColumns
+      case 'delivery':
+        return deliveryColumns
+      case 'completed':
+        return completedColumns
+      default:
+        return allColumns
+    }
+  }
+
+  // Статистика
+  const allItems = getItemsWithRequestInfo()
+  const stats = {
+    total: allItems.length,
+    approval: allItems.filter((item) => item.status.includes('approval')).length,
+    approved: allItems.filter((item) => item.status === 'approved').length,
+    payment: allItems.filter((item) => item.status === 'payment').length,
+    delivery: allItems.filter((item) => item.status === 'delivery').length,
+    completed: allItems.filter((item) => item.status === 'completed').length,
+  }
+
   return (
     <div style={{ padding: '24px', background: '#f0f2f5', minHeight: '100vh' }}>
-      {/* Заголовок и статистика */}
+      {/* Заголовок */}
       <Card style={{ marginBottom: '24px' }}>
-        <Row gutter={[16, 16]} align="middle">
-          <Col flex="auto">
+        <Space direction="vertical" size="small" style={{ width: '100%' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Title level={2} style={{ margin: 0 }}>
               Система согласования заявок на материалы
             </Title>
-            <Paragraph style={{ margin: '8px 0 0 0', color: '#666' }}>
-              Поэтапное согласование: Мастер/Прораб → Начальник участка → Инженер ПТО →
-              Руководитель проекта → Главный инженер → Директор → Завсклад → Снабженец
-            </Paragraph>
-          </Col>
-          <Col>
             <Button
               icon={<ReloadOutlined />}
               onClick={loadData}
@@ -409,187 +698,144 @@ const MaterialRequests = () => {
             >
               Обновить
             </Button>
-          </Col>
-        </Row>
-
-        {/* Статистика */}
-        <Row gutter={16} style={{ marginTop: '24px' }}>
-          <Col span={4}>
-            <Statistic
-              title="Всего заявок"
-              value={stats.total}
-              prefix={<FileTextOutlined />}
-            />
-          </Col>
-          <Col span={4}>
-            <Statistic
-              title="На согласовании"
-              value={stats.approval}
-              valueStyle={{ color: '#1890ff' }}
-              prefix={<CloseOutlined />}
-            />
-          </Col>
-          <Col span={4}>
-            <Statistic
-              title="Согласованные"
-              value={stats.approved}
-              valueStyle={{ color: '#52c41a' }}
-              prefix={<CheckOutlined />}
-            />
-          </Col>
-          <Col span={4}>
-            <Statistic
-              title="На оплате"
-              value={stats.payment}
-              valueStyle={{ color: '#faad14' }}
-              prefix={<DollarOutlined />}
-            />
-          </Col>
-          <Col span={4}>
-            <Statistic
-              title="На доставке"
-              value={stats.delivery}
-              valueStyle={{ color: '#13c2c2' }}
-              prefix={<CarOutlined />}
-            />
-          </Col>
-          <Col span={4}>
-            <Statistic
-              title="Отработанные"
-              value={stats.completed}
-              valueStyle={{ color: '#52c41a' }}
-              prefix={<InboxOutlined />}
-            />
-          </Col>
-        </Row>
+          </div>
+          <Text type="secondary">
+            Поэтапное согласование и контроль доставки строительных материалов
+          </Text>
+        </Space>
       </Card>
 
-      {/* Фильтры */}
-      <Card style={{ marginBottom: '16px' }}>
-        <Row gutter={16} align="middle">
-          <Col>
-            <FilterOutlined style={{ fontSize: '16px', marginRight: '8px' }} />
-            <Text strong>Фильтры:</Text>
-          </Col>
-          <Col span={6}>
-            <Select
-              placeholder="Выберите проект"
-              style={{ width: '100%' }}
-              allowClear
-              value={filterProject}
-              onChange={setFilterProject}
-              options={projects.map((p) => ({ label: p.name, value: p.id }))}
-            />
-          </Col>
-          <Col span={6}>
-            <Select
-              placeholder="Выберите автора"
-              style={{ width: '100%' }}
-              allowClear
-              value={filterAuthor}
-              onChange={setFilterAuthor}
-              options={users.map((u) => ({ label: u.full_name, value: u.id }))}
-            />
-          </Col>
-        </Row>
-      </Card>
+      {/* Статистика */}
+      <Row gutter={16} style={{ marginBottom: '24px' }}>
+        <Col span={4}>
+          <Card>
+            <Statistic title="Всего позиций" value={stats.total} />
+          </Card>
+        </Col>
+        <Col span={4}>
+          <Card>
+            <Statistic title="На согласовании" value={stats.approval} valueStyle={{ color: '#1890ff' }} />
+          </Card>
+        </Col>
+        <Col span={4}>
+          <Card>
+            <Statistic title="Согласованные" value={stats.approved} valueStyle={{ color: '#52c41a' }} />
+          </Card>
+        </Col>
+        <Col span={4}>
+          <Card>
+            <Statistic title="На оплате" value={stats.payment} valueStyle={{ color: '#faad14' }} />
+          </Card>
+        </Col>
+        <Col span={4}>
+          <Card>
+            <Statistic title="На доставке" value={stats.delivery} valueStyle={{ color: '#13c2c2' }} />
+          </Card>
+        </Col>
+        <Col span={4}>
+          <Card>
+            <Statistic title="Отработанные" value={stats.completed} valueStyle={{ color: '#52c41a' }} />
+          </Card>
+        </Col>
+      </Row>
 
-      {/* Таблица с вкладками */}
+      {/* Вкладки с таблицами */}
       <Card>
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
-          items={tabItems}
-        />
-
-        <Table
-          columns={columns}
-          dataSource={getFilteredData()}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            pageSize: 20,
-            showSizeChanger: true,
-            showTotal: (total) => `Всего: ${total} заявок`,
-          }}
-          scroll={{ x: 1400 }}
-          locale={{
-            emptyText: <Empty description="Нет заявок" />,
-          }}
+          items={[
+            {
+              key: 'all',
+              label: `Все заявки`,
+              children: (
+                <Table
+                  columns={getColumns()}
+                  dataSource={getFilteredItems()}
+                  loading={loading}
+                  rowKey={(record) => `${record.requestId}-${record.id || Math.random()}`}
+                  scroll={{ x: 1500 }}
+                  pagination={{ pageSize: 20, showSizeChanger: true }}
+                />
+              ),
+            },
+            {
+              key: 'approval',
+              label: `На согласовании`,
+              children: (
+                <Table
+                  columns={getColumns()}
+                  dataSource={getFilteredItems()}
+                  loading={loading}
+                  rowKey={(record) => `${record.requestId}-${record.id || Math.random()}`}
+                  scroll={{ x: 1500 }}
+                  pagination={{ pageSize: 20, showSizeChanger: true }}
+                />
+              ),
+            },
+            {
+              key: 'approved',
+              label: `Согласованные заявки`,
+              children: (
+                <Table
+                  columns={getColumns()}
+                  dataSource={getFilteredItems()}
+                  loading={loading}
+                  rowKey={(record) => `${record.requestId}-${record.id || Math.random()}`}
+                  scroll={{ x: 1500 }}
+                  pagination={{ pageSize: 20, showSizeChanger: true }}
+                />
+              ),
+            },
+            {
+              key: 'payment',
+              label: `На оплате`,
+              children: (
+                <Table
+                  columns={getColumns()}
+                  dataSource={getFilteredItems()}
+                  loading={loading}
+                  rowKey={(record) => `${record.requestId}-${record.id || Math.random()}`}
+                  scroll={{ x: 1500 }}
+                  pagination={{ pageSize: 20, showSizeChanger: true }}
+                />
+              ),
+            },
+            {
+              key: 'delivery',
+              label: `На доставке`,
+              children: (
+                <Table
+                  columns={getColumns()}
+                  dataSource={getFilteredItems()}
+                  loading={loading}
+                  rowKey={(record) => `${record.requestId}-${record.id || Math.random()}`}
+                  scroll={{ x: 1500 }}
+                  pagination={{ pageSize: 20, showSizeChanger: true }}
+                />
+              ),
+            },
+            {
+              key: 'completed',
+              label: `Отработанные заявки`,
+              children: (
+                <Table
+                  columns={getColumns()}
+                  dataSource={getFilteredItems()}
+                  loading={loading}
+                  rowKey={(record) => `${record.requestId}-${record.id || Math.random()}`}
+                  scroll={{ x: 1500 }}
+                  pagination={{ pageSize: 20, showSizeChanger: true }}
+                />
+              ),
+            },
+          ]}
         />
       </Card>
 
-      {/* Модальное окно просмотра */}
+      {/* Модальное окно: Согласование */}
       <Modal
-        title={`Заявка ${selectedRequest?.number}`}
-        open={detailModalVisible}
-        onCancel={() => setDetailModalVisible(false)}
-        footer={[
-          <Button key="close" onClick={() => setDetailModalVisible(false)}>
-            Закрыть
-          </Button>,
-        ]}
-        width={800}
-      >
-        {selectedRequest && (
-          <>
-            <Descriptions bordered column={2}>
-              <Descriptions.Item label="Проект" span={2}>
-                {selectedRequest.project.name}
-              </Descriptions.Item>
-              <Descriptions.Item label="Автор">
-                {selectedRequest.author.full_name}
-              </Descriptions.Item>
-              <Descriptions.Item label="Роль автора">
-                {selectedRequest.author.role}
-              </Descriptions.Item>
-              <Descriptions.Item label="Статус" span={2}>
-                <Tag color={getStatusColor(selectedRequest.status)}>
-                  {selectedRequest.status_display}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Дата создания">
-                {new Date(selectedRequest.created_at).toLocaleString('ru-RU')}
-              </Descriptions.Item>
-              <Descriptions.Item label="Последнее обновление">
-                {new Date(selectedRequest.updated_at).toLocaleString('ru-RU')}
-              </Descriptions.Item>
-            </Descriptions>
-
-            <Title level={5} style={{ marginTop: '24px' }}>
-              Позиции заявки:
-            </Title>
-            <Table
-              dataSource={selectedRequest.items || []}
-              columns={[
-                { title: '№', key: 'index', render: (_, __, index) => index + 1, width: 50 },
-                { title: 'Материал', dataIndex: 'material_name', key: 'material' },
-                { title: 'Ед. изм.', dataIndex: 'unit', key: 'unit', width: 80 },
-                {
-                  title: 'Кол-во по заявке',
-                  dataIndex: 'quantity_requested',
-                  key: 'requested',
-                  width: 130,
-                },
-                {
-                  title: 'Кол-во по факту',
-                  dataIndex: 'quantity_actual',
-                  key: 'actual',
-                  width: 130,
-                  render: (val) => val || '-',
-                },
-                { title: 'Примечания', dataIndex: 'notes', key: 'notes', render: (val) => val || '-' },
-              ]}
-              pagination={false}
-              size="small"
-            />
-          </>
-        )}
-      </Modal>
-
-      {/* Модальное окно согласования */}
-      <Modal
-        title="Согласовать заявку"
+        title="Согласование позиции"
         open={approveModalVisible}
         onOk={handleApprove}
         onCancel={() => {
@@ -599,120 +845,126 @@ const MaterialRequests = () => {
         okText="Согласовать"
         cancelText="Отмена"
       >
-        <Paragraph>
-          Вы уверены, что хотите согласовать заявку <Text strong>{selectedRequest?.number}</Text>?
-        </Paragraph>
-        <TextArea
-          rows={3}
-          placeholder="Комментарий (необязательно)"
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-        />
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+          <div>
+            <Text strong>Материал:</Text> {selectedItem?.material_name}
+          </div>
+          <div>
+            <Text strong>Количество:</Text> {selectedItem?.quantity_requested} {selectedItem?.unit}
+          </div>
+          <div>
+            <Text>Комментарий (необязательно):</Text>
+            <TextArea
+              rows={3}
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Добавьте комментарий к согласованию"
+            />
+          </div>
+        </Space>
       </Modal>
 
-      {/* Модальное окно отклонения */}
+      {/* Модальное окно: Возврат на доработку */}
       <Modal
-        title="Вернуть на доработку"
+        title="Возврат на доработку"
         open={rejectModalVisible}
         onOk={handleReject}
         onCancel={() => {
           setRejectModalVisible(false)
           setRejectionReason('')
         }}
-        okText="Вернуть"
-        cancelText="Отмена"
+        okText="Вернуть на доработку"
         okButtonProps={{ danger: true }}
+        cancelText="Отмена"
       >
-        <Paragraph>
-          Укажите причину возврата заявки <Text strong>{selectedRequest?.number}</Text> на доработку:
-        </Paragraph>
-        <TextArea
-          rows={4}
-          placeholder="Причина отклонения (обязательно)"
-          value={rejectionReason}
-          onChange={(e) => setRejectionReason(e.target.value)}
-          required
-        />
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+          <div>
+            <Text strong>Материал:</Text> {selectedItem?.material_name}
+          </div>
+          <div>
+            <Text strong type="danger">Причина возврата (обязательно):</Text>
+            <TextArea
+              rows={4}
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="Укажите причину возврата на доработку"
+            />
+          </div>
+        </Space>
       </Modal>
 
-      {/* Модальное окно оплаты */}
+      {/* Модальное окно: Отметка об оплате */}
       <Modal
-        title="Отметить как оплачено"
+        title="Отметка об оплате"
         open={paidModalVisible}
         onOk={handleMarkPaid}
         onCancel={() => {
           setPaidModalVisible(false)
           setComment('')
         }}
-        okText="Оплачено"
+        okText="Отметить как оплачено"
         cancelText="Отмена"
       >
-        <Paragraph>
-          Отметить заявку <Text strong>{selectedRequest?.number}</Text> как оплаченную?
-        </Paragraph>
-        <TextArea
-          rows={3}
-          placeholder="Комментарий (необязательно)"
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-        />
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+          <div>
+            <Text strong>Материал:</Text> {selectedItem?.material_name}
+          </div>
+          <div>
+            <Text strong>Количество:</Text> {selectedItem?.quantity_requested} {selectedItem?.unit}
+          </div>
+          <div>
+            <Text>Комментарий (необязательно):</Text>
+            <TextArea
+              rows={3}
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Добавьте комментарий об оплате"
+            />
+          </div>
+        </Space>
       </Modal>
 
-      {/* Модальное окно приемки */}
+      {/* Модальное окно: Приемка материала */}
       <Modal
-        title="Принять материал"
+        title="Приемка материала"
         open={deliveredModalVisible}
         onOk={handleMarkDelivered}
         onCancel={() => {
           setDeliveredModalVisible(false)
-          setActualQuantities({})
+          setActualQuantity(0)
           setComment('')
         }}
         okText="Принять"
         cancelText="Отмена"
-        width={800}
       >
-        <Paragraph>
-          Укажите фактическое количество полученного материала по заявке{' '}
-          <Text strong>{selectedRequest?.number}</Text>:
-        </Paragraph>
-        <Table
-          dataSource={selectedRequest?.items || []}
-          columns={[
-            { title: 'Материал', dataIndex: 'material_name', key: 'material' },
-            { title: 'Ед. изм.', dataIndex: 'unit', key: 'unit', width: 80 },
-            {
-              title: 'По заявке',
-              dataIndex: 'quantity_requested',
-              key: 'requested',
-              width: 100,
-            },
-            {
-              title: 'Фактически',
-              key: 'actual',
-              width: 150,
-              render: (_, record) => (
-                <InputNumber
-                  min={0}
-                  value={actualQuantities[record.id!]}
-                  onChange={(val) =>
-                    setActualQuantities({ ...actualQuantities, [record.id!]: val || 0 })
-                  }
-                  style={{ width: '100%' }}
-                />
-              ),
-            },
-          ]}
-          pagination={false}
-          size="small"
-        />
-        <TextArea
-          rows={3}
-          placeholder="Комментарий (необязательно)"
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          style={{ marginTop: '16px' }}
-        />
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+          <div>
+            <Text strong>Материал:</Text> {selectedItem?.material_name}
+          </div>
+          <div>
+            <Text strong>Количество по заявке:</Text> {selectedItem?.quantity_requested} {selectedItem?.unit}
+          </div>
+          <div>
+            <Text strong>Фактическое количество:</Text>
+            <InputNumber
+              min={0}
+              max={(selectedItem?.quantity_requested || 0) * 2}
+              value={actualQuantity}
+              onChange={(value) => setActualQuantity(value || 0)}
+              style={{ width: '100%' }}
+              addonAfter={selectedItem?.unit}
+            />
+          </div>
+          <div>
+            <Text>Комментарий (необязательно):</Text>
+            <TextArea
+              rows={3}
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Добавьте комментарий о приемке"
+            />
+          </div>
+        </Space>
       </Modal>
     </div>
   )

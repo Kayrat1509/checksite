@@ -24,6 +24,7 @@ interface AuthState {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
+  loading: boolean  // Алиас для совместимости
   allowedPages: string[]  // Список страниц, доступных пользователю
   login: (email: string, password: string) => Promise<void>
   logout: () => void
@@ -37,16 +38,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
   isLoading: true,
+  loading: true,  // Алиас для совместимости
   allowedPages: [],
 
   login: async (email, password) => {
-    set({ isLoading: true })
+    set({ isLoading: true, loading: true })
     try {
       // Токены автоматически устанавливаются в HttpOnly cookies сервером
       const response = await authAPI.login({ email, password })
 
       // Получаем данные пользователя из ответа (токены в cookie, user в response.data)
-      set({ user: response.user, isAuthenticated: true, isLoading: false })
+      set({ user: response.user, isAuthenticated: true, isLoading: false, loading: false })
 
       // DEBUG: Вывод данных пользователя после логина
       console.log('='.repeat(60))
@@ -63,7 +65,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Загружаем разрешенные страницы после логина
       await get().loadAllowedPages()
     } catch (error) {
-      set({ isLoading: false })
+      set({ isLoading: false, loading: false })
       throw error
     }
   },
@@ -84,13 +86,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       // Токен автоматически передаётся через HttpOnly cookie
       const user = await authAPI.getCurrentUser()
-      set({ user, isAuthenticated: true, isLoading: false })
+      set({ user, isAuthenticated: true, isLoading: false, loading: false })
 
       // Загружаем разрешенные страницы после проверки auth
       await get().loadAllowedPages()
     } catch (error) {
       // Если токен невалиден или отсутствует, пользователь не авторизован
-      set({ user: null, isAuthenticated: false, isLoading: false, allowedPages: [] })
+      set({ user: null, isAuthenticated: false, isLoading: false, loading: false, allowedPages: [] })
     }
   },
 
