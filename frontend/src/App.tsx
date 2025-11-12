@@ -20,9 +20,8 @@ import Users from './pages/Users'
 import Contractors from './pages/Contractors'
 import Supervisions from './pages/Supervisions'
 // УДАЛЕНО: import TechnicalConditions - функционал удален
-// УДАЛЕНО: import MaterialRequests, ApprovedMaterialRequests, CompletedMaterialRequests - функционал удален
-// УДАЛЕНО: import ApprovalFlowSettings - функционал удален
 // УДАЛЕНО: import Warehouse - функционал удален
+import MaterialRequests from './pages/MaterialRequests'
 import Tasks from './pages/Tasks'
 import Tenders from './pages/Tenders'
 import Profile from './pages/Profile'
@@ -129,9 +128,8 @@ function App() {
             <Route path="contractors" element={<Contractors />} />
             <Route path="supervisions" element={<Supervisions />} />
             {/* УДАЛЕНО: <Route path="technical-conditions" /> - функционал удален */}
-            {/* УДАЛЕНО: <Route path="material-requests" /> - функционал удален */}
-            {/* УДАЛЕНО: <Route path="settings/approval-flow" /> - функционал удален */}
             {/* УДАЛЕНО: <Route path="warehouse" /> - функционал удален */}
+            <Route path="material-requests" element={<MaterialRequests />} />
             <Route path="tasks" element={<Tasks />} />
             <Route path="tenders" element={<Tenders />} />
             <Route path="profile" element={<Profile />} />

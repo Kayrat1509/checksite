@@ -16,11 +16,11 @@ import {
   SettingOutlined,
   UsergroupAddOutlined, // НОВАЯ ИКОНКА: для меню "Персонал"
   CheckSquareOutlined, // НОВАЯ ИКОНКА: для задач
+  ShoppingCartOutlined, // ИКОНКА: для заявок на материалы
 } from '@ant-design/icons'
 // УДАЛЕНО: FileProtectOutlined - функционал техусловий удален
 // УДАЛЕНО: CheckCircleOutlined - функционал цепочки согласования удален
 // УДАЛЕНО: InboxOutlined - функционал склада удален
-// УДАЛЕНО: ShoppingCartOutlined - функционал заявок удален
 import { useAuthStore } from '../../stores/authStore'
 import { useNotificationStore } from '../../stores/notificationStore'
 import './MainLayout.css'
@@ -102,7 +102,16 @@ const MainLayout = () => {
       visible: hasPageAccess('issues'),
     },
 
-    // 5. Задачи
+    // 5. Заявки на материалы
+    {
+      key: '/dashboard/material-requests',
+      icon: <ShoppingCartOutlined />,
+      label: <Link to="/dashboard/material-requests">Заявки</Link>,
+      page: 'material-requests',
+      visible: hasPageAccess('material-requests'),
+    },
+
+    // 6. Задачи
     {
       key: '/dashboard/tasks',
       icon: <CheckSquareOutlined />,
@@ -111,8 +120,7 @@ const MainLayout = () => {
       visible: hasPageAccess('tasks'),
     },
 
-    // УДАЛЕНО: 6. Заявки (внешняя система) - функционал удален
-    // УДАЛЕНО: 7. Склад - функционал удален
+    // УДАЛЕНО: Склад - функционал удален
 
     // 7. Тендеры
     {

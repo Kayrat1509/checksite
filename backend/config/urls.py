@@ -24,7 +24,7 @@ urlpatterns = [
     path('api/notifications/', include('apps.notifications.urls')),
     path('api/reports/', include('apps.reports.urls')),
     # УДАЛЕНО: path('api/', include('apps.technical_conditions.urls')) - функционал удален
-    # УДАЛЕНО: path('api/material-requests/', include('apps.material_requests.urls')) - функционал удален
+    path('api/', include('apps.material_requests.urls')),  # Заявки на строительные материалы
     path('api/', include('apps.tenders.urls')),  # Тендеры
     path('api/public-tenders/', include('apps.tenders.public_urls')),  # Публичные тендеры
     # УДАЛЕНО: path('api/warehouse/', include('apps.warehouse.urls')) - функционал удален
