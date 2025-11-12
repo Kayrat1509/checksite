@@ -139,9 +139,9 @@ class MaterialRequestViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
         try:
             material_request.submit_for_approval()
 
-            # TODO: Отправить уведомление первому согласующему через Celery
-            # from apps.material_requests.tasks import send_approval_notification
-            # send_approval_notification.delay(material_request.id)
+            # Отправить уведомление первому согласующему через Celery
+            from apps.material_requests.tasks import send_approval_notification
+            send_approval_notification.delay(material_request.id)
 
             return Response(
                 {
@@ -184,9 +184,15 @@ class MaterialRequestViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
         try:
             material_request.approve(user, comment)
 
-            # TODO: Отправить уведомление следующему согласующему или автору через Celery
-            # from apps.material_requests.tasks import send_approval_notification
-            # send_approval_notification.delay(material_request.id)
+            # Отправить уведомление следующему согласующему или автору через Celery
+            from apps.material_requests.tasks import send_approval_notification, send_approved_notification
+
+            # Если есть следующий согласующий - отправляем ему уведомление
+            if material_request.current_approver_role:
+                send_approval_notification.delay(material_request.id)
+            # Если заявка полностью согласована - уведомляем автора и завсклада
+            elif material_request.status == 'APPROVED':
+                send_approved_notification.delay(material_request.id)
 
             return Response(
                 {
@@ -231,9 +237,9 @@ class MaterialRequestViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
         try:
             material_request.reject(user, reason)
 
-            # TODO: Отправить уведомление автору через Celery
-            # from apps.material_requests.tasks import send_rejection_notification
-            # send_rejection_notification.delay(material_request.id)
+            # Отправить уведомление автору через Celery
+            from apps.material_requests.tasks import send_rejection_notification
+            send_rejection_notification.delay(material_request.id)
 
             return Response(
                 {
@@ -274,9 +280,9 @@ class MaterialRequestViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
         try:
             material_request.mark_as_paid(user, comment)
 
-            # TODO: Отправить уведомление о переходе на доставку через Celery
-            # from apps.material_requests.tasks import send_payment_notification
-            # send_payment_notification.delay(material_request.id)
+            # Отправить уведомление о переходе на доставку через Celery
+            from apps.material_requests.tasks import send_payment_notification
+            send_payment_notification.delay(material_request.id)
 
             return Response(
                 {
@@ -340,9 +346,9 @@ class MaterialRequestViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
             # Отмечаем заявку как доставленную
             material_request.mark_as_delivered(user, comment)
 
-            # TODO: Отправить уведомление о завершении через Celery
-            # from apps.material_requests.tasks import send_delivery_notification
-            # send_delivery_notification.delay(material_request.id)
+            # Отправить уведомление о завершении через Celery
+            from apps.material_requests.tasks import send_delivery_notification
+            send_delivery_notification.delay(material_request.id)
 
             return Response(
                 {
