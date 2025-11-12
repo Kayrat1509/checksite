@@ -1,9 +1,9 @@
-import { Typography, Card, Tabs, Button, Space } from 'antd'
-import { DeleteOutlined, FileTextOutlined, ExportOutlined } from '@ant-design/icons'
+import { Typography, Card, Tabs } from 'antd'
+import { DeleteOutlined } from '@ant-design/icons'
 import { useAuthStore } from '../stores/authStore'
 import RecycleBin from '../components/RecycleBin'
 
-const { Text, Title, Paragraph } = Typography
+const { Text } = Typography
 const { TabPane } = Tabs
 
 const Settings = () => {
@@ -34,42 +34,7 @@ const Settings = () => {
             </Text>
           </TabPane>
 
-          {/* Вкладка: Заявки на материалы */}
-          <TabPane
-            tab={
-              <span>
-                <FileTextOutlined style={{ marginRight: 8 }} />
-                Заявки
-              </span>
-            }
-            key="material-requests"
-          >
-            <Space direction="vertical" size="large" style={{ width: '100%' }}>
-              <div>
-                <Title level={4}>Система согласования заявок на материалы</Title>
-                <Paragraph type="secondary">
-                  Управление заявками на строительные материалы с поэтапным согласованием
-                </Paragraph>
-              </div>
-
-              <Button
-                type="primary"
-                size="large"
-                icon={<ExportOutlined />}
-                onClick={() => window.open('https://requests.stroyka.asia', '_blank')}
-              >
-                Открыть систему заявок
-              </Button>
-
-              <div style={{ marginTop: '16px' }}>
-                <Text type="secondary">
-                  Цепочка согласования: Мастер/Прораб → Начальник участка → Инженер ПТО →
-                  Руководитель проекта → Главный инженер → Директор → Завсклад → Снабженец →
-                  Оплата → Доставка → Отработано
-                </Text>
-              </div>
-            </Space>
-          </TabPane>
+          {/* УДАЛЕНО: Вкладка "Заявки на материалы" - функционал удален */}
 
           {/* Вкладка: Корзина (только для определенных ролей) */}
           {canAccessRecycleBin() && (

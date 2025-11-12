@@ -16,11 +16,11 @@ import {
   SettingOutlined,
   UsergroupAddOutlined, // НОВАЯ ИКОНКА: для меню "Персонал"
   CheckSquareOutlined, // НОВАЯ ИКОНКА: для задач
-  ShoppingCartOutlined, // НОВАЯ ИКОНКА: для заявок на материалы
 } from '@ant-design/icons'
 // УДАЛЕНО: FileProtectOutlined - функционал техусловий удален
 // УДАЛЕНО: CheckCircleOutlined - функционал цепочки согласования удален
 // УДАЛЕНО: InboxOutlined - функционал склада удален
+// УДАЛЕНО: ShoppingCartOutlined - функционал заявок удален
 import { useAuthStore } from '../../stores/authStore'
 import { useNotificationStore } from '../../stores/notificationStore'
 import './MainLayout.css'
@@ -111,19 +111,7 @@ const MainLayout = () => {
       visible: hasPageAccess('tasks'),
     },
 
-    // 6. Заявки (внешняя система)
-    {
-      key: 'material-requests-external',
-      icon: <ShoppingCartOutlined />,
-      label: (
-        <a href="https://requests.stroyka.asia" target="_blank" rel="noopener noreferrer">
-          Заявки
-        </a>
-      ),
-      page: 'material-requests',
-      visible: hasPageAccess('material-requests'),
-    },
-
+    // УДАЛЕНО: 6. Заявки (внешняя система) - функционал удален
     // УДАЛЕНО: 7. Склад - функционал удален
 
     // 7. Тендеры
