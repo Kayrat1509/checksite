@@ -166,34 +166,7 @@ services:
         - action: rebuild
           path: ./frontend/package.json
 
-  # Новый фронтенд для requests.stroyka.asia
-  frontend-requests:
-    build:
-      context: ./frontend-requests
-      dockerfile: Dockerfile
-    container_name: checksite_frontend_requests
-    command: npm run dev -- --port 5175 --host
-    volumes:
-      - ./frontend-requests:/app
-      - /app/node_modules
-    ports:
-      - "5175:5175"
-    environment:
-      - NODE_ENV=development
-      - VITE_HMR_HOST=${VITE_HMR_HOST:-localhost}
-    depends_on:
-      - backend
-    networks:
-      - checksite_network
-    develop:
-      watch:
-        - action: sync
-          path: ./frontend-requests
-          target: /app
-        - action: rebuild
-          path: ./frontend-requests/package.json
-
-  # Nginx Reverse Proxy для всех фронтендов и админки
+  # Nginx Reverse Proxy для фронтенда и админки
   nginx:
     image: nginx:alpine
     container_name: checksite_nginx
@@ -203,13 +176,11 @@ services:
       - ./staticfiles:/app/staticfiles
       - ./media:/app/media
       - ./frontend/dist:/app/frontend
-      - ./frontend-requests/dist:/app/frontend-requests
     ports:
       - "80:80"
     depends_on:
       - backend
       - frontend
-      - frontend-requests
     networks:
       - checksite_network
 
