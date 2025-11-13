@@ -3,6 +3,34 @@
 from django.db import migrations, models
 
 
+def add_constraint_if_not_exists(apps, schema_editor):
+    """
+    Добавляет unique constraint только если он ещё не существует.
+    Это предотвращает ошибку при повторном запуске миграции.
+    """
+    from django.db import connection
+
+    with connection.cursor() as cursor:
+        # Проверяем, существует ли constraint unique_request_number_per_company
+        cursor.execute("""
+            SELECT constraint_name
+            FROM information_schema.table_constraints
+            WHERE table_name='material_requests'
+            AND constraint_name='unique_request_number_per_company'
+        """)
+
+        if cursor.fetchone() is None:
+            # Constraint не существует, добавляем его
+            cursor.execute("""
+                ALTER TABLE material_requests
+                ADD CONSTRAINT unique_request_number_per_company
+                UNIQUE (company_id, request_number)
+            """)
+            print("✅ Constraint 'unique_request_number_per_company' успешно добавлен")
+        else:
+            print("ℹ️ Constraint 'unique_request_number_per_company' уже существует, пропускаем добавление")
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -20,11 +48,5 @@ class Migration(migrations.Migration):
                 verbose_name="Номер заявки",
             ),
         ),
-        migrations.AddConstraint(
-            model_name="materialrequest",
-            constraint=models.UniqueConstraint(
-                fields=("company", "request_number"),
-                name="unique_request_number_per_company",
-            ),
-        ),
+        migrations.RunPython(add_constraint_if_not_exists, migrations.RunPython.noop),
     ]

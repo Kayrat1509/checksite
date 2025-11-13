@@ -3,6 +3,33 @@
 from django.db import migrations, models
 
 
+def add_received_at_field_if_not_exists(apps, schema_editor):
+    """
+    Добавляет поле received_at только если оно ещё не существует.
+    Это предотвращает ошибку при повторном запуске миграции.
+    """
+    from django.db import connection
+
+    with connection.cursor() as cursor:
+        # Проверяем, существует ли столбец received_at в таблице material_request_items
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='material_request_items'
+            AND column_name='received_at'
+        """)
+
+        if cursor.fetchone() is None:
+            # Столбец не существует, добавляем его
+            cursor.execute("""
+                ALTER TABLE material_request_items
+                ADD COLUMN received_at TIMESTAMP NULL
+            """)
+            print("✅ Столбец 'received_at' успешно добавлен")
+        else:
+            print("ℹ️ Столбец 'received_at' уже существует, пропускаем добавление")
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,14 +37,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name="materialrequestitem",
-            name="received_at",
-            field=models.DateTimeField(
-                blank=True,
-                help_text="Когда позиция была принята на объекте (статус RECEIVED)",
-                null=True,
-                verbose_name="Дата принятия",
-            ),
-        ),
+        migrations.RunPython(add_received_at_field_if_not_exists, migrations.RunPython.noop),
     ]
