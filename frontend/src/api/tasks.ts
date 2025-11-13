@@ -13,10 +13,10 @@ export interface Task {
   created_by: number
   created_by_name?: string
   assigned_to_user?: number | null
-  assigned_to_user_name?: string
+  assigned_to_user_name?: string | null // Имя назначенного сотрудника
   assigned_to_contractor?: number | null
-  assigned_to_contractor_name?: string
-  assigned_to_name?: string // Имя исполнителя (пользователь или подрядчик)
+  assigned_to_contractor_name?: string | null // Имя назначенного подрядчика
+  assigned_to_name?: string // Объединённое имя (для обратной совместимости)
   deadline: string
   status: 'IN_PROGRESS' | 'COMPLETED' | 'OVERDUE' | 'REJECTED'
   rejection_reason?: string

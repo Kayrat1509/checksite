@@ -17,6 +17,9 @@ export type MaterialRequestStatus =
 // Статусы этапов согласования
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SKIPPED'
 
+// Статусы позиций заявки
+export type MaterialRequestItemStatus = 'PENDING' | 'PARTIAL' | 'DELIVERED' | 'RECEIVED'
+
 // Интерфейс для позиции заявки
 export interface MaterialRequestItem {
   id?: number
@@ -25,6 +28,9 @@ export interface MaterialRequestItem {
   quantity_requested: number
   quantity_actual?: number
   notes?: string
+  status?: MaterialRequestItemStatus
+  status_display?: string
+  received_at?: string | null // Дата принятия позиции на объекте
 }
 
 // Интерфейс для этапа согласования
@@ -228,6 +234,16 @@ export const materialRequestsAPI = {
    */
   complete: async (id: number) => {
     const response = await axios.post(`/material-requests/${id}/mark-received/`)
+    return response.data
+  },
+
+  /**
+   * Принять конкретную позицию заявки на объекте
+   */
+  receiveItem: async (requestId: number, itemId: number) => {
+    const response = await axios.post(`/material-requests/${requestId}/receive-item/`, {
+      item_id: itemId,
+    })
     return response.data
   },
 

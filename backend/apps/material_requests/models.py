@@ -53,9 +53,8 @@ class MaterialRequest(models.Model):
     request_number = models.CharField(
         'Номер заявки',
         max_length=50,
-        unique=True,
         editable=False,
-        help_text='Автогенерируемый номер в формате MR-YYYYMMDD-XXX'
+        help_text='Автогенерируемый номер в формате ДДММГГГГ-№ (уникален в рамках компании)'
     )
 
     title = models.CharField(
@@ -191,6 +190,13 @@ class MaterialRequest(models.Model):
         verbose_name = 'Заявка на материалы'
         verbose_name_plural = 'Заявки на материалы'
         ordering = ['-created_at']
+        # Уникальность номера заявки в рамках компании
+        constraints = [
+            models.UniqueConstraint(
+                fields=['company', 'request_number'],
+                name='unique_request_number_per_company'
+            )
+        ]
         indexes = [
             models.Index(fields=['request_number']),
             models.Index(fields=['status']),
@@ -212,26 +218,27 @@ class MaterialRequest(models.Model):
 
     def generate_request_number(self):
         """
-        Генерирует уникальный номер заявки в формате MR-YYYYMMDD-XXX.
+        Генерирует уникальный номер заявки в формате ДДММГГГГ-№.
 
-        Пример: MR-20251112-001
+        Номер продолжается (не сбрасывается) и уникален в рамках компании.
+        Пример: 12112025-1, 12112025-2, 13112025-3 (номер 3 продолжается на следующий день)
         """
         from django.db.models import Max
         import re
 
-        today = timezone.now().strftime('%Y%m%d')
-        prefix = f'MR-{today}-'
+        # Текущая дата в формате ДДММГГГГ
+        today = timezone.now().strftime('%d%m%Y')
 
-        # Находим последний номер заявки за сегодня
+        # Находим последний номер заявки в компании (не только за сегодня!)
         last_request = MaterialRequest.objects.filter(
-            request_number__startswith=prefix
+            company=self.company
         ).aggregate(Max('request_number'))
 
         last_number = last_request['request_number__max']
 
         if last_number:
-            # Извлекаем последнюю цифру и увеличиваем на 1
-            match = re.search(r'-(\d{3})$', last_number)
+            # Извлекаем последний порядковый номер (после дефиса)
+            match = re.search(r'-(\d+)$', last_number)
             if match:
                 next_number = int(match.group(1)) + 1
             else:
@@ -239,7 +246,7 @@ class MaterialRequest(models.Model):
         else:
             next_number = 1
 
-        return f'{prefix}{next_number:03d}'
+        return f'{today}-{next_number}'
 
     def submit_for_approval(self):
         """Отправляет заявку на согласование."""
@@ -442,6 +449,19 @@ class MaterialRequestItem(models.Model):
     Позиция заявки на материалы (конкретный материал).
     """
 
+    # Статусы позиции
+    STATUS_PENDING = 'PENDING'              # Ожидает доставки
+    STATUS_PARTIALLY_DELIVERED = 'PARTIAL'  # Частично доставлено
+    STATUS_DELIVERED = 'DELIVERED'          # Полностью доставлено
+    STATUS_RECEIVED = 'RECEIVED'            # Принято на объекте
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Ожидает доставки'),
+        (STATUS_PARTIALLY_DELIVERED, 'Частично доставлено'),
+        (STATUS_DELIVERED, 'Полностью доставлено'),
+        (STATUS_RECEIVED, 'Принято на объекте'),
+    ]
+
     # Привязка к заявке
     material_request = models.ForeignKey(
         MaterialRequest,
@@ -480,11 +500,28 @@ class MaterialRequestItem(models.Model):
         help_text='Фактически полученное количество (заполняется при получении)'
     )
 
+    # Статус позиции
+    status = models.CharField(
+        'Статус позиции',
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        help_text='Статус доставки конкретной позиции'
+    )
+
     notes = models.TextField(
         'Примечания',
         blank=True,
         null=True,
         help_text='Дополнительные примечания к позиции'
+    )
+
+    # Дата принятия позиции на объекте
+    received_at = models.DateTimeField(
+        'Дата принятия',
+        null=True,
+        blank=True,
+        help_text='Когда позиция была принята на объекте (статус RECEIVED)'
     )
 
     # Связь с тендером (если позиция была объявлена в тендер)
@@ -503,6 +540,41 @@ class MaterialRequestItem(models.Model):
         'Номер позиции',
         help_text='Порядковый номер позиции в заявке'
     )
+
+    def mark_as_received(self, user):
+        """
+        Отметить позицию как принятую на объекте.
+
+        Args:
+            user: Пользователь, который принимает позицию
+        """
+        from django.core.exceptions import ValidationError
+        from django.utils import timezone
+
+        if self.status == self.STATUS_RECEIVED:
+            raise ValidationError('Эта позиция уже принята')
+
+        allowed_roles = ['MASTER', 'FOREMAN', 'SITE_MANAGER', 'SITE_WAREHOUSE_MANAGER']
+        if user.role not in allowed_roles:
+            raise ValidationError(
+                'Только Мастер, Прораб, Начальник участка или Завсклад объекта могут принять позицию'
+            )
+
+        self.status = self.STATUS_RECEIVED
+        self.received_at = timezone.now()  # Сохраняем дату и время принятия
+        self.save()
+
+    def update_status_based_on_quantity(self):
+        """
+        Автоматически обновить статус позиции на основе фактического количества.
+        """
+        if self.quantity_actual is None or self.quantity_actual == 0:
+            self.status = self.STATUS_PENDING
+        elif self.quantity_actual < self.quantity_requested:
+            self.status = self.STATUS_PARTIALLY_DELIVERED
+        elif self.quantity_actual >= self.quantity_requested:
+            self.status = self.STATUS_DELIVERED
+        self.save()
 
     class Meta:
         db_table = 'material_request_items'
@@ -622,7 +694,9 @@ class MaterialRequestHistory(models.Model):
     ACTION_PAYMENT = 'PAYMENT'
     ACTION_PAID = 'PAID'
     ACTION_DELIVERY = 'DELIVERY'
-    ACTION_RECEIVED = 'RECEIVED'
+    ACTION_DELIVERED = 'DELIVERED'  # Обновление фактического количества позиции
+    ACTION_ITEM_RECEIVED = 'ITEM_RECEIVED'  # Приёмка конкретной позиции
+    ACTION_RECEIVED = 'RECEIVED'  # Приёмка всех материалов
     ACTION_COMPLETED = 'COMPLETED'
 
     ACTION_CHOICES = [
@@ -633,6 +707,8 @@ class MaterialRequestHistory(models.Model):
         (ACTION_PAYMENT, 'Переведена на оплату'),
         (ACTION_PAID, 'Оплачена'),
         (ACTION_DELIVERY, 'Переведена на доставку'),
+        (ACTION_DELIVERED, 'Обновлено фактическое количество'),
+        (ACTION_ITEM_RECEIVED, 'Позиция принята на объекте'),
         (ACTION_RECEIVED, 'Материалы приняты'),
         (ACTION_COMPLETED, 'Завершена'),
     ]

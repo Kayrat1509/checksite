@@ -3,6 +3,7 @@
 Views для API заявок на материалы.
 """
 
+import logging
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -10,6 +11,8 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q, Prefetch
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.exceptions import ValidationError
+
+logger = logging.getLogger(__name__)
 
 from .models import MaterialRequest, MaterialRequestItem, ApprovalStep, MaterialRequestHistory
 from .serializers import (
@@ -117,8 +120,15 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
             # На доставке
             queryset = queryset.filter(status=MaterialRequest.STATUS_IN_DELIVERY)
         elif tab == 'completed':
-            # Отработанные заявки
-            queryset = queryset.filter(status=MaterialRequest.STATUS_COMPLETED)
+            # Отработанные заявки:
+            # Показываем заявки, у которых ЕСТЬ ХОТЯ БЫ ОДНА принятая позиция (статус RECEIVED)
+            # Frontend будет фильтровать и показывать только принятые позиции
+            from django.db.models import Exists, OuterRef
+            has_received_items = MaterialRequestItem.objects.filter(
+                material_request=OuterRef('pk'),
+                status=MaterialRequestItem.STATUS_RECEIVED
+            )
+            queryset = queryset.filter(Exists(has_received_items))
         elif tab == 'my':
             # Мои заявки (созданные текущим пользователем)
             queryset = queryset.filter(author=user)
@@ -377,7 +387,7 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
         Доступно для ролей: Мастер, Прораб, Начальник участка, Завсклад объекта.
 
         Endpoint: POST /api/material-requests/{id}/update-actual-quantity/
-        Body: {"item_id": 1, "quantity_actual": 100.50}
+        Body: {"item_id": 1, "quantity_actual": 100.50, "notes": "Комментарий"}
         """
         material_request = self.get_object()
 
@@ -400,6 +410,7 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
 
         item_id = serializer.validated_data['item_id']
         quantity_actual = serializer.validated_data['quantity_actual']
+        notes = serializer.validated_data.get('notes', '')
 
         try:
             # Находим позицию заявки
@@ -408,14 +419,29 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
                 material_request=material_request
             )
 
-            # Обновляем фактическое количество
+            # Обновляем фактическое количество и примечание
             item.quantity_actual = quantity_actual
+            if notes:
+                item.notes = notes
             item.save()
+
+            # Автоматически обновляем статус позиции на основе количества
+            item.update_status_based_on_quantity()
+
+            # Записываем в историю
+            MaterialRequestHistory.objects.create(
+                material_request=material_request,
+                action=MaterialRequestHistory.ACTION_DELIVERED,
+                user=request.user,
+                comment=f'Обновлено фактическое количество позиции "{item.material_name}": {quantity_actual} {item.unit}. {notes}'
+            )
 
             return Response({
                 'message': 'Фактическое количество успешно обновлено',
                 'item_id': item.id,
-                'quantity_actual': float(item.quantity_actual)
+                'quantity_actual': float(item.quantity_actual),
+                'item_status': item.status,
+                'item_status_display': item.get_status_display()
             })
 
         except MaterialRequestItem.DoesNotExist:
@@ -423,6 +449,86 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
                 {'error': 'Позиция не найдена'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+    @action(detail=True, methods=['post'], url_path='receive-item')
+    def receive_item(self, request, pk=None):
+        """
+        Приёмка конкретной позиции заявки на объекте.
+
+        Доступно для ролей: Мастер, Прораб, Начальник участка, Завсклад объекта.
+
+        Endpoint: POST /api/material-requests/{id}/receive-item/
+        Body: {"item_id": 1}
+        """
+        material_request = self.get_object()
+
+        allowed_roles = ['MASTER', 'FOREMAN', 'SITE_MANAGER', 'SITE_WAREHOUSE_MANAGER']
+        if request.user.role not in allowed_roles:
+            return Response(
+                {'error': 'У вас нет прав для приёмки материалов'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Проверяем, что заявка на доставке
+        if material_request.status != MaterialRequest.STATUS_IN_DELIVERY:
+            return Response(
+                {'error': 'Можно принимать только позиции заявок на доставке'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        item_id = request.data.get('item_id')
+        if not item_id:
+            return Response(
+                {'error': 'Не указан ID позиции (item_id)'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Находим позицию заявки
+            item = MaterialRequestItem.objects.get(
+                id=item_id,
+                material_request=material_request
+            )
+
+            # Отмечаем позицию как принятую
+            item.mark_as_received(request.user)
+
+            # Записываем в историю
+            MaterialRequestHistory.objects.create(
+                material_request=material_request,
+                action=MaterialRequestHistory.ACTION_ITEM_RECEIVED,
+                user=request.user,
+                comment=f'Позиция "{item.material_name}" ({item.quantity_requested} {item.unit}) принята на объекте'
+            )
+
+            # Проверяем, все ли позиции приняты (для информации)
+            all_items_received = all(
+                i.status == MaterialRequestItem.STATUS_RECEIVED
+                for i in material_request.items.all()
+            )
+
+            logger.info(
+                f"Позиция '{item.material_name}' заявки {material_request.request_number} принята. "
+                f"Статус заявки: {material_request.status}. "
+                f"Все позиции приняты: {all_items_received}"
+            )
+
+            return Response({
+                'message': 'Позиция успешно принята на объекте',
+                'item_id': item.id,
+                'item_status': item.status,
+                'item_status_display': item.get_status_display(),
+                'all_items_received': all_items_received,
+                'request_status': material_request.status
+            })
+
+        except MaterialRequestItem.DoesNotExist:
+            return Response(
+                {'error': 'Позиция не найдена'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except DjangoValidationError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['get'], url_path='statistics')
     def statistics(self, request):
@@ -451,6 +557,7 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
             user_projects = user.projects.all() | user.managed_projects.all()
             base_queryset = base_queryset.filter(Q(author=user) | Q(project__in=user_projects))
 
+        # Статистика по вкладкам
         stats = {
             'all': base_queryset.count(),
             'draft': base_queryset.filter(status=MaterialRequest.STATUS_DRAFT).count(),

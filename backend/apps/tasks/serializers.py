@@ -43,6 +43,8 @@ class TaskListSerializer(serializers.ModelSerializer):
 
     created_by_name = serializers.SerializerMethodField()
     assigned_to_name = serializers.SerializerMethodField()
+    assigned_to_user_name = serializers.SerializerMethodField()  # Имя сотрудника
+    assigned_to_contractor_name = serializers.SerializerMethodField()  # Имя подрядчика
     assigned_to_email = serializers.SerializerMethodField()
     company_name = serializers.CharField(source='company.name', read_only=True)
     project_name = serializers.CharField(source='project.name', read_only=True)
@@ -62,6 +64,8 @@ class TaskListSerializer(serializers.ModelSerializer):
             'assigned_to_user',
             'assigned_to_contractor',
             'assigned_to_name',
+            'assigned_to_user_name',
+            'assigned_to_contractor_name',
             'assigned_to_email',
             'company_name',
             'project_name',
@@ -85,6 +89,14 @@ class TaskListSerializer(serializers.ModelSerializer):
         if obj.assigned_to_contractor:
             names.append(obj.assigned_to_contractor.get_full_name())
         return ', '.join(names) if names else None
+
+    def get_assigned_to_user_name(self, obj):
+        """Возвращает имя назначенного сотрудника."""
+        return obj.assigned_to_user.get_full_name() if obj.assigned_to_user else None
+
+    def get_assigned_to_contractor_name(self, obj):
+        """Возвращает имя назначенного подрядчика."""
+        return obj.assigned_to_contractor.get_full_name() if obj.assigned_to_contractor else None
 
     def get_assigned_to_email(self, obj):
         return obj.assigned_to_email

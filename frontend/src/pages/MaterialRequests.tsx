@@ -36,10 +36,13 @@ import {
   MaterialRequest,
   CreateMaterialRequestData,
   MaterialRequestStatus,
+  MaterialRequestItemStatus,
 } from '../api/materialRequests'
 import { projectsAPI } from '../api/projects'
 import { useAuthStore } from '../stores/authStore'
 import { useButtonAccess } from '../hooks/useButtonAccess'
+import ActualQuantityModal from '../components/MaterialRequests/ActualQuantityModal'
+import RejectionReasonModal from '../components/MaterialRequests/RejectionReasonModal'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -58,17 +61,17 @@ interface MaterialRequestItemRow {
   status: MaterialRequestStatus
   currentApprover: string | null
   positionNumber: number
+  itemStatus: MaterialRequestItemStatus
+  itemStatusDisplay: string
+  receivedAt: string | null // Дата принятия позиции на объекте
 }
 
-// Конфигурация статусов
-const STATUS_CONFIG: Record<MaterialRequestStatus, { label: string; color: string }> = {
-  DRAFT: { label: 'Черновик', color: 'default' },
-  IN_APPROVAL: { label: 'На согласовании', color: 'blue' },
-  APPROVED: { label: 'Согласовано', color: 'green' },
-  IN_PAYMENT: { label: 'На оплате', color: 'orange' },
-  IN_DELIVERY: { label: 'На доставке', color: 'cyan' },
-  COMPLETED: { label: 'Отработано и доставлено на объект', color: 'success' },
-  REJECTED: { label: 'На доработке', color: 'red' },
+// Конфигурация статусов позиций
+const ITEM_STATUS_CONFIG: Record<MaterialRequestItemStatus, { label: string; color: string }> = {
+  PENDING: { label: 'Ожидает доставки', color: 'default' },
+  PARTIAL: { label: 'Частично доставлено', color: 'orange' },
+  DELIVERED: { label: 'Полностью доставлено', color: 'blue' },
+  RECEIVED: { label: 'Принято на объекте', color: 'green' },
 }
 
 const MaterialRequests = () => {
@@ -79,6 +82,23 @@ const MaterialRequests = () => {
   const [form] = Form.useForm()
   const [itemsForm] = Form.useForm()
   const queryClient = useQueryClient()
+
+  // State для модального окна обновления фактического количества
+  const [actualQuantityModalState, setActualQuantityModalState] = useState<{
+    visible: boolean
+    data: {
+      requestId: number
+      itemId: number
+      currentQuantity: number | null
+      quantityRequested: number
+    } | null
+  }>({ visible: false, data: null })
+
+  // State для модального окна указания причины возврата
+  const [rejectionModalState, setRejectionModalState] = useState<{
+    visible: boolean
+    requestId: number | null
+  }>({ visible: false, requestId: null })
 
   const { user } = useAuthStore()
   const { canUseButton } = useButtonAccess('material-requests')
@@ -119,8 +139,29 @@ const MaterialRequests = () => {
       status: request.status,
       currentApprover: request.current_approver_name || null,
       positionNumber: index + 1,
+      itemStatus: (item.status as MaterialRequestItemStatus) || 'PENDING',
+      itemStatusDisplay: item.status_display || 'Ожидает доставки',
+      receivedAt: item.received_at || null, // Дата принятия позиции на объекте
     }))
   )
+
+  /**
+   * Фильтрация позиций в зависимости от активной вкладки:
+   *
+   * 1. "На доставке" (in_delivery):
+   *    - Скрываем принятые позиции (статус RECEIVED), чтобы отображались только
+   *      те, которые ещё ожидают доставки или частично доставлены
+   *
+   * 2. "Отработанные заявки" (completed):
+   *    - Показываем ТОЛЬКО принятые позиции (статус RECEIVED)
+   *    - Backend возвращает заявки, у которых есть хотя бы одна принятая позиция
+   *    - Frontend фильтрует и показывает только принятые позиции из этих заявок
+   */
+  const filteredItemsRows = activeTab === 'in_delivery'
+    ? itemsRows.filter((item) => item.itemStatus !== 'RECEIVED')
+    : activeTab === 'completed'
+    ? itemsRows.filter((item) => item.itemStatus === 'RECEIVED')
+    : itemsRows
 
   // Получение списка проектов
   const { data: projectsData } = useQuery({
@@ -243,15 +284,20 @@ const MaterialRequests = () => {
     },
   })
 
-  // Принято (завершение)
-  const completeMutation = useMutation({
-    mutationFn: materialRequestsAPI.complete,
-    onSuccess: () => {
-      message.success('Позиция принята!')
+  // Приёмка конкретной позиции
+  const receiveItemMutation = useMutation({
+    mutationFn: ({ requestId, itemId }: { requestId: number; itemId: number }) =>
+      materialRequestsAPI.receiveItem(requestId, itemId),
+    onSuccess: (data) => {
+      if (data.all_items_received) {
+        message.success('Позиция принята! Все позиции этой заявки приняты.')
+      } else {
+        message.success('Позиция успешно принята на объекте!')
+      }
       queryClient.invalidateQueries({ queryKey: ['material-requests'] })
     },
     onError: (error: any) => {
-      message.error(`Ошибка: ${error.response?.data?.detail || error.message}`)
+      message.error(`Ошибка приёмки: ${error.response?.data?.error || error.message}`)
     },
   })
 
@@ -346,41 +392,60 @@ const MaterialRequests = () => {
     approveMutation.mutate(requestId)
   }
 
+  // Открытие модального окна для указания причины возврата
   const handleReject = (requestId: number) => {
-    Modal.confirm({
-      title: 'Вернуть на доработку',
-      content: (
-        <Form>
-          <Form.Item name="rejection_reason" label="Причина" rules={[{ required: true }]}>
-            <TextArea rows={3} placeholder="Укажите причину возврата" id="rejection-reason-input" />
-          </Form.Item>
-        </Form>
-      ),
-      onOk: () => {
-        const reason = (document.getElementById('rejection-reason-input') as HTMLTextAreaElement)?.value
-        if (reason) {
-          rejectMutation.mutate({ id: requestId, reason })
-        } else {
-          message.error('Укажите причину возврата')
+    setRejectionModalState({ visible: true, requestId })
+  }
+
+  // Подтверждение возврата заявки на доработку
+  const handleRejectionSubmit = (reason: string) => {
+    if (!rejectionModalState.requestId) return
+
+    rejectMutation.mutate(
+      { id: rejectionModalState.requestId, reason },
+      {
+        onSuccess: () => {
+          // Закрываем модальное окно после успешного возврата
+          setRejectionModalState({ visible: false, requestId: null })
         }
-      },
-    })
+      }
+    )
+  }
+
+  // Закрытие модального окна возврата
+  const handleRejectionCancel = () => {
+    setRejectionModalState({ visible: false, requestId: null })
   }
 
   // Экспорт всех данных таблицы в Excel
   const handleExportToExcel = () => {
     try {
-      // Подготавливаем данные для экспорта
-      const exportData = itemsRows.map((row) => ({
-        'Номер заявки': row.requestNumber,
-        'Материал': row.materialName,
-        'Ед. изм.': row.unit,
-        'Кол-во по заявке': Number(row.quantityRequested).toFixed(2),
-        'Кол-во по факту': row.quantityActual !== null && row.quantityActual !== undefined ? Number(row.quantityActual).toFixed(2) : '—',
-        'Примечания': row.notes || '—',
-        'Автор': row.author,
-        'Статус': STATUS_CONFIG[row.status].label,
-      }))
+      // Подготавливаем данные для экспорта (используем отфильтрованные данные)
+      const exportData = filteredItemsRows.map((row) => {
+        const baseData: Record<string, string | number> = {
+          'Номер заявки': row.requestNumber,
+          'Материал': row.materialName,
+          'Ед. изм.': row.unit,
+          'Кол-во по заявке': Number(row.quantityRequested).toFixed(2),
+          'Кол-во по факту': row.quantityActual !== null && row.quantityActual !== undefined ? Number(row.quantityActual).toFixed(2) : '—',
+          'Примечания': row.notes || '—',
+          'Автор': row.author,
+          'Статус позиции': row.itemStatusDisplay,
+        }
+
+        // Для вкладки "Отработанные заявки" добавляем колонку "Дата принятия"
+        if (activeTab === 'completed') {
+          baseData['Дата принятия'] = row.receivedAt
+            ? new Date(row.receivedAt).toLocaleDateString('ru-RU', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              })
+            : '—'
+        }
+
+        return baseData
+      })
 
       // Создаем CSV контент
       const headers = Object.keys(exportData[0] || {})
@@ -414,40 +479,33 @@ const MaterialRequests = () => {
     }
   }
 
+  // Открытие модального окна обновления фактического количества
   const handleUpdateActualQuantity = (requestId: number, itemId: number, currentQuantity: number | null, quantityRequested: number) => {
-    Modal.confirm({
-      title: 'Обновить фактическое количество',
-      content: (
-        <Form layout="vertical" initialValues={{ quantity_to_add: 0 }}>
-          <div style={{ marginBottom: 16, padding: 12, background: '#f0f0f0', borderRadius: 4 }}>
-            <Text strong>Запрошено: {quantityRequested.toFixed(2)}</Text>
-            <br />
-            <Text strong>Уже доставлено: {currentQuantity !== null ? currentQuantity.toFixed(2) : '0.00'}</Text>
-            <br />
-            <Text strong style={{ color: currentQuantity !== null && currentQuantity >= quantityRequested ? '#52c41a' : '#fa8c16' }}>
-              Осталось: {currentQuantity !== null ? (quantityRequested - currentQuantity).toFixed(2) : quantityRequested.toFixed(2)}
-            </Text>
-          </div>
-          <Form.Item name="quantity_to_add" label="Добавить к фактическому количеству (текущий рейс)" rules={[{ required: true }]}>
-            <InputNumber min={0} step={0.01} style={{ width: '100%' }} id="quantity-to-add-input" placeholder="Введите количество из текущего рейса" />
-          </Form.Item>
-          <Form.Item name="notes" label="Примечание">
-            <TextArea rows={2} placeholder="Комментарий (опционально)" id="quantity-notes-input" />
-          </Form.Item>
-        </Form>
-      ),
-      onOk: () => {
-        const quantityToAdd = parseFloat((document.getElementById('quantity-to-add-input') as HTMLInputElement)?.value)
-        const notes = (document.getElementById('quantity-notes-input') as HTMLTextAreaElement)?.value
-        if (quantityToAdd >= 0) {
-          // Добавляем количество к текущему (накопительно)
-          const newQuantity = (currentQuantity || 0) + quantityToAdd
-          updateActualQuantityMutation.mutate({ requestId, itemId, quantity: newQuantity, notes })
-        } else {
-          message.error('Введите корректное количество')
-        }
-      },
+    setActualQuantityModalState({
+      visible: true,
+      data: { requestId, itemId, currentQuantity, quantityRequested }
     })
+  }
+
+  // Подтверждение обновления фактического количества
+  const handleActualQuantitySubmit = (newQuantity: number, notes?: string) => {
+    if (!actualQuantityModalState.data) return
+
+    const { requestId, itemId } = actualQuantityModalState.data
+    updateActualQuantityMutation.mutate(
+      { requestId, itemId, quantity: newQuantity, notes },
+      {
+        onSuccess: () => {
+          // Закрываем модальное окно после успешного обновления
+          setActualQuantityModalState({ visible: false, data: null })
+        }
+      }
+    )
+  }
+
+  // Закрытие модального окна обновления фактического количества
+  const handleActualQuantityCancel = () => {
+    setActualQuantityModalState({ visible: false, data: null })
   }
 
   // Колонки для "Все заявки"
@@ -487,14 +545,20 @@ const MaterialRequests = () => {
           const actualQty = record.quantityActual !== null && record.quantityActual !== undefined ? Number(record.quantityActual).toFixed(2) : '0.00'
           const isComplete = record.quantityActual !== null && record.quantityActual >= record.quantityRequested
           return (
-            <Button
-              type="link"
-              size="small"
-              onClick={() => handleUpdateActualQuantity(record.requestId, record.id, record.quantityActual, record.quantityRequested)}
-              style={{ color: isComplete ? '#52c41a' : undefined }}
-            >
-              {actualQty} {isComplete && '✓'}
-            </Button>
+            <Tooltip title="Нажмите для обновления фактического количества">
+              <Button
+                type="link"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => handleUpdateActualQuantity(record.requestId, record.id, record.quantityActual, record.quantityRequested)}
+                style={{
+                  color: isComplete ? '#52c41a' : '#1890ff',
+                  fontWeight: 'bold'
+                }}
+              >
+                {actualQty} {isComplete && '✓'}
+              </Button>
+            </Tooltip>
           )
         }
         return record.quantityActual !== null && record.quantityActual !== undefined ? Number(record.quantityActual).toFixed(2) : '—'
@@ -515,13 +579,13 @@ const MaterialRequests = () => {
       ellipsis: true,
     },
     {
-      title: 'Статус',
-      dataIndex: 'status',
-      key: 'status',
-      width: 180,
-      render: (status: MaterialRequestStatus) => (
-        <Tag color={STATUS_CONFIG[status].color}>{STATUS_CONFIG[status].label}</Tag>
-      ),
+      title: 'Статус позиции',
+      key: 'itemStatus',
+      width: 200,
+      render: (_, record) => {
+        const statusConfig = ITEM_STATUS_CONFIG[record.itemStatus]
+        return <Tag color={statusConfig.color}>{statusConfig.label}</Tag>
+      },
     },
     {
       title: 'Действия',
@@ -600,14 +664,23 @@ const MaterialRequests = () => {
       ellipsis: true,
     },
     {
-      title: 'Статус',
-      key: 'status',
+      title: 'Текущий согласующий',
+      key: 'currentApprover',
       width: 180,
       render: (_, record) => {
         if (record.currentApprover) {
           return <Tag color="blue">Ожидает: {record.currentApprover}</Tag>
         }
-        return <Tag color={STATUS_CONFIG[record.status].color}>{STATUS_CONFIG[record.status].label}</Tag>
+        return <Tag color="default">—</Tag>
+      },
+    },
+    {
+      title: 'Статус позиции',
+      key: 'itemStatus',
+      width: 180,
+      render: (_, record) => {
+        const statusConfig = ITEM_STATUS_CONFIG[record.itemStatus]
+        return <Tag color={statusConfig.color}>{statusConfig.label}</Tag>
       },
     },
     {
@@ -686,12 +759,22 @@ const MaterialRequests = () => {
       ellipsis: true,
     },
     {
-      title: 'Статус',
-      key: 'status',
+      title: 'Статус позиции',
+      key: 'itemStatus',
       width: 180,
       render: (_, record) => {
-        if (isSupplyManager()) {
-          return (
+        const statusConfig = ITEM_STATUS_CONFIG[record.itemStatus]
+        return <Tag color={statusConfig.color}>{statusConfig.label}</Tag>
+      },
+    },
+    {
+      title: 'Действия',
+      key: 'actions',
+      width: 150,
+      fixed: 'right',
+      render: (_, record) => (
+        <Space size="small">
+          {isSupplyManager() && (
             <Button
               type="primary"
               size="small"
@@ -700,17 +783,9 @@ const MaterialRequests = () => {
             >
               На оплату
             </Button>
-          )
-        }
-        return <Tag color={STATUS_CONFIG[record.status].color}>{STATUS_CONFIG[record.status].label}</Tag>
-      },
-    },
-    {
-      title: 'Действия',
-      key: 'actions',
-      width: 150,
-      fixed: 'right',
-      render: () => <Space size="small">—</Space>,
+          )}
+        </Space>
+      ),
     },
   ]
 
@@ -756,26 +831,12 @@ const MaterialRequests = () => {
       ellipsis: true,
     },
     {
-      title: 'Статус',
-      key: 'status',
+      title: 'Статус позиции',
+      key: 'itemStatus',
       width: 180,
       render: (_, record) => {
-        if (isSupplyManager()) {
-          return (
-            <Space direction="vertical" size="small">
-              <Tag color="orange">На оплате</Tag>
-              <Button
-                type="primary"
-                size="small"
-                icon={<CheckOutlined />}
-                onClick={() => moveToDeliveryMutation.mutate(record.requestId)}
-              >
-                Оплачено
-              </Button>
-            </Space>
-          )
-        }
-        return <Tag color="orange">На оплате</Tag>
+        const statusConfig = ITEM_STATUS_CONFIG[record.itemStatus]
+        return <Tag color={statusConfig.color}>{statusConfig.label}</Tag>
       },
     },
     {
@@ -783,7 +844,20 @@ const MaterialRequests = () => {
       key: 'actions',
       width: 150,
       fixed: 'right',
-      render: () => <Space size="small">—</Space>,
+      render: (_, record) => (
+        <Space size="small">
+          {isSupplyManager() && (
+            <Button
+              type="primary"
+              size="small"
+              icon={<CheckOutlined />}
+              onClick={() => moveToDeliveryMutation.mutate(record.requestId)}
+            >
+              Оплачено
+            </Button>
+          )}
+        </Space>
+      ),
     },
   ]
 
@@ -823,14 +897,20 @@ const MaterialRequests = () => {
           const actualQty = record.quantityActual !== null && record.quantityActual !== undefined ? Number(record.quantityActual).toFixed(2) : '0.00'
           const isComplete = record.quantityActual !== null && record.quantityActual >= record.quantityRequested
           return (
-            <Button
-              type="link"
-              size="small"
-              onClick={() => handleUpdateActualQuantity(record.requestId, record.id, record.quantityActual, record.quantityRequested)}
-              style={{ color: isComplete ? '#52c41a' : undefined }}
-            >
-              {actualQty} {isComplete && '✓'}
-            </Button>
+            <Tooltip title="Нажмите для обновления фактического количества">
+              <Button
+                type="link"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => handleUpdateActualQuantity(record.requestId, record.id, record.quantityActual, record.quantityRequested)}
+                style={{
+                  color: isComplete ? '#52c41a' : '#1890ff',
+                  fontWeight: 'bold'
+                }}
+              >
+                {actualQty} {isComplete && '✓'}
+              </Button>
+            </Tooltip>
           )
         }
         return record.quantityActual !== null && record.quantityActual !== undefined ? Number(record.quantityActual).toFixed(2) : '—'
@@ -851,10 +931,13 @@ const MaterialRequests = () => {
       ellipsis: true,
     },
     {
-      title: 'Статус',
-      key: 'status',
-      width: 180,
-      render: () => <Tag color="cyan">На доставке</Tag>,
+      title: 'Статус позиции',
+      key: 'itemStatus',
+      width: 200,
+      render: (_, record) => {
+        const statusConfig = ITEM_STATUS_CONFIG[record.itemStatus]
+        return <Tag color={statusConfig.color}>{statusConfig.label}</Tag>
+      },
     },
     {
       title: 'Действия',
@@ -863,17 +946,32 @@ const MaterialRequests = () => {
       fixed: 'right',
       render: (_, record) => (
         <Space size="small">
-          {canReceiveMaterials() && (
-            <Tooltip title="Принято">
+          {canReceiveMaterials() && record.itemStatus !== 'RECEIVED' && (
+            <Popconfirm
+              title="Принять позицию на объекте?"
+              description={`Вы уверены, что хотите принять "${record.materialName}" (${record.quantityRequested} ${record.unit})?`}
+              onConfirm={() =>
+                receiveItemMutation.mutate({
+                  requestId: record.requestId,
+                  itemId: record.id,
+                })
+              }
+              okText="Да, принять"
+              cancelText="Отмена"
+            >
               <Button
                 type="primary"
                 size="small"
                 icon={<CheckOutlined />}
-                onClick={() => completeMutation.mutate(record.requestId)}
               >
-                Принято
+                Принять
               </Button>
-            </Tooltip>
+            </Popconfirm>
+          )}
+          {record.itemStatus === 'RECEIVED' && (
+            <Tag color="green" icon={<CheckOutlined />}>
+              Принято
+            </Tag>
           )}
         </Space>
       ),
@@ -941,17 +1039,29 @@ const MaterialRequests = () => {
       ellipsis: true,
     },
     {
-      title: 'Статус',
-      key: 'status',
+      title: 'Статус позиции',
+      key: 'itemStatus',
       width: 200,
-      render: () => <Tag color="success">Отработано и доставлено на объект</Tag>,
+      render: (_, record) => {
+        const statusConfig = ITEM_STATUS_CONFIG[record.itemStatus]
+        return <Tag color={statusConfig.color}>{statusConfig.label}</Tag>
+      },
     },
     {
-      title: 'Действия',
-      key: 'actions',
+      title: 'Дата принятия',
+      dataIndex: 'receivedAt',
+      key: 'receivedAt',
       width: 150,
-      fixed: 'right',
-      render: () => <Space size="small">—</Space>,
+      render: (val: string | null) => {
+        if (!val) return '—'
+        // Форматируем дату в формате "ДД.ММ.ГГГГ"
+        const date = new Date(val)
+        return date.toLocaleDateString('ru-RU', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        })
+      },
     },
   ]
 
@@ -997,18 +1107,18 @@ const MaterialRequests = () => {
       ellipsis: true,
     },
     {
-      title: 'Статус',
-      dataIndex: 'status',
-      key: 'status',
-      width: 150,
-      render: (status: MaterialRequestStatus) => (
-        <Tag color={STATUS_CONFIG[status].color}>{STATUS_CONFIG[status].label}</Tag>
-      ),
+      title: 'Статус позиции',
+      key: 'itemStatus',
+      width: 200,
+      render: (_, record) => {
+        const statusConfig = ITEM_STATUS_CONFIG[record.itemStatus]
+        return <Tag color={statusConfig.color}>{statusConfig.label}</Tag>
+      },
     },
     {
       title: 'Действия',
       key: 'actions',
-      width: 150,
+      width: 200,
       fixed: 'right',
       render: (_, record) => (
         <Space size="small">
@@ -1095,7 +1205,7 @@ const MaterialRequests = () => {
           <Button
             icon={<FileExcelOutlined />}
             onClick={handleExportToExcel}
-            disabled={itemsRows.length === 0}
+            disabled={filteredItemsRows.length === 0}
           >
             Скачать в Excel
           </Button>
@@ -1134,7 +1244,7 @@ const MaterialRequests = () => {
       {/* Таблица позиций */}
       <Table
         columns={getColumns()}
-        dataSource={itemsRows}
+        dataSource={filteredItemsRows}
         rowKey={(record) => `${record.requestId}-${record.id}`}
         loading={isLoading}
         scroll={{ x: 1400 }}
@@ -1240,6 +1350,24 @@ const MaterialRequests = () => {
           </Form.List>
         </Form>
       </Modal>
+
+      {/* Модальное окно обновления фактического количества */}
+      <ActualQuantityModal
+        visible={actualQuantityModalState.visible}
+        onCancel={handleActualQuantityCancel}
+        onSubmit={handleActualQuantitySubmit}
+        currentQuantity={actualQuantityModalState.data?.currentQuantity ?? null}
+        quantityRequested={actualQuantityModalState.data?.quantityRequested ?? 0}
+        loading={updateActualQuantityMutation.isPending}
+      />
+
+      {/* Модальное окно указания причины возврата */}
+      <RejectionReasonModal
+        visible={rejectionModalState.visible}
+        onCancel={handleRejectionCancel}
+        onSubmit={handleRejectionSubmit}
+        loading={rejectMutation.isPending}
+      />
     </div>
   )
 }

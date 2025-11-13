@@ -29,6 +29,7 @@ class MaterialRequestItemSerializer(serializers.ModelSerializer):
     # Переопределяем поля, чтобы сделать их необязательными
     position_number = serializers.IntegerField(required=False, allow_null=True)
     tender = serializers.PrimaryKeyRelatedField(required=False, allow_null=True, read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
 
     class Meta:
         model = MaterialRequestItem
@@ -41,8 +42,11 @@ class MaterialRequestItemSerializer(serializers.ModelSerializer):
             'quantity_actual',
             'notes',
             'tender',
+            'status',
+            'status_display',
+            'received_at',  # Дата принятия позиции на объекте
         ]
-        read_only_fields = ['id']
+        read_only_fields = ['id', 'status_display', 'received_at']
 
     def validate_quantity_requested(self, value):
         """Проверка, что количество положительное."""

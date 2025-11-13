@@ -264,10 +264,25 @@ const Tasks = () => {
     },
     {
       title: 'Кому',
-      dataIndex: 'assigned_to_name',
-      key: 'assigned_to_name',
-      width: 150,
-      ellipsis: true,
+      key: 'assigned_to',
+      width: 180,
+      render: (_, record) => {
+        const userAssigned = record.assigned_to_user_name
+        const contractorAssigned = record.assigned_to_contractor_name
+
+        // Если назначены оба - показываем на разных строках
+        if (userAssigned && contractorAssigned) {
+          return (
+            <div style={{ lineHeight: '1.4' }}>
+              <div>{userAssigned}</div>
+              <div>{contractorAssigned}</div>
+            </div>
+          )
+        }
+
+        // Иначе показываем того, кто назначен
+        return userAssigned || contractorAssigned || '—'
+      },
     },
     {
       title: 'Срок исполнения',

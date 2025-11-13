@@ -125,7 +125,10 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: checksite_flower
-    command: celery -A config flower --port=5555
+    entrypoint: []
+    command: sh -c "cd /app && celery -A config flower --port=5555"
+    volumes:
+      - ./backend:/app
     ports:
       - "5555:5555"
     env_file:
