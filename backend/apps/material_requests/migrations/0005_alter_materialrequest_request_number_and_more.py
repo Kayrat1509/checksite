@@ -21,11 +21,23 @@ def add_constraint_if_not_exists(apps, schema_editor):
 
         if cursor.fetchone() is None:
             # Constraint не существует, добавляем его
+            # Проверяем имя столбца company (может быть company_id)
             cursor.execute("""
-                ALTER TABLE material_requests
-                ADD CONSTRAINT unique_request_number_per_company
-                UNIQUE (company_id, request_number)
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name='material_requests'
+                AND column_name LIKE 'company%'
             """)
+            company_column = cursor.fetchone()
+            if company_column:
+                company_col_name = company_column[0]
+                cursor.execute(f"""
+                    ALTER TABLE material_requests
+                    ADD CONSTRAINT unique_request_number_per_company
+                    UNIQUE ({company_col_name}, request_number)
+                """)
+            else:
+                raise Exception("Не найден столбец company в таблице material_requests")
             print("✅ Constraint 'unique_request_number_per_company' успешно добавлен")
         else:
             print("ℹ️ Constraint 'unique_request_number_per_company' уже существует, пропускаем добавление")
