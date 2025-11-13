@@ -3,6 +3,33 @@
 from django.db import migrations, models
 
 
+def add_status_field_if_not_exists(apps, schema_editor):
+    """
+    Добавляет поле status только если оно ещё не существует.
+    Это предотвращает ошибку при повторном запуске миграции.
+    """
+    from django.db import connection
+
+    with connection.cursor() as cursor:
+        # Проверяем, существует ли столбец status в таблице material_request_items
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='material_request_items'
+            AND column_name='status'
+        """)
+
+        if cursor.fetchone() is None:
+            # Столбец не существует, добавляем его
+            cursor.execute("""
+                ALTER TABLE material_request_items
+                ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+            """)
+            print("✅ Столбец 'status' успешно добавлен")
+        else:
+            print("ℹ️ Столбец 'status' уже существует, пропускаем добавление")
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,20 +37,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name="materialrequestitem",
-            name="status",
-            field=models.CharField(
-                choices=[
-                    ("PENDING", "Ожидает доставки"),
-                    ("PARTIAL", "Частично доставлено"),
-                    ("DELIVERED", "Полностью доставлено"),
-                    ("RECEIVED", "Принято на объекте"),
-                ],
-                default="PENDING",
-                help_text="Статус доставки конкретной позиции",
-                max_length=20,
-                verbose_name="Статус позиции",
-            ),
-        ),
+        migrations.RunPython(add_status_field_if_not_exists, migrations.RunPython.noop),
     ]
