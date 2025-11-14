@@ -183,13 +183,9 @@ class MaterialRequest(models.Model):
         verbose_name = 'Заявка на материалы'
         verbose_name_plural = 'Заявки на материалы'
         ordering = ['-created_at']
-        # Уникальность номера заявки в рамках компании (через проект)
-        constraints = [
-            models.UniqueConstraint(
-                fields=['project__company', 'request_number'],
-                name='unique_request_number_per_company'
-            )
-        ]
+        # Уникальность номера заявки в рамках компании обеспечивается через:
+        # миграцию 0005 (constraint unique_request_number_per_company создан через raw SQL)
+        constraints = []
         indexes = [
             models.Index(fields=['request_number']),
             models.Index(fields=['status']),
