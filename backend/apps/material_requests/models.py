@@ -199,7 +199,6 @@ class MaterialRequest(models.Model):
             )
         ]
         indexes = [
-            # Одиночные индексы
             models.Index(fields=['request_number']),
             models.Index(fields=['status']),
             models.Index(fields=['author']),
@@ -208,18 +207,13 @@ class MaterialRequest(models.Model):
             models.Index(fields=['current_approval_role']),
             models.Index(fields=['is_deleted']),
 
-            # Составные индексы для частых запросов (оптимизация производительности)
-            # Фильтрация по компании + статусу + soft delete (основной фильтр в ViewSet)
-            models.Index(fields=['company', 'status', 'is_deleted'], name='idx_company_status_deleted'),
-
-            # Фильтрация по компании + роли согласующего (для вкладки "На согласовании")
-            models.Index(fields=['company', 'current_approval_role'], name='idx_company_approval_role'),
-
-            # Фильтрация по проекту + статусу (для отчетов по проекту)
-            models.Index(fields=['project', 'status'], name='idx_project_status'),
-
-            # Фильтрация по автору + дате создания (для вкладки "Мои заявки")
-            models.Index(fields=['author', '-created_at'], name='idx_author_created'),
+            # СОСТАВНЫЕ ИНДЕКСЫ БУДУТ ДОБАВЛЕНЫ ПОСЛЕ ПРИМЕНЕНИЯ МИГРАЦИИ 0007
+            # Временно закомментированы для совместимости с production
+            # TODO: Раскомментировать после: python manage.py migrate material_requests 0007
+            # models.Index(fields=['company', 'status', 'is_deleted'], name='idx_company_status_deleted'),
+            # models.Index(fields=['company', 'current_approval_role'], name='idx_company_approval_role'),
+            # models.Index(fields=['project', 'status'], name='idx_project_status'),
+            # models.Index(fields=['author', '-created_at'], name='idx_author_created'),
         ]
 
     def __str__(self):
