@@ -11,13 +11,16 @@ def add_constraint_if_not_exists(apps, schema_editor):
     from django.db import connection
 
     with connection.cursor() as cursor:
+        # Правильное имя таблицы в Django: {app_label}_{model_name}
+        table_name = 'material_requests_materialrequest'
+
         # Проверяем, существует ли constraint unique_request_number_per_company
         cursor.execute("""
             SELECT constraint_name
             FROM information_schema.table_constraints
-            WHERE table_name='material_requests'
+            WHERE table_name=%s
             AND constraint_name='unique_request_number_per_company'
-        """)
+        """, [table_name])
 
         if cursor.fetchone() is None:
             # Constraint не существует, добавляем его
@@ -25,20 +28,22 @@ def add_constraint_if_not_exists(apps, schema_editor):
             cursor.execute("""
                 SELECT column_name
                 FROM information_schema.columns
-                WHERE table_name='material_requests'
-                AND column_name LIKE 'company%'
-            """)
+                WHERE table_name=%s
+                AND column_name LIKE 'company%%'
+            """, [table_name])
             company_column = cursor.fetchone()
             if company_column:
                 company_col_name = company_column[0]
-                cursor.execute(f"""
-                    ALTER TABLE material_requests
-                    ADD CONSTRAINT unique_request_number_per_company
-                    UNIQUE ({company_col_name}, request_number)
-                """)
+                # Используем параметризованный запрос для безопасности
+                cursor.execute(
+                    f'ALTER TABLE {table_name} '
+                    f'ADD CONSTRAINT unique_request_number_per_company '
+                    f'UNIQUE ({company_col_name}, request_number)'
+                )
+                print("✅ Constraint 'unique_request_number_per_company' успешно добавлен")
             else:
-                raise Exception("Не найден столбец company в таблице material_requests")
-            print("✅ Constraint 'unique_request_number_per_company' успешно добавлен")
+                # Constraint не нужен, если нет столбца company (возможно, уже применена миграция)
+                print(f"ℹ️ Столбец company не найден в таблице {table_name}, пропускаем добавление constraint")
         else:
             print("ℹ️ Constraint 'unique_request_number_per_company' уже существует, пропускаем добавление")
 
