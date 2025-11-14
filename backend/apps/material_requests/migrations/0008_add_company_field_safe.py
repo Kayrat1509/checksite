@@ -39,7 +39,7 @@ def populate_company_from_project(apps, schema_editor):
         cursor.execute("""
             UPDATE material_requests mr
             SET company_id = p.company_id
-            FROM projects p
+            FROM projects_project p
             WHERE mr.project_id = p.id
             AND mr.company_id IS NULL
         """)
