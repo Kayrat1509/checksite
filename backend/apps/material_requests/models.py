@@ -183,10 +183,10 @@ class MaterialRequest(models.Model):
         verbose_name = 'Заявка на материалы'
         verbose_name_plural = 'Заявки на материалы'
         ordering = ['-created_at']
-        # Уникальность номера заявки в рамках компании
+        # Уникальность номера заявки в рамках компании (через проект)
         constraints = [
             models.UniqueConstraint(
-                fields=['company', 'request_number'],
+                fields=['project__company', 'request_number'],
                 name='unique_request_number_per_company'
             )
         ]
@@ -195,22 +195,14 @@ class MaterialRequest(models.Model):
             models.Index(fields=['status']),
             models.Index(fields=['author']),
             models.Index(fields=['project']),
-            models.Index(fields=['company']),
             models.Index(fields=['current_approval_role']),
             models.Index(fields=['is_deleted']),
 
-            # Составные индексы для частых запросов (оптимизация производительности)
-            # Фильтрация по компании + статусу + soft delete (основной фильтр в ViewSet)
-            models.Index(fields=['company', 'status', 'is_deleted'], name='idx_company_status_deleted'),
-
-            # Фильтрация по компании + роли согласующего (для вкладки "На согласовании")
-            models.Index(fields=['company', 'current_approval_role'], name='idx_company_approval_role'),
-
-            # Фильтрация по проекту + статусу (для отчетов по проекту)
-            models.Index(fields=['project', 'status'], name='idx_project_status'),
-
-            # Фильтрация по автору + дате создания (для вкладки "Мои заявки")
-            models.Index(fields=['author', '-created_at'], name='idx_author_created'),
+            # Составные индексы созданы вручную через SQL с CONCURRENTLY (см. DEPLOY_PRODUCTION.md)
+            # idx_company_status_deleted: project_id, status, is_deleted
+            # idx_company_approval_step: project_id, current_step_id
+            # idx_project_status: project_id, status
+            # idx_author_created: author_id, created_at DESC
         ]
 
     def __str__(self):
