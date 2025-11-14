@@ -98,7 +98,9 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
         ).prefetch_related(
             Prefetch('items', queryset=MaterialRequestItem.objects.order_by('position_number')),
             Prefetch('approval_steps', queryset=ApprovalStep.objects.order_by('created_at')),
-            Prefetch('history', queryset=MaterialRequestHistory.objects.order_by('-created_at'))
+            # Ограничиваем историю последними 50 записями для оптимизации производительности
+            # Полную историю можно получить через отдельный endpoint если понадобится
+            Prefetch('history', queryset=MaterialRequestHistory.objects.order_by('-created_at')[:50])
         )
 
         # Фильтрация по вкладкам (tab parameter)
@@ -538,35 +540,48 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
         Endpoint: GET /api/material-requests/statistics/
 
         Возвращает количество заявок по каждому статусу с учетом прав доступа.
+        Использует кэширование на 60 секунд для оптимизации производительности.
         """
+        from django.core.cache import cache
+
         user = request.user
         company = user.company
 
-        # Базовая фильтрация по компании
-        base_queryset = MaterialRequest.objects.filter(company=company, is_deleted=False)
+        # Создаем уникальный ключ кэша для каждого пользователя
+        cache_key = f'material_request_stats_{company.id}_{user.id}'
 
-        # Применяем ту же логику фильтрации, что и в get_queryset
-        management_roles = [
-            'SUPERADMIN', 'DIRECTOR', 'CHIEF_ENGINEER',
-            'PROJECT_MANAGER', 'CHIEF_POWER_ENGINEER'
-        ]
+        # Пытаемся получить статистику из кэша
+        stats = cache.get(cache_key)
 
-        # Если пользователь НЕ руководитель и НЕ снабженец,
-        # показываем только заявки по закрепленным проектам или созданные самим пользователем
-        if user.role not in management_roles and user.role != 'SUPPLY_MANAGER':
-            user_projects = user.projects.all() | user.managed_projects.all()
-            base_queryset = base_queryset.filter(Q(author=user) | Q(project__in=user_projects))
+        if stats is None:
+            # Базовая фильтрация по компании
+            base_queryset = MaterialRequest.objects.filter(company=company, is_deleted=False)
 
-        # Статистика по вкладкам
-        stats = {
-            'all': base_queryset.count(),
-            'draft': base_queryset.filter(status=MaterialRequest.STATUS_DRAFT).count(),
-            'in_approval': base_queryset.filter(status=MaterialRequest.STATUS_IN_APPROVAL).count(),
-            'approved': base_queryset.filter(status=MaterialRequest.STATUS_APPROVED).count(),
-            'in_payment': base_queryset.filter(status=MaterialRequest.STATUS_IN_PAYMENT).count(),
-            'in_delivery': base_queryset.filter(status=MaterialRequest.STATUS_IN_DELIVERY).count(),
-            'completed': base_queryset.filter(status=MaterialRequest.STATUS_COMPLETED).count(),
-            'my': MaterialRequest.objects.filter(author=user, company=company, is_deleted=False).count(),
-        }
+            # Применяем ту же логику фильтрации, что и в get_queryset
+            management_roles = [
+                'SUPERADMIN', 'DIRECTOR', 'CHIEF_ENGINEER',
+                'PROJECT_MANAGER', 'CHIEF_POWER_ENGINEER'
+            ]
+
+            # Если пользователь НЕ руководитель и НЕ снабженец,
+            # показываем только заявки по закрепленным проектам или созданные самим пользователем
+            if user.role not in management_roles and user.role != 'SUPPLY_MANAGER':
+                user_projects = user.projects.all() | user.managed_projects.all()
+                base_queryset = base_queryset.filter(Q(author=user) | Q(project__in=user_projects))
+
+            # Статистика по вкладкам
+            stats = {
+                'all': base_queryset.count(),
+                'draft': base_queryset.filter(status=MaterialRequest.STATUS_DRAFT).count(),
+                'in_approval': base_queryset.filter(status=MaterialRequest.STATUS_IN_APPROVAL).count(),
+                'approved': base_queryset.filter(status=MaterialRequest.STATUS_APPROVED).count(),
+                'in_payment': base_queryset.filter(status=MaterialRequest.STATUS_IN_PAYMENT).count(),
+                'in_delivery': base_queryset.filter(status=MaterialRequest.STATUS_IN_DELIVERY).count(),
+                'completed': base_queryset.filter(status=MaterialRequest.STATUS_COMPLETED).count(),
+                'my': MaterialRequest.objects.filter(author=user, company=company, is_deleted=False).count(),
+            }
+
+            # Кэшируем результат на 60 секунд
+            cache.set(cache_key, stats, timeout=60)
 
         return Response(stats)

@@ -12,6 +12,7 @@
 from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+from django.core.cache import cache
 from apps.users.models import User, Company
 from apps.projects.models import Project
 
@@ -198,6 +199,7 @@ class MaterialRequest(models.Model):
             )
         ]
         indexes = [
+            # Одиночные индексы
             models.Index(fields=['request_number']),
             models.Index(fields=['status']),
             models.Index(fields=['author']),
@@ -205,6 +207,19 @@ class MaterialRequest(models.Model):
             models.Index(fields=['company']),
             models.Index(fields=['current_approval_role']),
             models.Index(fields=['is_deleted']),
+
+            # Составные индексы для частых запросов (оптимизация производительности)
+            # Фильтрация по компании + статусу + soft delete (основной фильтр в ViewSet)
+            models.Index(fields=['company', 'status', 'is_deleted'], name='idx_company_status_deleted'),
+
+            # Фильтрация по компании + роли согласующего (для вкладки "На согласовании")
+            models.Index(fields=['company', 'current_approval_role'], name='idx_company_approval_role'),
+
+            # Фильтрация по проекту + статусу (для отчетов по проекту)
+            models.Index(fields=['project', 'status'], name='idx_project_status'),
+
+            # Фильтрация по автору + дате создания (для вкладки "Мои заявки")
+            models.Index(fields=['author', '-created_at'], name='idx_author_created'),
         ]
 
     def __str__(self):
@@ -212,8 +227,12 @@ class MaterialRequest(models.Model):
 
     def save(self, *args, **kwargs):
         """Переопределяем save для автогенерации номера заявки."""
+        from django.db import transaction
+
         if not self.request_number:
-            self.request_number = self.generate_request_number()
+            # Генерируем номер внутри транзакции с блокировкой для предотвращения race condition
+            with transaction.atomic():
+                self.request_number = self.generate_request_number()
         super().save(*args, **kwargs)
 
     def generate_request_number(self):
@@ -222,6 +241,8 @@ class MaterialRequest(models.Model):
 
         Номер продолжается (не сбрасывается) и уникален в рамках компании.
         Пример: 12112025-1, 12112025-2, 13112025-3 (номер 3 продолжается на следующий день)
+
+        ВАЖНО: Метод должен вызываться внутри transaction.atomic() для предотвращения race condition.
         """
         from django.db.models import Max
         import re
@@ -229,10 +250,11 @@ class MaterialRequest(models.Model):
         # Текущая дата в формате ДДММГГГГ
         today = timezone.now().strftime('%d%m%Y')
 
-        # Находим последний номер заявки в компании (не только за сегодня!)
+        # Используем select_for_update для блокировки строк при чтении
+        # Это предотвращает одновременное создание заявок с одинаковыми номерами
         last_request = MaterialRequest.objects.filter(
             company=self.company
-        ).aggregate(Max('request_number'))
+        ).select_for_update().aggregate(Max('request_number'))
 
         last_number = last_request['request_number__max']
 
@@ -249,24 +271,32 @@ class MaterialRequest(models.Model):
         return f'{today}-{next_number}'
 
     def submit_for_approval(self):
-        """Отправляет заявку на согласование."""
+        """
+        Отправляет заявку на согласование.
+
+        Все операции выполняются атомарно для предотвращения несогласованного состояния.
+        """
+        from django.db import transaction
+
         if self.status != self.STATUS_DRAFT:
             raise ValidationError('Только черновики можно отправить на согласование')
 
         # Определяем первую роль в цепочке согласования на основе роли автора
         first_role = self.get_first_approval_role()
 
-        self.status = self.STATUS_IN_APPROVAL
-        self.current_approval_role = first_role
-        self.submitted_at = timezone.now()
-        self.save()
+        # Атомарная транзакция для обновления статуса и создания шага согласования
+        with transaction.atomic():
+            self.status = self.STATUS_IN_APPROVAL
+            self.current_approval_role = first_role
+            self.submitted_at = timezone.now()
+            self.save()
 
-        # Создаем первый шаг согласования
-        ApprovalStep.objects.create(
-            material_request=self,
-            role=first_role,
-            status=ApprovalStep.STATUS_PENDING
-        )
+            # Создаем первый шаг согласования
+            ApprovalStep.objects.create(
+                material_request=self,
+                role=first_role,
+                status=ApprovalStep.STATUS_PENDING
+            )
 
     def get_first_approval_role(self):
         """
@@ -291,46 +321,73 @@ class MaterialRequest(models.Model):
         Args:
             user: Пользователь, который согласует
             role: Роль пользователя
+
+        Все операции выполняются атомарно для предотвращения несогласованного состояния.
         """
+        from django.db import transaction
+
         if self.status != self.STATUS_IN_APPROVAL:
             raise ValidationError('Заявка не находится на согласовании')
 
         if self.current_approval_role != role:
             raise ValidationError(f'Сейчас заявка должна согласовываться ролью {self.current_approval_role}')
 
-        # Отмечаем текущий шаг как согласованный
-        current_step = ApprovalStep.objects.filter(
-            material_request=self,
-            role=role,
-            status=ApprovalStep.STATUS_PENDING
-        ).first()
-
-        if current_step:
-            current_step.status = ApprovalStep.STATUS_APPROVED
-            current_step.approved_by = user
-            current_step.approved_at = timezone.now()
-            current_step.save()
-
-        # Определяем следующую роль в цепочке
-        next_role = self.get_next_approval_role(role)
-
-        if next_role:
-            # Есть следующий этап
-            self.current_approval_role = next_role
-            self.save()
-
-            # Создаем следующий шаг согласования
-            ApprovalStep.objects.create(
+        # Все операции выполняются атомарно
+        with transaction.atomic():
+            # Отмечаем текущий шаг как согласованный
+            current_step = ApprovalStep.objects.filter(
                 material_request=self,
-                role=next_role,
+                role=role,
                 status=ApprovalStep.STATUS_PENDING
+            ).first()
+
+            if current_step:
+                current_step.status = ApprovalStep.STATUS_APPROVED
+                current_step.approved_by = user
+                current_step.approved_at = timezone.now()
+                current_step.save()
+
+            # Определяем следующую роль в цепочке
+            next_role = self.get_next_approval_role(role)
+
+            if next_role:
+                # Есть следующий этап
+                self.current_approval_role = next_role
+                self.save()
+
+                # Создаем следующий шаг согласования
+                ApprovalStep.objects.create(
+                    material_request=self,
+                    role=next_role,
+                    status=ApprovalStep.STATUS_PENDING
+                )
+            else:
+                # Это был последний этап (Директор согласовал)
+                self.status = self.STATUS_APPROVED
+                self.current_approval_role = None
+                self.approved_at = timezone.now()
+                self.save()
+
+    def get_company_available_roles(self):
+        """
+        Получает список доступных ролей в компании (с кэшированием).
+
+        Кэширование на 5 минут для предотвращения N+1 проблемы при массовом согласовании.
+        """
+        cache_key = f'company_available_roles_{self.company_id}'
+        available_roles = cache.get(cache_key)
+
+        if available_roles is None:
+            # Получаем все активные роли пользователей в компании
+            available_roles = set(
+                User.objects.filter(company=self.company, is_active=True)
+                .values_list('role', flat=True)
+                .distinct()
             )
-        else:
-            # Это был последний этап (Директор согласовал)
-            self.status = self.STATUS_APPROVED
-            self.current_approval_role = None
-            self.approved_at = timezone.now()
-            self.save()
+            # Кэшируем на 5 минут
+            cache.set(cache_key, available_roles, timeout=300)
+
+        return available_roles
 
     def get_next_approval_role(self, current_role):
         """
@@ -340,6 +397,7 @@ class MaterialRequest(models.Model):
                  Руководитель проекта → Главный инженер → Директор → (конец)
 
         Пропускаем роль, если нет пользователя с такой ролью в компании.
+        Использует кэширование для предотвращения N+1 проблемы.
         """
         approval_chain = [
             'MASTER',
@@ -356,11 +414,14 @@ class MaterialRequest(models.Model):
         except ValueError:
             return None
 
+        # Получаем доступные роли в компании (с кэшированием)
+        available_roles = self.get_company_available_roles()
+
         # Ищем следующую роль, для которой есть пользователи в компании
         for i in range(current_index + 1, len(approval_chain)):
             next_role = approval_chain[i]
-            # Проверяем, есть ли пользователи с этой ролью в компании
-            if User.objects.filter(company=self.company, role=next_role, is_active=True).exists():
+            # Проверяем через кэшированный set (O(1) вместо запроса к БД)
+            if next_role in available_roles:
                 return next_role
 
         # Если дошли до конца цепочки
@@ -373,25 +434,31 @@ class MaterialRequest(models.Model):
         Args:
             user: Пользователь, который возвращает
             reason: Причина возврата
+
+        Все операции выполняются атомарно для предотвращения несогласованного состояния.
         """
+        from django.db import transaction
+
         if not reason:
             raise ValidationError('Необходимо указать причину возврата')
 
-        self.status = self.STATUS_REJECTED
-        self.rejection_reason = reason
-        self.rejected_by = user
-        self.rejected_at = timezone.now()
-        self.current_approval_role = None
-        self.save()
+        # Атомарная транзакция для обновления заявки и шагов согласования
+        with transaction.atomic():
+            self.status = self.STATUS_REJECTED
+            self.rejection_reason = reason
+            self.rejected_by = user
+            self.rejected_at = timezone.now()
+            self.current_approval_role = None
+            self.save()
 
-        # Отмечаем все активные шаги согласования как отклоненные
-        ApprovalStep.objects.filter(
-            material_request=self,
-            status=ApprovalStep.STATUS_PENDING
-        ).update(
-            status=ApprovalStep.STATUS_REJECTED,
-            approved_at=timezone.now()
-        )
+            # Отмечаем все активные шаги согласования как отклоненные
+            ApprovalStep.objects.filter(
+                material_request=self,
+                status=ApprovalStep.STATUS_PENDING
+            ).update(
+                status=ApprovalStep.STATUS_REJECTED,
+                approved_at=timezone.now()
+            )
 
     def mark_as_payment(self, user):
         """
@@ -431,6 +498,9 @@ class MaterialRequest(models.Model):
 
         Args:
             user: Пользователь, который принимает материалы
+
+        Примечание: Для простых операций обновления одного поля транзакция не обязательна,
+        но рекомендуется для единообразия и безопасности.
         """
         if self.status != self.STATUS_IN_DELIVERY:
             raise ValidationError('Только заявки на доставке можно отметить как принятые')
