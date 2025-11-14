@@ -47,6 +47,77 @@ def populate_company_from_project(apps, schema_editor):
         print(f"✅ Обновлено записей: {updated_rows}")
 
 
+def add_company_field_if_not_exists(apps, schema_editor):
+    """
+    Добавляет поле company только если его нет.
+    Это обеспечивает идемпотентность миграции.
+    """
+    from django.db import connection
+
+    with connection.cursor() as cursor:
+        # Проверяем, существует ли столбец company_id
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='material_requests'
+            AND column_name='company_id'
+        """)
+
+        if cursor.fetchone() is not None:
+            print("ℹ️  Столбец 'company_id' уже существует, пропускаем добавление")
+            return
+
+        # Столбец не существует, добавляем его
+        print("📝 Добавление столбца company_id...")
+        cursor.execute("""
+            ALTER TABLE material_requests
+            ADD COLUMN company_id INTEGER NULL
+            REFERENCES users_company(id)
+            ON DELETE CASCADE
+        """)
+
+        # Создаем индекс
+        cursor.execute("""
+            CREATE INDEX material_requests_company_id_idx
+            ON material_requests (company_id)
+        """)
+        print("✅ Столбец company_id добавлен")
+
+
+def make_company_not_null(apps, schema_editor):
+    """
+    Делает поле company NOT NULL только если оно nullable.
+    """
+    from django.db import connection
+
+    with connection.cursor() as cursor:
+        # Проверяем, является ли столбец nullable
+        cursor.execute("""
+            SELECT is_nullable
+            FROM information_schema.columns
+            WHERE table_name='material_requests'
+            AND column_name='company_id'
+        """)
+
+        result = cursor.fetchone()
+        if result is None:
+            print("⚠️  Столбец company_id не существует")
+            return
+
+        is_nullable = result[0]
+        if is_nullable == 'NO':
+            print("ℹ️  Столбец company_id уже NOT NULL, пропускаем")
+            return
+
+        # Делаем NOT NULL
+        print("📝 Установка NOT NULL для company_id...")
+        cursor.execute("""
+            ALTER TABLE material_requests
+            ALTER COLUMN company_id SET NOT NULL
+        """)
+        print("✅ Столбец company_id теперь NOT NULL")
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -55,20 +126,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # ШАГ 1: Добавляем nullable поле company
-        migrations.AddField(
-            model_name='materialrequest',
-            name='company',
-            field=models.ForeignKey(
-                blank=True,
-                null=True,
-                on_delete=django.db.models.deletion.CASCADE,
-                related_name='material_requests',
-                to='users.company',
-                verbose_name='Компания',
-                help_text='Компания, создавшая заявку',
-                db_index=True,
-            ),
+        # ШАГ 1: Добавляем nullable поле company (если его нет)
+        migrations.RunPython(
+            add_company_field_if_not_exists,
+            migrations.RunPython.noop
         ),
 
         # ШАГ 2: Заполняем данные из project.company
@@ -77,17 +138,9 @@ class Migration(migrations.Migration):
             migrations.RunPython.noop
         ),
 
-        # ШАГ 3: Делаем поле NOT NULL
-        migrations.AlterField(
-            model_name='materialrequest',
-            name='company',
-            field=models.ForeignKey(
-                on_delete=django.db.models.deletion.CASCADE,
-                related_name='material_requests',
-                to='users.company',
-                verbose_name='Компания',
-                help_text='Компания, создавшая заявку',
-                db_index=True,
-            ),
+        # ШАГ 3: Делаем поле NOT NULL (если оно еще nullable)
+        migrations.RunPython(
+            make_company_not_null,
+            migrations.RunPython.noop
         ),
     ]

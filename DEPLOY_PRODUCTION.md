@@ -62,6 +62,8 @@ material_requests
  [X] 0005_alter_materialrequest_request_number_and_more
  [ ] 0006_safe_add_status_field
  [ ] 0007_add_composite_indexes_concurrently
+ [ ] 0008_add_company_field_safe
+ [ ] 0009_materialrequestitem_received_at_and_more
 ```
 
 #### Шаг 2.2: Применить миграцию 0006 (безопасное добавление status)
@@ -89,7 +91,22 @@ docker compose exec backend python manage.py migrate material_requests 0007
 **Время выполнения:** 1-5 минут в зависимости от размера таблицы
 **Блокировка:** НЕТ (сайт работает во время создания индексов)
 
-#### Шаг 2.4: Раскомментировать индексы в models.py
+#### Шаг 2.4: Применить миграцию 0008 (добавление поля company)
+```bash
+# Эта миграция добавляет поле company_id и заполняет его из project.company
+docker compose exec backend python manage.py migrate material_requests 0008
+```
+
+**Примечание:** Миграция идемпотентна - если поле уже существует, оно не будет создано повторно.
+
+#### Шаг 2.5: Применить миграцию 0009 (синхронизация состояния)
+```bash
+# Эта миграция синхронизирует состояние Django с фактической структурой БД
+# Поскольку поля уже существуют, используем --fake
+docker compose exec backend python manage.py migrate material_requests 0009 --fake
+```
+
+#### Шаг 2.6: Раскомментировать индексы в models.py
 
 **⚠️ ВАЖНО:** Не используйте `nano` на production сервере для редактирования файлов в Git репозитории!
 
@@ -235,7 +252,9 @@ docker compose restart backend
 - [ ] ФАЗА 1: Код задеплоен, сайт работает (502 исправлен)
 - [ ] ФАЗА 2.2: Миграция 0006 применена
 - [ ] ФАЗА 2.3: Миграция 0007 применена
-- [ ] ФАЗА 2.4: Индексы раскомментированы в models.py
+- [ ] ФАЗА 2.4: Миграция 0008 применена
+- [ ] ФАЗА 2.5: Миграция 0009 применена (fake)
+- [ ] ФАЗА 2.6: Индексы раскомментированы в models.py
 - [ ] ФАЗА 3: Проверки пройдены
 - [ ] Мониторинг настроен
 

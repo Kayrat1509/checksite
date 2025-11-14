@@ -12,6 +12,8 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
+    # ВАЖНО: atomic=False требуется для CONCURRENTLY операций
+    atomic = False
 
     dependencies = [
         ("material_requests", "0006_safe_add_status_field"),
