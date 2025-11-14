@@ -81,21 +81,13 @@ class MaterialRequest(models.Model):
         help_text='Сотрудник, создавший заявку (Мастер, Прораб или Начальник участка)'
     )
 
-    # Привязка к проекту и компании
+    # Привязка к проекту (компания доступна через project.company)
     project = models.ForeignKey(
         Project,
         on_delete=models.CASCADE,
         related_name='material_requests',
         verbose_name='Проект',
         help_text='Проект, для которого создается заявка'
-    )
-
-    company = models.ForeignKey(
-        Company,
-        on_delete=models.CASCADE,
-        related_name='material_requests',
-        verbose_name='Компания',
-        help_text='Компания, создавшая заявку'
     )
 
     # Статус заявки
@@ -252,7 +244,7 @@ class MaterialRequest(models.Model):
         # Используем select_for_update для блокировки строк при чтении
         # Это предотвращает одновременное создание заявок с одинаковыми номерами
         last_request = MaterialRequest.objects.filter(
-            company=self.company
+            project__company=self.project.company
         ).select_for_update().aggregate(Max('request_number'))
 
         last_number = last_request['request_number__max']
@@ -373,13 +365,14 @@ class MaterialRequest(models.Model):
 
         Кэширование на 5 минут для предотвращения N+1 проблемы при массовом согласовании.
         """
-        cache_key = f'company_available_roles_{self.company_id}'
+        company_id = self.project.company_id
+        cache_key = f'company_available_roles_{company_id}'
         available_roles = cache.get(cache_key)
 
         if available_roles is None:
             # Получаем все активные роли пользователей в компании
             available_roles = set(
-                User.objects.filter(company=self.company, is_active=True)
+                User.objects.filter(company_id=company_id, is_active=True)
                 .values_list('role', flat=True)
                 .distinct()
             )

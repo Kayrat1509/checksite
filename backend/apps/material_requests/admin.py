@@ -224,7 +224,6 @@ class MaterialRequestAdmin(admin.ModelAdmin):
                 'description',
                 'author',
                 'project',
-                'company',
             )
         }),
         ('Статус и согласование', {
@@ -267,7 +266,7 @@ class MaterialRequestAdmin(admin.ModelAdmin):
         queryset = super().get_queryset(request).select_related(
             'author',
             'project',
-            'company',
+            'project__company',
             'rejected_by'
         ).prefetch_related('items', 'approval_steps', 'history')
 
@@ -282,13 +281,13 @@ class MaterialRequestAdmin(admin.ModelAdmin):
 
         if user.role in management_roles:
             # Видят все заявки своей компании
-            return queryset.filter(company=user.company)
+            return queryset.filter(project__company=user.company)
         else:
             # Остальные видят только заявки по закрепленным проектам
             # Получаем проекты, где пользователь в team_members или является project_manager
             from django.db.models import Q
             user_projects = user.projects.all() | user.managed_projects.all()
-            return queryset.filter(project__in=user_projects, company=user.company)
+            return queryset.filter(project__in=user_projects, project__company=user.company)
 
     def created_at_short(self, obj):
         """Краткая дата создания."""
@@ -315,6 +314,12 @@ class MaterialRequestAdmin(admin.ModelAdmin):
         )
     status_colored.short_description = 'Статус'
     status_colored.admin_order_field = 'status'
+
+    def company(self, obj):
+        """Компания (через проект)."""
+        return obj.project.company.name
+    company.short_description = 'Компания'
+    company.admin_order_field = 'project__company__name'
 
     def view_on_site_link(self, obj):
         """Ссылка на страницу заявки во frontend."""
@@ -347,12 +352,6 @@ class MaterialRequestAdmin(admin.ModelAdmin):
                     # Видят только закрепленные проекты
                     user_projects = user.projects.all() | user.managed_projects.all()
                     kwargs['queryset'] = user_projects.filter(company=user.company)
-
-        if db_field.name == 'company':
-            user = request.user
-            # Ограничиваем выбор компании только своей компанией
-            if not (user.is_superuser or user.role == 'SUPERADMIN'):
-                kwargs['queryset'] = db_field.related_model.objects.filter(id=user.company.id)
 
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
@@ -419,14 +418,14 @@ class MaterialRequestItemAdmin(admin.ModelAdmin):
 
         if user.role in management_roles:
             # Видят все позиции заявок своей компании
-            return queryset.filter(material_request__company=user.company)
+            return queryset.filter(material_request__project__company=user.company)
         else:
             # Остальные видят только позиции заявок по закрепленным проектам
             from django.db.models import Q
             user_projects = user.projects.all() | user.managed_projects.all()
             return queryset.filter(
                 material_request__project__in=user_projects,
-                material_request__company=user.company
+                material_request__project__company=user.company
             )
 
     def request_number(self, obj):
@@ -443,9 +442,9 @@ class MaterialRequestItemAdmin(admin.ModelAdmin):
 
     def company(self, obj):
         """Компания."""
-        return obj.material_request.company.name
+        return obj.material_request.project.company.name
     company.short_description = 'Компания'
-    company.admin_order_field = 'material_request__company__name'
+    company.admin_order_field = 'material_request__project__company__name'
 
     def project(self, obj):
         """Объект (проект)."""
