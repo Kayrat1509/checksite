@@ -17,9 +17,14 @@
 
 #### Шаг 1.1: На сервере production
 ```bash
-cd /path/to/checksite
+cd ~/checksite
 git pull origin main  # Получить исправленный код БЕЗ составных индексов
-systemctl restart checksite-backend  # или docker-compose restart backend
+
+# Рестарт через Docker Compose
+docker compose restart backend
+
+# Или если используете docker-compose v1:
+# docker-compose restart backend
 ```
 
 **Проверка:**
@@ -38,8 +43,13 @@ curl -I https://admin.stroyka.asia/api/auth/users/me/
 
 #### Шаг 2.1: Проверить текущее состояние миграций
 ```bash
-cd /path/to/checksite/backend
-python manage.py showmigrations material_requests
+cd ~/checksite
+
+# Выполнить команду внутри Docker контейнера
+docker compose exec backend python manage.py showmigrations material_requests
+
+# Или если используете docker-compose v1:
+# docker-compose exec backend python manage.py showmigrations material_requests
 ```
 
 Ожидаемый вывод:
@@ -57,7 +67,7 @@ material_requests
 #### Шаг 2.2: Применить миграцию 0006 (безопасное добавление status)
 ```bash
 # Эта миграция добавляет столбец status батчами (без долгой блокировки)
-python manage.py migrate material_requests 0006
+docker compose exec backend python manage.py migrate material_requests 0006
 
 # Миграция выведет прогресс:
 # 📝 Шаг 1/3: Добавление nullable столбца 'status'...
@@ -73,7 +83,7 @@ python manage.py migrate material_requests 0006
 #### Шаг 2.3: Применить миграцию 0007 (составные индексы CONCURRENTLY)
 ```bash
 # ВАЖНО: Индексы создаются с CONCURRENTLY - БЕЗ блокировки таблицы!
-python manage.py migrate material_requests 0007
+docker compose exec backend python manage.py migrate material_requests 0007
 ```
 
 **Время выполнения:** 1-5 минут в зависимости от размера таблицы
@@ -81,41 +91,39 @@ python manage.py migrate material_requests 0007
 
 #### Шаг 2.4: Раскомментировать индексы в models.py
 
-**На сервере production отредактируйте файл:**
+**⚠️ ВАЖНО:** Не используйте `nano` на production сервере для редактирования файлов в Git репозитории!
+
+**Правильный способ (через Git):**
+
 ```bash
-nano backend/apps/material_requests/models.py
+# 1. На ЛОКАЛЬНОЙ машине раскомментируйте индексы
+# Отредактируйте файл: backend/apps/material_requests/models.py
+# Найдите строки ~210 и раскомментируйте 4 индекса
+
+# 2. Закоммитьте изменения локально
+git add backend/apps/material_requests/models.py
+git commit -m "chore: раскомментировать составные индексы после миграции 0007"
+git push origin main
+
+# 3. На PRODUCTION сервере
+cd ~/checksite
+git pull origin main
+docker compose restart backend
 ```
 
-Найдите блок (строка ~210):
+**Что нужно раскомментировать (строки ~210-214):**
 ```python
-# СОСТАВНЫЕ ИНДЕКСЫ БУДУТ ДОБАВЛЕНЫ ПОСЛЕ ПРИМЕНЕНИЯ МИГРАЦИИ 0007
-# Временно закомментированы для совместимости с production
-# TODO: Раскомментировать после: python manage.py migrate material_requests 0007
+# Было (закомментировано):
 # models.Index(fields=['company', 'status', 'is_deleted'], name='idx_company_status_deleted'),
 # models.Index(fields=['company', 'current_approval_role'], name='idx_company_approval_role'),
 # models.Index(fields=['project', 'status'], name='idx_project_status'),
 # models.Index(fields=['author', '-created_at'], name='idx_author_created'),
-```
 
-**Раскомментируйте:**
-```python
-# Составные индексы для частых запросов (оптимизация производительности)
-# Фильтрация по компании + статусу + soft delete (основной фильтр в ViewSet)
+# Стало (раскомментировано):
 models.Index(fields=['company', 'status', 'is_deleted'], name='idx_company_status_deleted'),
-
-# Фильтрация по компании + роли согласующего (для вкладки "На согласовании")
 models.Index(fields=['company', 'current_approval_role'], name='idx_company_approval_role'),
-
-# Фильтрация по проекту + статусу (для отчетов по проекту)
 models.Index(fields=['project', 'status'], name='idx_project_status'),
-
-# Фильтрация по автору + дате создания (для вкладки "Мои заявки")
 models.Index(fields=['author', '-created_at'], name='idx_author_created'),
-```
-
-Сохраните и перезапустите:
-```bash
-systemctl restart checksite-backend
 ```
 
 ---
@@ -170,21 +178,21 @@ ORDER BY idx_scan DESC;
 
 ### Откат миграции 0007 (индексы)
 ```bash
-python manage.py migrate material_requests 0006
-# Вернуть комментарии в models.py
-systemctl restart checksite-backend
+docker compose exec backend python manage.py migrate material_requests 0006
+# Вернуть комментарии в models.py через git revert
+docker compose restart backend
 ```
 
 ### Откат миграции 0006 (столбец status)
 ```bash
-python manage.py migrate material_requests 0005
-systemctl restart checksite-backend
+docker compose exec backend python manage.py migrate material_requests 0005
+docker compose restart backend
 ```
 
 ### Полный откат всех изменений
 ```bash
 git revert HEAD~3..HEAD  # Откатить последние 3 коммита
-systemctl restart checksite-backend
+docker compose restart backend
 ```
 
 ---
