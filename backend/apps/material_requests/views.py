@@ -211,7 +211,24 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        user_role = request.user.role
+        user = request.user
+        user_role = user.role
+
+        # БЕЗОПАСНОСТЬ: Проверка доступа к проекту заявки
+        # Руководящие роли имеют доступ ко всем проектам компании
+        management_roles = [
+            'SUPERADMIN', 'DIRECTOR', 'CHIEF_ENGINEER',
+            'PROJECT_MANAGER', 'CHIEF_POWER_ENGINEER'
+        ]
+
+        if user_role not in management_roles:
+            # Проверяем, что пользователь закреплен за проектом заявки
+            user_projects = user.projects.all() | user.managed_projects.all()
+            if material_request.project not in user_projects:
+                return Response(
+                    {'error': 'У вас нет доступа к этому проекту'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
         # Проверка, что сейчас очередь этой роли
         if material_request.current_approval_role != user_role:
@@ -266,10 +283,29 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        user = request.user
+        user_role = user.role
+
+        # БЕЗОПАСНОСТЬ: Проверка доступа к проекту заявки
+        # Руководящие роли имеют доступ ко всем проектам компании
+        management_roles = [
+            'SUPERADMIN', 'DIRECTOR', 'CHIEF_ENGINEER',
+            'PROJECT_MANAGER', 'CHIEF_POWER_ENGINEER'
+        ]
+
+        if user_role not in management_roles:
+            # Проверяем, что пользователь закреплен за проектом заявки
+            user_projects = user.projects.all() | user.managed_projects.all()
+            if material_request.project not in user_projects:
+                return Response(
+                    {'error': 'У вас нет доступа к этому проекту'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
         reason = serializer.validated_data['reason']
 
         try:
-            material_request.reject_to_author(request.user, reason)
+            material_request.reject_to_author(user, reason)
 
             # Записываем в историю
             MaterialRequestHistory.objects.create(

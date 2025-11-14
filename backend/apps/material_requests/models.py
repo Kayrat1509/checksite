@@ -81,7 +81,16 @@ class MaterialRequest(models.Model):
         help_text='Сотрудник, создавший заявку (Мастер, Прораб или Начальник участка)'
     )
 
-    # Привязка к проекту (компания доступна через project.company)
+    # Компания (для быстрого доступа и индексации)
+    company = models.ForeignKey(
+        Company,
+        on_delete=models.CASCADE,
+        related_name='material_requests',
+        verbose_name='Компания',
+        help_text='Компания, создавшая заявку'
+    )
+
+    # Привязка к проекту (всегда в рамках компании)
     project = models.ForeignKey(
         Project,
         on_delete=models.CASCADE,
@@ -190,6 +199,7 @@ class MaterialRequest(models.Model):
             models.Index(fields=['request_number']),
             models.Index(fields=['status']),
             models.Index(fields=['author']),
+            models.Index(fields=['company']),
             models.Index(fields=['project']),
             models.Index(fields=['current_approval_role']),
             models.Index(fields=['is_deleted']),
@@ -223,23 +233,21 @@ class MaterialRequest(models.Model):
 
         ВАЖНО: Метод должен вызываться внутри transaction.atomic() для предотвращения race condition.
         """
-        from django.db.models import Max
         import re
 
         # Текущая дата в формате ДДММГГГГ
         today = timezone.now().strftime('%d%m%Y')
 
         # Используем select_for_update для блокировки строк при чтении
-        # Это предотвращает одновременное создание заявок с одинаковыми номерами
-        last_request = MaterialRequest.objects.filter(
-            project__company=self.project.company
-        ).select_for_update().aggregate(Max('request_number'))
+        # ВАЖНО: aggregate() не работает с select_for_update(), используем order_by().first()
+        # Блокируем последнюю заявку компании для предотвращения race condition
+        last_request_obj = MaterialRequest.objects.filter(
+            company=self.company
+        ).select_for_update().order_by('-id').first()
 
-        last_number = last_request['request_number__max']
-
-        if last_number:
+        if last_request_obj and last_request_obj.request_number:
             # Извлекаем последний порядковый номер (после дефиса)
-            match = re.search(r'-(\d+)$', last_number)
+            match = re.search(r'-(\d+)$', last_request_obj.request_number)
             if match:
                 next_number = int(match.group(1)) + 1
             else:
@@ -263,6 +271,13 @@ class MaterialRequest(models.Model):
         # Определяем первую роль в цепочке согласования на основе роли автора
         first_role = self.get_first_approval_role()
 
+        # Проверка на fallback: если нет доступных ролей для согласования
+        if not first_role:
+            raise ValidationError(
+                'В компании отсутствуют необходимые роли для согласования заявки. '
+                'Требуется хотя бы одна из ролей: Начальник участка, Инженер ПТО, Снабженец.'
+            )
+
         # Атомарная транзакция для обновления статуса и создания шага согласования
         with transaction.atomic():
             self.status = self.STATUS_IN_APPROVAL
@@ -284,14 +299,34 @@ class MaterialRequest(models.Model):
         Правила:
         - Если автор Мастер или Прораб -> начинаем с Начальника участка
         - Если автор Начальник участка -> начинаем с Инженера ПТО
+
+        ВАЖНО: Проверяет наличие роли в компании и использует fallback.
         """
+        # Проверка на NULL автора
+        if not self.author:
+            raise ValidationError('Заявка должна иметь автора для отправки на согласование')
+
+        # Определяем первую роль по автору
         if self.author.role in ['MASTER', 'FOREMAN']:
-            return 'SITE_MANAGER'
+            first_role = 'SITE_MANAGER'
         elif self.author.role == 'SITE_MANAGER':
-            return 'ENGINEER'
+            first_role = 'ENGINEER'
         else:
             # Если роль не соответствует ожидаемым, начинаем с Начальника участка
-            return 'SITE_MANAGER'
+            first_role = 'SITE_MANAGER'
+
+        # Fallback: проверяем наличие роли в компании
+        available_roles = self.get_company_available_roles()
+        if first_role not in available_roles:
+            # Ищем следующую доступную роль в цепочке
+            approval_chain = ['SITE_MANAGER', 'ENGINEER', 'SUPPLY_MANAGER']
+            for role in approval_chain:
+                if role in available_roles:
+                    return role
+            # Если ни одна роль не найдена - возвращаем None (обработка в submit_for_approval)
+            return None
+
+        return first_role
 
     def approve_by_role(self, user, role):
         """
@@ -351,9 +386,9 @@ class MaterialRequest(models.Model):
         """
         Получает список доступных ролей в компании (с кэшированием).
 
-        Кэширование на 5 минут для предотвращения N+1 проблемы при массовом согласовании.
+        Кэширование на 60 секунд для баланса между производительностью и актуальностью данных.
         """
-        company_id = self.project.company_id
+        company_id = self.company_id
         cache_key = f'company_available_roles_{company_id}'
         available_roles = cache.get(cache_key)
 
@@ -364,8 +399,8 @@ class MaterialRequest(models.Model):
                 .values_list('role', flat=True)
                 .distinct()
             )
-            # Кэшируем на 5 минут
-            cache.set(cache_key, available_roles, timeout=300)
+            # Кэшируем на 60 секунд (1 минута) для быстрого обновления
+            cache.set(cache_key, available_roles, timeout=60)
 
         return available_roles
 
